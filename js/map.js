@@ -26,32 +26,9 @@ for (let bx = 14; bx <= 48; bx += 4) {
   FLATS.push([bx, 60, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, 60))]);
 }
 
-// ---------- 道路網 (拠点を結ぶ / 地形追従) ----------
-// 道路セグメント定義 [x1,z1,x2,z2] — レンダリングと「道路上か」判定に使用
-const ROADS = [
-  [HQ_BLUE.x, HQ_BLUE.z, -100, 75],    // 青HQ → B
-  [-100, 75, 0, 0],                    // B → C
-  [0, 0, 105, -80],                    // C → D
-  [105, -80, HQ_RED.x, HQ_RED.z],      // D → 赤HQ
-  [-125, -110, 0, 0],                  // A → C
-  [0, 0, 30, 115],                     // C → (湖の南) → E
-  [30, 115, 130, 125],
-  [-125, -110, -100, 75],              // A → B
-  [105, -80, 160, 15],                 // D → (湖の東) → E
-  [160, 15, 130, 125],
-  [15, 60, 47, 60]                     // v0.3: 土手道 → 島F
-];
-function onRoad(x, z) {
-  for (const [x1, z1, x2, z2] of ROADS) {
-    const dx = x2 - x1, dz = z2 - z1;
-    const len2 = dx * dx + dz * dz;
-    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
-    t = Math.max(0, Math.min(1, t));
-    const px = x1 + dx * t, pz = z1 + dz * t;
-    if (Math.hypot(x - px, z - pz) < 5.5) return true;
-  }
-  return false;
-}
+// ---------- 道路網 ----------
+// v0.3.1: ROADS / onRoad の定義と地形の平滑化は terrain.js へ移動。
+// ここでは実体の路面メッシュ (センターライン付きアスファルト) を敷設する。
 
 /* ---------- Terrain mesh (ハイトフィールド) ---------- */
 {
@@ -72,7 +49,7 @@ function onRoad(x, z) {
     let c;
     if (h < WATER_Y - 0.3) c = cBed;
     else if (h < WATER_Y + 1.0) c = cSand;
-    else if (onRoad(x, z)) c = cRoad;
+    else if (onRoad(x, z)) c = cRoad;   // ベース色 (路面メッシュの下地)
     else if (h > 13) c = cRock;
     else if (h > 7) c = cDirt;
     else c = ((Math.sin(x * 0.2) + Math.cos(z * 0.23)) > 0.4) ? cGrass2 : cGrass;
@@ -83,6 +60,39 @@ function onRoad(x, z) {
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex }));
   ground.receiveShadow = !isMobile;
   scene.add(ground);
+}
+
+/* ---------- v0.3.1: 路面メッシュ (地形に沿ったアスファルト帯) ---------- */
+{
+  const roadMat = new THREE.MeshLambertMaterial({
+    map: roadTex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+  });
+  for (const [x1, z1, x2, z2] of ROADS) {
+    const len = Math.hypot(x2 - x1, z2 - z1);
+    const segs = Math.max(4, Math.ceil(len / 5));
+    const geo = new THREE.PlaneGeometry(ROAD_W * 2, len, 2, segs);
+    geo.rotateX(-Math.PI / 2);
+    // ローカル(z軸=道路方向)で生成 → ワールドへ回転・平行移動しながら高さを地形に沿わせる
+    const yaw = Math.atan2(x2 - x1, z2 - z1);
+    const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const lx = pos.getX(i), lz = pos.getZ(i);
+      const wx = cx + lx * cos + lz * sin;
+      const wz = cz - lx * sin + lz * cos;
+      pos.setX(i, wx);
+      pos.setZ(i, wz);
+      pos.setY(i, terrainH(wx, wz) + 0.06);
+    }
+    geo.computeVertexNormals();
+    // テクスチャのUVを道路長に合わせてリピート
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * len / 8);
+    const m = new THREE.Mesh(geo, roadMat);
+    m.receiveShadow = !isMobile;
+    scene.add(m);
+  }
 }
 
 /* ---------- v0.3: 水面 (湖) ---------- */

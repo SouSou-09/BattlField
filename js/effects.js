@@ -173,7 +173,9 @@ const sfx = {
   drone: () => { playBeep(600, 0.08, 0.1, 'square'); setTimeout(() => playBeep(900, 0.1, 0.1, 'square'), 100); },
   flak: () => playShot(0.24, 480),
   flakDist: d => { if (d < 160) playShot(Math.max(0.02, 0.2 - d * 0.001), 420); },
-  roadkill: () => { playBeep(180, 0.12, 0.2, 'sawtooth'); playBeep(90, 0.18, 0.2, 'square'); }
+  roadkill: () => { playBeep(180, 0.12, 0.2, 'sawtooth'); playBeep(90, 0.18, 0.2, 'square'); },
+  // v0.3.1
+  chute: () => { playBeep(300, 0.18, 0.12, 'sawtooth'); setTimeout(() => playBeep(200, 0.25, 0.1, 'sawtooth'), 120); }
 };
 let engine = null;
 function startEngine(type) {

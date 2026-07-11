@@ -81,6 +81,7 @@ function createSoldier(team, x, z) {
     engageTarget: null, engageT: 0,
     respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false,
     inVehicle: null, seatIdx: 0, gunCd: 0, spotted: 0,   // v0.3
+    vy: 0, onGround: true, jumpCd: 0,                    // v0.3.1: ジャンプ
     // v0.2.3: スコアボード用戦績
     name: (team === 1 ? 'BLU-' : 'RED-') + SOLDIER_NAMES[soldierNameIdx++ % SOLDIER_NAMES.length],
     kills: 0, deaths: 0, score: 0
@@ -203,6 +204,7 @@ function updateSoldiers(dt) {
           s.obj.position.set(rx, terrainH(rx, rz), rz);
           s.obj.rotation.x = 0;
           s.hp = 100; s.alive = true; s.deathT = 0;
+          s.vy = 0; s.onGround = true; s.jumpCd = 0;   // v0.3.1
           s.targetFlag = null; s.engageTarget = null; s.aimT = 0;
           s.shootCd = 1 + Math.random();
           s.marker.visible = s.team === 1;   // 味方マーカー復帰
@@ -310,17 +312,35 @@ function updateSoldiers(dt) {
     else if (tgt && s.hasLos) { mvx = -dz / dist * s.strafeDir * .7; mvz = dx / dist * s.strafeDir * .7; }
     else if (dist > wantDist * 0.5) { mvx = dx / dist * 0.5; mvz = dz / dist * 0.5; }
 
-    // 障害物回避
+    // 障害物回避 (v0.3.1: 狭い隙間対応 + ジャンプ)
+    s.jumpCd -= dt;
     if (s.avoidT > 0) {
       s.avoidT -= dt;
       const ax = -mvz * s.avoidDir, az = mvx * s.avoidDir;
-      mvx = ax; mvz = az;
+      // 回避方向も塞がっていたら逆側へ即切替 (壁際での往復を防ぐ)
+      if (collidesAt(sp.x + ax * 1.2, sp.z + az * 1.2, 0.35, sp.y)) {
+        s.avoidDir *= -1;
+        mvx = -ax; mvz = -az;
+      } else { mvx = ax; mvz = az; }
     } else if (mvx || mvz) {
       const px = sp.x + mvx * s.speed * dt * 8, pz = sp.z + mvz * s.speed * dt * 8;
-      if (collidesAt(px, pz, 0.4, sp.y) || isDeepWater(px, pz)) {   // v0.3: 深水も回避
-        s.avoidDir = Math.random() < .5 ? -1 : 1;
-        if (collidesAt(sp.x - mvz * s.avoidDir * 1.5, sp.z + mvx * s.avoidDir * 1.5, 0.4, sp.y)) s.avoidDir *= -1;
-        s.avoidT = 0.5 + Math.random() * 0.5;
+      if (collidesAt(px, pz, 0.35, sp.y) || isDeepWater(px, pz)) {
+        // v0.3.1: 低い障害物はジャンプで乗り越える
+        if (s.onGround && s.jumpCd <= 0 && aiCanJumpOver(s, px, pz)) {
+          s.vy = 6.5;
+          s.onGround = false;
+          s.jumpCd = 1.2;
+        } else {
+          // 狭い隙間: 左右を先読みして空いている側を選択 (ランダムではなく)
+          const lx = sp.x - mvz * 1.5, lz = sp.z + mvx * 1.5;
+          const rx = sp.x + mvz * 1.5, rz = sp.z - mvx * 1.5;
+          const leftFree = !collidesAt(lx, lz, 0.35, sp.y) && !isDeepWater(lx, lz);
+          const rightFree = !collidesAt(rx, rz, 0.35, sp.y) && !isDeepWater(rx, rz);
+          if (leftFree && !rightFree) s.avoidDir = 1;
+          else if (rightFree && !leftFree) s.avoidDir = -1;
+          else s.avoidDir = Math.random() < .5 ? -1 : 1;
+          s.avoidT = 0.4 + Math.random() * 0.4;
+        }
       }
     }
 
@@ -328,10 +348,22 @@ function updateSoldiers(dt) {
     let spd = (!tgt && dist > 30) ? s.speed * 1.7 : s.speed;
     const inWater = terrainH(sp.x, sp.z) < WATER_Y - 0.2;   // v0.3: 浅瀬は渡れるが減速
     if (inWater) spd *= 0.5;
+    // v0.3.1: 当たり半径を 0.4→0.35 に縮小 (狭い隙間・ドアを通れるように)
     const nx = sp.x + mvx * spd * dt, nz = sp.z + mvz * spd * dt;
-    if (!collidesAt(nx, sp.z, 0.4, sp.y) && !isDeepWater(nx, sp.z)) sp.x = nx;
-    if (!collidesAt(sp.x, nz, 0.4, sp.y) && !isDeepWater(sp.x, nz)) sp.z = nz;
-    sp.y = Math.max(terrainH(sp.x, sp.z), inWater ? WATER_Y - 0.9 : -Infinity); // 地形追従
+    if (!collidesAt(nx, sp.z, 0.35, sp.y) && !isDeepWater(nx, sp.z)) sp.x = nx;
+    if (!collidesAt(sp.x, nz, 0.35, sp.y) && !isDeepWater(sp.x, nz)) sp.z = nz;
+    // v0.3.1: 垂直物理 (ジャンプ / 落下 / 障害物の上に乗る)
+    const gBase = groundHeightAt(sp.x, sp.z, 0.35, sp.y);
+    const gY = inWater ? Math.max(gBase, WATER_Y - 0.9) : gBase;
+    if (!s.onGround) {
+      s.vy -= 18 * dt;
+      sp.y += s.vy * dt;
+      if (sp.y <= gY && s.vy <= 0) { sp.y = gY; s.vy = 0; s.onGround = true; }
+    } else if (sp.y > gY + 0.7) {
+      s.onGround = false; s.vy = 0;                       // 段差から落下
+    } else {
+      sp.y = gY;                                          // 地形追従
+    }
 
     // スタック検知
     s.stuckT += dt;
@@ -389,6 +421,22 @@ function updateSoldiers(dt) {
       }
     }
   }
+}
+
+// v0.3.1: 目の前の障害物がジャンプで乗り越えられる高さか判定
+function aiCanJumpOver(s, px, pz) {
+  const feetY = s.obj.position.y;
+  let jumpable = false;
+  for (const o of obstacles) {
+    if (px + 0.35 > o.minX && px - 0.35 < o.maxX && pz + 0.35 > o.minZ && pz - 0.35 < o.maxZ) {
+      if (o.y0 > feetY + 1.9) continue;                // 頭上はくぐれるので無視
+      const top = o.h - feetY;
+      if (top <= 0.35) continue;                       // 歩いて乗り越え可
+      if (top > 1.35) return false;                    // 高すぎる壁は飛べない
+      jumpable = true;
+    }
+  }
+  return jumpable;
 }
 
 // v0.3: 死亡時に座席を解放

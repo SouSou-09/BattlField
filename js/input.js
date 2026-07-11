@@ -200,19 +200,44 @@ function updatePlayer(dt) {
 
   if (jumpQueued && player.onGround && !swimming) { player.vel.y = 6.5; player.onGround = false; }
   jumpQueued = false;
-  player.vel.y -= 18 * dt;
+  // v0.3.1: パラシュート — 降下速度を制限し、自動展開する
+  const footY0 = player.pos.y - player.eyeHeight;
+  const fallH = footY0 - terrainH(player.pos.x, player.pos.z);   // 地表からの高さ
+  if (!player.chute && !player.onGround && player.vel.y < -9 && fallH > 8) deployChute();
+  if (player.chute) {
+    player.vel.y -= 4 * dt;
+    if (player.vel.y < -3.2) player.vel.y = Math.max(-6.5, player.vel.y + 22 * dt); // ブレーキ
+  } else {
+    player.vel.y -= 18 * dt;
+  }
 
   const footY = player.pos.y - player.eyeHeight;
-  const nx = player.pos.x + wx * dt;
+  const airDrift = player.chute ? 1.15 : 1;   // パラシュート中は空中でも操舵可能
+  const nx = player.pos.x + wx * dt * airDrift;
   if (!collidesAt(nx, player.pos.z, player.radius, footY)) player.pos.x = nx;
-  const nz = player.pos.z + wz * dt;
+  const nz = player.pos.z + wz * dt * airDrift;
   if (!collidesAt(player.pos.x, nz, player.radius, footY)) player.pos.z = nz;
   player.pos.y += player.vel.y * dt;
-  // 地形との接地 (v0.3: 水域では水面付近に浮く)
-  const th = terrainH(player.pos.x, player.pos.z);
+  // 接地 (v0.3: 水域では水面付近に浮く / v0.3.1: 障害物の上にも立てる)
+  const th = groundHeightAt(player.pos.x, player.pos.z, player.radius, player.pos.y - player.eyeHeight);
   const groundY = (th < WATER_Y - 0.2 ? Math.max(th, WATER_Y - 1.1) : th) + player.eyeHeight;
   if (player.pos.y <= groundY) {
+    // v0.3.1: 落下ダメージ (パラシュートなしの高所落下)
+    if (player.vel.y < -12 && !swimming) {
+      damagePlayer(Math.min(85, Math.round((-player.vel.y - 12) * 6)));
+      shake = Math.max(shake, 0.25);
+    }
     player.pos.y = groundY; player.vel.y = 0; player.onGround = true;
+    releaseChute();
+  } else if (player.pos.y < groundY + player.eyeHeight * 0.1 + 2 && player.vel.y < -3 && player.chute) {
+    // 接地直前はフレア (減速)
+    player.vel.y = Math.max(player.vel.y, -3);
+  }
+  // パラシュートメッシュを追従
+  if (player.chute) {
+    chuteMesh.position.set(player.pos.x, player.pos.y - 0.6, player.pos.z);
+    chuteMesh.rotation.y = player.yaw;
+    chuteMesh.rotation.z = -wx * 0.008;
   }
 
   camera.position.copy(player.pos);

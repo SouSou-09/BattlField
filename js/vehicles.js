@@ -25,7 +25,8 @@ function baseVehicleState(v) {
   return Object.assign(v, {
     speed: 0, alive: true, cd: 0,
     burning: false, mobility: 1,           // v0.3: 部位ダメージ (mobility 0=走行不能)
-    partHint: '', smokeT: 0
+    partHint: '', smokeT: 0,
+    falling: false, fallVy: 0, fallSpin: 0 // v0.3.1: 空中での撃墤 → 墤落
   });
 }
 
@@ -290,6 +291,12 @@ function destroyVehicle(v) {
   flashExplosionLight(p);
   shake = 0.6;
   v.obj.traverse(m => { if (m.isMesh) m.material = matWreck; });
+  // v0.3.1: 飛行中のヘリは浮いたままにせず、回転しながら墤落させる
+  if (v.type === 'heli' && v.alt > 0.5) {
+    v.falling = true;
+    v.fallVy = Math.min(-1, v.vy || 0);
+    v.fallSpin = (Math.random() < .5 ? -1 : 1) * (1.8 + Math.random() * 1.5);
+  }
   // 同乗AIの降車 + ダメージ
   dismountAllAI(v, 200);
   for (const s of soldiers) {
@@ -367,15 +374,26 @@ function updateSeatUI() {
 function exitVehicle(forced = false) {
   if (!curVehicle) return;
   const v = curVehicle;
-  if (!forced && v.type === 'heli' && v.alt > 3) { addFeed('高度が高すぎて降りられない', 'red'); return; }
   v.seats[curSeat].occ = null;
   const side = new THREE.Vector3(Math.cos(v.yaw), 0, -Math.sin(v.yaw));
-  for (const s of [1, -1, 1.6, -1.6]) {
-    const px = v.obj.position.x + side.x * (v.radius + 0.8) * s;
-    const pz = v.obj.position.z + side.z * (v.radius + 0.8) * s;
-    if (!collidesAt(px, pz, player.radius, terrainH(px, pz) + 1)) {
-      player.pos.set(px, terrainH(px, pz) + player.eyeHeight, pz);
-      break;
+  if (v.type === 'heli' && v.alt > 3) {
+    // v0.3.1: 空中脱出 — パラシュートで降下
+    player.pos.set(
+      v.obj.position.x + side.x * (v.radius + 1.5),
+      v.obj.position.y + player.eyeHeight,
+      v.obj.position.z + side.z * (v.radius + 1.5)
+    );
+    player.vel.set(0, -1, 0);
+    player.onGround = false;
+    deployChute();
+  } else {
+    for (const s of [1, -1, 1.6, -1.6]) {
+      const px = v.obj.position.x + side.x * (v.radius + 0.8) * s;
+      const pz = v.obj.position.z + side.z * (v.radius + 0.8) * s;
+      if (!collidesAt(px, pz, player.radius, terrainH(px, pz) + 1)) {
+        player.pos.set(px, terrainH(px, pz) + player.eyeHeight, pz);
+        break;
+      }
     }
   }
   // v0.3: プレイヤーが降りたら同乗AIも降車
@@ -972,14 +990,28 @@ function updateHeli(dt, v, role) {
   v.rocketCd = Math.max(0, v.rocketCd - dt);
   updateEngine(v.speed + v.alt * 0.4);
 
-  // カメラ
-  const cp = Math.max(-0.6, Math.min(1.1, player.pitch));
+  // カメラ (v0.3.1: 見やすさ改善)
+  //  ・ピッチ可動域を広げて地上の目標を見下ろせるように
+  //  ・注視点を照準方向の先に置き、機体で中央の視界が隔れないようにする
+  const cp = Math.max(-1.15, Math.min(1.25, player.pitch));
   const cd = v.camDist;
   const cx = v.obj.position.x + Math.sin(player.yaw) * cd * Math.cos(cp);
   const cz = v.obj.position.z + Math.cos(player.yaw) * cd * Math.cos(cp);
-  const cy = v.obj.position.y + v.camH + cd * Math.sin(cp);
-  camera.position.set(cx, Math.max(terrainH(cx, cz) + 0.8, cy), cz);
-  camera.lookAt(v.obj.position.x, v.obj.position.y + 1.5, v.obj.position.z);
+  const cy = v.obj.position.y + 2.4 + cd * Math.sin(cp);
+  camera.position.set(cx, Math.max(terrainH(cx, cz) + 0.6, cy), cz);
+  {
+    // 機体→カメラ方向の延長線上 (機体の14m先) を注視 → 機体は画面下寄りに
+    const aimY = v.obj.position.y + 1.2;
+    const ldx = v.obj.position.x - camera.position.x;
+    const ldy = aimY - camera.position.y;
+    const ldz = v.obj.position.z - camera.position.z;
+    const ll = Math.hypot(ldx, ldy, ldz) || 1;
+    camera.lookAt(
+      v.obj.position.x + ldx / ll * 14,
+      aimY + ldy / ll * 14,
+      v.obj.position.z + ldz / ll * 14
+    );
+  }
   if (shake > 0.01) {
     camera.position.x += (Math.random() - .5) * shake;
     camera.position.y += (Math.random() - .5) * shake;
@@ -1007,7 +1039,10 @@ function updateHeli(dt, v, role) {
    ========================================================= */
 function updateVehiclesGlobal(dt) {
   for (const v of vehicles) {
-    if (!v.alive) continue;
+    if (!v.alive) {
+      if (v.falling) updateFallingHeli(v, dt);   // v0.3.1: 撃墤ヘリの墤落
+      continue;
+    }
     // 炎上ダメージ + 煙
     if (v.burning) {
       v.hp -= 4 * dt;
@@ -1037,6 +1072,39 @@ function updateVehiclesGlobal(dt) {
     }
   }
 }
+/* ---------- v0.3.1: 撃墤されたヘリの墤落演出 ---------- */
+function updateFallingHeli(v, dt) {
+  v.fallVy -= 16 * dt;
+  v.alt = Math.max(0, v.alt + v.fallVy * dt);
+  // 慛性で流されながら落ちる
+  const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
+  v.obj.position.x = Math.max(-WORLD, Math.min(WORLD, v.obj.position.x + fx * v.speed * dt));
+  v.obj.position.z = Math.max(-WORLD, Math.min(WORLD, v.obj.position.z + fz * v.speed * dt));
+  v.speed *= Math.pow(0.55, dt);
+  const gy = Math.max(terrainH(v.obj.position.x, v.obj.position.z), WATER_Y);
+  v.obj.position.y = gy + v.alt;
+  // きりもみ回転 + 傾斜
+  v.obj.rotation.y += v.fallSpin * dt;
+  v.yaw = v.obj.rotation.y;
+  v.obj.rotation.z = Math.min(0.55, v.obj.rotation.z + dt * 0.6);
+  if (v.rotor) v.rotor.rotation.y += dt * 5;
+  // 黒煙トレイル
+  v.smokeT -= dt;
+  if (v.smokeT <= 0) {
+    v.smokeT = 0.07;
+    const p = v.obj.position.clone(); p.y += 2;
+    spawnParticles(p, 0x222222, 2, 1.6, 2.2);
+    if (Math.random() < 0.5) spawnParticles(p, 0xff7722, 1, 2, 0.9);
+  }
+  // 接地 → 大爆発
+  if (v.alt <= 0) {
+    v.falling = false;
+    explodeAt(v.obj.position.clone().setY(gy + 1), 8, 100, v);
+    v.obj.rotation.z = 0.35;
+    v.obj.rotation.x = 0.12;
+  }
+}
+
 function updateAIGunner(v, s, dt) {
   s.gunCd = (s.gunCd || 0) - dt;
   if (s.gunCd > 0) return;

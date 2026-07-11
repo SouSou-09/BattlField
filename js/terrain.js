@@ -78,10 +78,61 @@ function terrainHeight(x, z) {
   const edge = Math.max(Math.abs(x), Math.abs(z));
   if (edge > WORLD - 8) h += (edge - (WORLD - 8)) * 1.4;
   // 細かい起伏 (低周波ノイズ風) — 塹壕/ピット内では抑える
+  // v0.3.1: 振幅を低減してガタガタした高低差をなだらかに
   const noiseScale = carve > 0.5 ? 0.15 : 1;
-  h += (Math.sin(x * 0.045) * Math.cos(z * 0.05) * 1.1
-     + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.5) * noiseScale;
+  h += (Math.sin(x * 0.045) * Math.cos(z * 0.05) * 0.75
+     + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.32) * noiseScale;
   return h;
+}
+
+/* =========================================================
+   v0.3.1: 道路網 — 拠点を結ぶセグメント定義
+   ・中心線の高さを事前サンプリング+平滑化し、
+     道路周辺の地形をその高さへブレンド (高低差の修正)
+   ・実体の道路メッシュは map.js で敷設
+   ========================================================= */
+const ROAD_W = 4.2;        // 路面の半幅
+const ROAD_SHOULDER = 3.5; // 路肩のブレンド幅
+// [x1,z1,x2,z2] — HQ青(-170,170) / HQ赤(170,-170) / 拠点A〜Fを接続
+const ROADS = [
+  [-170, 170, -100, 75],    // 青HQ → B
+  [-100, 75, 0, 0],         // B → C
+  [0, 0, 105, -80],         // C → D
+  [105, -80, 170, -170],    // D → 赤HQ
+  [-125, -110, 0, 0],       // A → C
+  [0, 0, 30, 115],          // C → (湖の南) → E
+  [30, 115, 130, 125],
+  [-125, -110, -100, 75],   // A → B
+  [105, -80, 160, 15],      // D → (湖の東) → E
+  [160, 15, 130, 125],
+  [15, 60, 47, 60],         // 土手道 → 島F
+  [-125, -110, 105, -80]    // v0.3.1: 北側の幹線 (A → D)
+];
+// 中心線の高さプロファイル (6m間隔でサンプリング → 移動平均で平滑化)
+const roadProfiles = ROADS.map(([x1, z1, x2, z2]) => {
+  const len = Math.hypot(x2 - x1, z2 - z1);
+  const n = Math.max(2, Math.ceil(len / 6));
+  const hs = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    // 水面下には沈まない (土手道セグメント対策)
+    hs.push(Math.max(WATER_Y + 0.6, terrainHeight(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t)));
+  }
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 1; i < n; i++) hs[i] = (hs[i - 1] + hs[i] * 2 + hs[i + 1]) / 4;
+  }
+  return { n, hs };
+});
+function onRoad(x, z) {
+  for (const [x1, z1, x2, z2] of ROADS) {
+    const dx = x2 - x1, dz = z2 - z1;
+    const len2 = dx * dx + dz * dz;
+    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t, pz = z1 + dz * t;
+    if (Math.hypot(x - px, z - pz) < ROAD_W + 1.3) return true;
+  }
+  return false;
 }
 // v0.3: 水域判定
 function isWater(x, z) { return terrainH(x, z) < WATER_Y - 0.25; }
@@ -97,6 +148,24 @@ function terrainH(x, z) {
     if (d < fr) {
       const t = Math.min(1, (fr - d) / (fr * 0.45)); // 端はブレンド
       h = h * (1 - t) + fh * t;
+    }
+  }
+  // v0.3.1: 道路に沿って平滑化された中心線高さへブレンド
+  for (let ri = 0; ri < ROADS.length; ri++) {
+    const [x1, z1, x2, z2] = ROADS[ri];
+    const dx = x2 - x1, dz = z2 - z1;
+    const len2 = dx * dx + dz * dz;
+    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t, pz = z1 + dz * t;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < ROAD_W + ROAD_SHOULDER) {
+      const prof = roadProfiles[ri];
+      const ft = t * prof.n;
+      const i0 = Math.min(prof.n - 1, Math.floor(ft));
+      const rh = prof.hs[i0] + (prof.hs[i0 + 1] - prof.hs[i0]) * (ft - i0);
+      const blend = d < ROAD_W ? 1 : 1 - (d - ROAD_W) / ROAD_SHOULDER;
+      h = h * (1 - blend) + rh * blend;
     }
   }
   return h;

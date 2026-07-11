@@ -21,6 +21,17 @@ function collidesAt(x, z, r, yRef, skipVehicle = null) {
   }
   return false;
 }
+// v0.3.1: 足元の接地高さ — 地形に加えて、乗れる高さの障害物上面も地面として扱う
+// (ジャンプで乗り越えた障害物の上に立てる / 階段・屋上の接地も正確に)
+function groundHeightAt(x, z, r, yRef) {
+  let g = terrainH(x, z);
+  for (const o of obstacles) {
+    if (x + r > o.minX && x - r < o.maxX && z + r > o.minZ && z - r < o.maxZ) {
+      if (o.h <= yRef + 0.55 && o.h > g) g = o.h;
+    }
+  }
+  return g;
+}
 const raycaster = new THREE.Raycaster();
 function hasLineOfSight(from, to) {
   const dir = to.clone().sub(from);
@@ -271,6 +282,47 @@ function updateDamageArcs(dt) {
   }
 }
 
+/* =========================================================
+   v0.3.1: パラシュート — 高高度からの降下を可能に
+   ・一定以上の高さを落下中に自動展開 / ヘリ空中脱出時は即展開
+   ・展開中は降下速度が制限され、空中での水平移動が可能
+   ・パラシュートなしの高所落下は落下ダメージ
+   ========================================================= */
+let chuteMesh = null;
+{
+  const g = new THREE.Group();
+  // キャノピー (半球)
+  const canopy = new THREE.Mesh(
+    new THREE.SphereGeometry(2.6, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.45),
+    new THREE.MeshLambertMaterial({ color: 0x5a7a4a, side: THREE.DoubleSide })
+  );
+  canopy.position.y = 3.4;
+  g.add(canopy);
+  // ライン (4本)
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+  [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]].forEach(([ox, oz]) => {
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0.4, 0), new THREE.Vector3(ox, 3.6, oz)
+    ]);
+    g.add(new THREE.Line(geo, lineMat));
+  });
+  g.visible = false;
+  scene.add(g);
+  chuteMesh = g;
+}
+function deployChute() {
+  if (player.chute || !player.alive) return;
+  player.chute = true;
+  chuteMesh.visible = true;
+  sfx.chute();
+  addFeed('🪂 パラシュート展開', 'blue');
+}
+function releaseChute() {
+  if (!player.chute) return;
+  player.chute = false;
+  chuteMesh.visible = false;
+}
+
 // ---------- Player damage / respawn ----------
 function damagePlayer(dmg, fromPos = null) {
   if (!player.alive) return;
@@ -289,6 +341,7 @@ function playerDie() {
   player.deaths = (player.deaths || 0) + 1;        // v0.2.3
   firing = false;
   setAds(false);
+  releaseChute();                                  // v0.3.1
   if (drone.active) endDrone(false);               // v0.3
   game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
   updateTicketsUI();
@@ -309,6 +362,8 @@ function respawnPlayer(sp = null) {
   player.vel.set(0, 0, 0);
   player.hp = player.maxHp; player.alive = true;
   player.lastDamageTime = -99;
+  player.onGround = true;
+  releaseChute();                                  // v0.3.1
   // v0.2.2: リスポーン時はフル装備で復帰
   applyWeapon(curWeaponId);
   grenades.count = grenades.max;

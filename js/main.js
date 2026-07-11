@@ -20,6 +20,7 @@ function resetGame() {
   for (const f of flags) { f.own = 0; f.cap = 0; updateFlagVisual(f); }
   // プレイヤー
   Object.assign(player, { hp: 100, alive: true, yaw: Math.PI * 0.75, pitch: 0, lastDamageTime: -99, onGround: true, respawnT: 0 });
+  releaseChute();                                  // v0.3.1
   player.pos.set(HQ_BLUE.x, terrainH(HQ_BLUE.x, HQ_BLUE.z) + player.eyeHeight, HQ_BLUE.z);
   player.vel.set(0, 0, 0);
   applyWeapon(curWeaponId);   // v0.2.2: 選択した武器を適用

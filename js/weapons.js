@@ -10,7 +10,8 @@ const player = {
   onGround: true,
   lastDamageTime: -99,
   radius: 0.45, eyeHeight: 1.7,
-  alive: true, respawnT: 0
+  alive: true, respawnT: 0,
+  chute: false                        // v0.3.1: パラシュート展開中
 };
 const game = {
   score: 0, kills: 0, running: false,
