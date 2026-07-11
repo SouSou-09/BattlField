@@ -132,6 +132,40 @@
   .wsel.sel { background:rgba(80,160,230,.45); border-color:#9fd4ff; box-shadow:0 0 12px rgba(80,180,255,.4); }
   #nade-row { font-size:12px; color:#cfe9a0; margin-top:2px; }
 
+  /* v0.2.3: 試合タイマー */
+  #match-timer { font-size:15px; font-weight:800; letter-spacing:2px; color:#fff; text-shadow:0 1px 3px #000; margin-top:1px; }
+  #match-timer.low { color:#ff6b5e; animation:blinktm 1s infinite; }
+  @keyframes blinktm { 50% { opacity:.45; } }
+
+  /* v0.2.3: スコアボード */
+  #scoreboard-wrap { position:fixed; inset:0; z-index:42; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.65); }
+  #scoreboard { width:min(560px, 92vw); max-height:80vh; overflow:auto; background:rgba(8,20,32,.95); border:2px solid rgba(120,200,255,.4); border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 0 40px rgba(0,0,0,.7); }
+  #scoreboard h3 { text-align:center; letter-spacing:4px; color:#9fd4ff; font-size:15px; margin-bottom:8px; }
+  .sb-team { margin-bottom:10px; }
+  .sb-team-h { font-size:12px; font-weight:800; letter-spacing:2px; padding:4px 8px; border-radius:4px; margin-bottom:3px; display:flex; justify-content:space-between; }
+  .sb-team-h.blue { background:rgba(61,127,224,.35); color:#9fd4ff; }
+  .sb-team-h.red { background:rgba(208,52,40,.35); color:#ffa49c; }
+  .sb-row { display:grid; grid-template-columns: 1fr 52px 42px 42px 62px; font-size:12px; padding:2.5px 8px; border-bottom:1px solid rgba(255,255,255,.06); }
+  .sb-row.head { color:rgba(255,255,255,.5); font-size:10px; letter-spacing:1px; }
+  .sb-row.me { background:rgba(255,210,87,.14); color:#ffd257; font-weight:700; }
+  .sb-row span:not(:first-child) { text-align:right; }
+  .sb-row .dead { color:#ff6b5e; }
+  #btn-score { position:absolute; left:calc(66px + env(safe-area-inset-left)); top:calc(130px + env(safe-area-inset-top)); width:48px; height:34px; border-radius:8px; border:2px solid rgba(255,210,120,.45); background:rgba(50,35,0,.55); color:#ffd257; font-size:10px; font-weight:700; }
+
+  /* v0.2.3: 設定画面 */
+  #btn-settings { position:fixed; z-index:30; right:calc(10px + env(safe-area-inset-right)); top:calc(64px + env(safe-area-inset-top)); width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.35); background:rgba(20,30,40,.55); color:#fff; font-size:16px; pointer-events:auto; }
+  #settings-wrap { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.72); }
+  #settings-panel { width:min(420px, 92vw); background:rgba(8,20,32,.97); border:2px solid rgba(120,200,255,.4); border-radius:10px; padding:18px 20px; color:#fff; }
+  #settings-panel h3 { text-align:center; letter-spacing:4px; color:#9fd4ff; font-size:15px; margin-bottom:14px; }
+  .set-row { margin-bottom:14px; }
+  .set-row label { display:block; font-size:12px; color:rgba(255,255,255,.8); margin-bottom:5px; letter-spacing:1px; }
+  .set-row input[type=range] { width:100%; }
+  .set-val { float:right; color:#ffd257; font-weight:700; }
+  .set-btns { display:flex; gap:8px; }
+  .set-btn { flex:1; padding:8px 4px; border:2px solid rgba(120,200,255,.35); background:rgba(15,35,55,.7); color:#cfe9ff; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; }
+  .set-btn.sel { background:rgba(80,160,230,.45); border-color:#9fd4ff; }
+  #settings-close { display:block; width:100%; margin-top:6px; padding:10px; border:none; border-radius:6px; background:linear-gradient(180deg,#9fd4ff,#4da3e0); color:#06131f; font-weight:800; font-size:14px; letter-spacing:2px; cursor:pointer; }
+
   /* ===== Screens ===== */
   .screen { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(160deg,#06131f 0%,#0b2438 55%,#123c55 100%); color:#fff; text-align:center; padding:20px; }
   .screen h1 { font-size:44px; font-weight:900; letter-spacing:10px; color:#cfe9ff; text-shadow:0 0 25px rgba(0,150,255,.9); margin-bottom:6px; }
@@ -161,6 +195,7 @@
       <span class="tk" id="t-red">150</span>
     </div>
     <div id="mode-label">CONQUEST 10 vs 10</div>
+    <div id="match-timer">15:00</div>
   </div>
   <div id="cap-box"><div id="cap-label">B 占領中</div><div id="cap-bar"><div id="cap-fill"></div></div></div>
   <div id="score-box"><div class="score" id="score-val">0</div><div class="kills" id="kills-val">0 KILLS</div></div>
@@ -195,6 +230,52 @@
   <div id="fullmap-hint">M キー / MAP ボタンで閉じる</div>
 </div>
 
+<!-- v0.2.3: スコアボード -->
+<div id="scoreboard-wrap">
+  <div id="scoreboard">
+    <h3>SCOREBOARD</h3>
+    <div class="sb-team">
+      <div class="sb-team-h blue"><span>BLUE FORCE</span><span id="sb-blue-tk"></span></div>
+      <div class="sb-row head"><span>NAME</span><span>SCORE</span><span>K</span><span>D</span><span>STATE</span></div>
+      <div id="sb-blue-rows"></div>
+    </div>
+    <div class="sb-team">
+      <div class="sb-team-h red"><span>RED FORCE</span><span id="sb-red-tk"></span></div>
+      <div class="sb-row head"><span>NAME</span><span>SCORE</span><span>K</span><span>D</span><span>STATE</span></div>
+      <div id="sb-red-rows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- v0.2.3: 設定画面 -->
+<button id="btn-settings">⚙</button>
+<div id="settings-wrap">
+  <div id="settings-panel">
+    <h3>SETTINGS</h3>
+    <div class="set-row">
+      <label>描画品質</label>
+      <div class="set-btns">
+        <button class="set-btn" data-q="low">軽量</button>
+        <button class="set-btn" data-q="mid">標準</button>
+        <button class="set-btn" data-q="high">高品質</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <label>視点感度 <span class="set-val" id="sens-val">1.0</span></label>
+      <input type="range" id="sens-range" min="0.4" max="2.0" step="0.1" value="1.0">
+    </div>
+    <div class="set-row">
+      <label>描画距離 <span class="set-val" id="fog-val">標準</span></label>
+      <div class="set-btns">
+        <button class="set-btn" data-f="near">近い</button>
+        <button class="set-btn" data-f="mid">標準</button>
+        <button class="set-btn" data-f="far">遠い</button>
+      </div>
+    </div>
+    <button id="settings-close">閉じる</button>
+  </div>
+</div>
+
 <!-- リスポーン待機 -->
 <div id="respawn-screen">
   <h2>戦死</h2>
@@ -215,6 +296,7 @@
   <button class="tbtn" id="btn-weapon">WPN</button>
   <button class="tbtn" id="btn-vehicle">乗る</button>
   <button id="btn-map">MAP</button>
+  <button id="btn-score">戦績</button>
 </div>
 
 <!-- ===== Start screen ===== -->
@@ -257,8 +339,8 @@ const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
                  (navigator.maxTouchPoints > 1 && 'ontouchstart' in window);
 
 document.getElementById('howto-text').innerHTML = isMobile
-  ? 'A〜Eの拠点を占領してチケットで勝利せよ!<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / AIM:エイム<br>GRND:グレネード / WPN:武器切替 / MAP:全体マップ'
-  : 'A〜Eの拠点を占領してチケットで勝利せよ!<br>WASD:移動 / マウス:視点 / 左クリック:射撃 / 右クリック:エイム<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物<br>G:グレネード / M:全体マップ / 1〜4:武器切替';
+  ? 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / AIM:エイム<br>GRND:グレネード / WPN:武器切替 / MAP:全体マップ / 戦績:スコアボード<br>⚙ボタンで描画品質・感度の設定'
+  : 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>WASD:移動 / マウス:視点 / 左クリック:射撃 / 右クリック:エイム<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物<br>G:グレネード / M:全体マップ / Tab:スコアボード / 1〜4:武器切替<br>⚙ボタンで描画品質・感度の設定';
 
 // ---------- Core three.js setup ----------
 const canvas = document.getElementById('game-canvas');
@@ -607,6 +689,68 @@ const matBarrel = new THREE.MeshLambertMaterial({ color: 0x7a2e22 });
 const matBarrel2 = new THREE.MeshLambertMaterial({ color: 0x40563e });
 const matRock = new THREE.MeshLambertMaterial({ color: 0x6e6f68 });
 
+/* ---------- v0.2.3: 破壊可能オブジェクト ---------- */
+const destructibles = [];
+const crateGeo16 = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+const barrelGeoD = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 10);
+function addDestructibleCrate(x, z, rotY = 0) {
+  const gy = terrainH(x, z);
+  const m = new THREE.Mesh(crateGeo16, matCrate);
+  m.position.set(x, gy + 0.8, z);
+  m.rotation.y = rotY;
+  m.castShadow = !isMobile;
+  scene.add(m);
+  solidMeshes.push(m);
+  const ob = { minX: x - 0.8, maxX: x + 0.8, minZ: z - 0.8, maxZ: z + 0.8, y0: gy, h: gy + 1.6 };
+  obstacles.push(ob);
+  const d = { hp: 40, hp0: 40, type: 'crate', m, ob, dead: false };
+  m.userData.destructible = d;
+  destructibles.push(d);
+}
+function addDestructibleBarrel(x, z, alt = false) {
+  const gy = terrainH(x, z);
+  const m = new THREE.Mesh(barrelGeoD, alt ? matBarrel2 : matBarrel);
+  m.position.set(x, gy + 0.6, z);
+  m.castShadow = !isMobile;
+  scene.add(m);
+  solidMeshes.push(m);
+  const ob = { minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, y0: gy, h: gy + 1.2 };
+  obstacles.push(ob);
+  const d = { hp: 20, hp0: 20, type: 'barrel', m, ob, dead: false };
+  m.userData.destructible = d;
+  destructibles.push(d);
+}
+function damageDestructible(d, dmg) {
+  if (d.dead) return;
+  d.hp -= dmg;
+  if (d.hp > 0) {
+    spawnParticles(d.m.position.clone().setY(d.m.position.y + 0.5), d.type === 'barrel' ? 0x883322 : 0x8a6a42, 3, 2.5);
+    return;
+  }
+  d.dead = true;
+  d.m.visible = false;
+  const oi = obstacles.indexOf(d.ob); if (oi >= 0) obstacles.splice(oi, 1);
+  const si = solidMeshes.indexOf(d.m); if (si >= 0) solidMeshes.splice(si, 1);
+  const p = d.m.position.clone();
+  if (d.type === 'barrel') {
+    // 爆発樽: 範囲ダメージ + 誘爆
+    explodeAt(p.clone().setY(p.y + 0.3), 5.5, 80);
+  } else {
+    spawnParticles(p, 0x8a6a42, 16, 5, 1.6);
+    spawnParticles(p, 0x6a4a2a, 8, 3.5, 1.2);
+    sfx.hit();
+  }
+}
+function resetDestructibles() {
+  for (const d of destructibles) {
+    if (!d.dead) { d.hp = d.hp0; continue; }
+    d.dead = false; d.hp = d.hp0;
+    d.m.visible = true;
+    obstacles.push(d.ob);
+    solidMeshes.push(d.m);
+  }
+}
+
 // 建物 (パラペット・屋上設備つき)
 function addBuilding(x, z, w, h, d, mat, roofMat = matRoof) {
   const gy = terrainH(x, z);
@@ -621,6 +765,46 @@ function addBuilding(x, z, w, h, d, mat, roofMat = matRoof) {
     scene.add(u);
   }
 }
+// v0.2.3: 進入可能な建物 (ドア開口付き、4壁+屋根)
+// doorDir: 0=+z(南) 1=-z(北) 2=+x(東) 3=-x(西)
+function addEnterableBuilding(x, z, w, h, d, mat, doorDir = 0) {
+  const gy = terrainH(x, z);
+  const T = 0.5;          // 壁厚
+  const DW = 2.4;         // ドア幅
+  const DH = 2.5;         // ドア高
+  // 各壁: ドアのある壁は左右に分割 + 上部にまぐさ (lintel)
+  const walls = [
+    { side: 0, cx: x, cz: z + d / 2 - T / 2, ww: w, wd: T, horiz: true },   // +z
+    { side: 1, cx: x, cz: z - d / 2 + T / 2, ww: w, wd: T, horiz: true },   // -z
+    { side: 2, cx: x + w / 2 - T / 2, cz: z, ww: T, wd: d, horiz: false },  // +x
+    { side: 3, cx: x - w / 2 + T / 2, cz: z, ww: T, wd: d, horiz: false }   // -x
+  ];
+  for (const wl of walls) {
+    if (wl.side !== doorDir) {
+      addBox(wl.cx, wl.cz, wl.ww, h, wl.wd, mat, 0, gy);
+      continue;
+    }
+    // ドア付き壁: 左右セグメント
+    const len = wl.horiz ? wl.ww : wl.wd;
+    const segLen = (len - DW) / 2;
+    if (wl.horiz) {
+      addBox(wl.cx - (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
+      addBox(wl.cx + (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
+      addBox(wl.cx, wl.cz, DW, h - DH, T, mat, 0, gy + DH);   // まぐさ
+    } else {
+      addBox(wl.cx, wl.cz - (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
+      addBox(wl.cx, wl.cz + (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
+      addBox(wl.cx, wl.cz, T, h - DH, DW, mat, 0, gy + DH);   // まぐさ
+    }
+  }
+  // 屋根 (屋上に上がれるパラペット風)
+  addBox(x, z, w, 0.4, d, matRoof, 0, gy + h);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.6, d + 0.5), matRoof);
+  p.position.set(x, gy + h + 0.6, z);
+  p.castShadow = false;
+  scene.add(p);
+}
+
 // 三角屋根の家 (村用)
 function addHouse(x, z, w, h, d, rotY = 0) {
   const gy = terrainH(x, z);
@@ -641,6 +825,9 @@ function addHouse(x, z, w, h, d, rotY = 0) {
 // 市街地の遮蔽物
 [[-8, 8, 8, 1.1, 1.2, 0], [10, -6, 8, 1.1, 1.2, Math.PI / 2], [6, 8, 6, 1.1, 1.2, 0]]
  .forEach(s => addBox(s[0], s[1], s[2], s[3], s[4], matSandbag, s[5]));
+// v0.2.3: 中央市街地に進入可能な建物 (拠点Cの激戦区)
+addEnterableBuilding(-9, -8, 9, 4.5, 8, matBuildingB, 0);   // ドア南
+addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 [[-12, -4, 0], [12, 6, Math.PI / 2]].forEach(c => addBox(c[0], c[1], 12, 3, 3.2, matContainer, c[2]));
 // 廃墟壁
 [[-6, 20, 10, 3.5, 1, 0], [14, -12, 8, 2.8, 1, Math.PI / 2], [-16, 6, 9, 3, 1, Math.PI / 2]]
@@ -656,8 +843,10 @@ function addHouse(x, z, w, h, d, rotY = 0) {
   addBox(fx - 5, fz + 4, 8, 1.1, 1.2, matSandbag);
   addBox(fx + 5, fz - 4, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
   addBuilding(fx + 3, fz + 8, 10, 6, 8, matBuildingC);
-  addBox(fx - 6, fz - 6, 1.6, 1.6, 1.6, matCrate);
-  addBox(fx - 4.5, fz - 6.5, 1.6, 1.6, 1.6, matCrate, 0.4);
+  addDestructibleCrate(fx - 6, fz - 6);
+  addDestructibleCrate(fx - 4.5, fz - 6.5, 0.4);
+  // v0.2.3: 砦の中の進入可能バンカー
+  addEnterableBuilding(fx - 3, fz + 1, 7, 3.2, 6, matWall, 0);
 }
 
 // === 拠点B: 南西の村 ===
@@ -692,8 +881,10 @@ function addHouse(x, z, w, h, d, rotY = 0) {
      if (i % 2 === 0) addBox(c[0] + 0.4, c[1], 12, 3, 3.2, i % 2 ? c[3] : matContainer2, c[2], terrainH(c[0], c[1]) + 3, false);
    });
   for (let i = 0; i < 6; i++) {
-    addBox(fx - 10 + Math.random() * 20, fz - 4 + Math.random() * 8, 1.6, 1.6, 1.6, matCrate, Math.random());
+    addDestructibleCrate(fx - 10 + Math.random() * 20, fz - 4 + Math.random() * 8, Math.random());
   }
+  // v0.2.3: 倉庫地区に進入可能な倉庫
+  addEnterableBuilding(fx + 2, fz - 22, 12, 5, 9, matBuildingB, 1);
 }
 
 // === 拠点E: 南東の高地基地 ===
@@ -709,6 +900,8 @@ function addHouse(x, z, w, h, d, rotY = 0) {
   scene.add(pad);
   addBox(fx - 12, fz + 8, 8, 1.1, 1.2, matSandbag);
   addBox(fx + 2, fz - 14, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
+  // v0.2.3: 高地基地に進入可能な兵舎
+  addEnterableBuilding(fx - 14, fz + 14, 8, 3.5, 7, matBuildingC, 2);
   // アンテナ塔
   const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.3, 14, 6), matPole);
   ant.position.set(fx - 14, terrainH(fx - 14, fz - 12) + 7, fz - 12);
@@ -795,22 +988,16 @@ buildTower(-40, -45);
   }
 }
 
-// === ドラム缶・木箱の散布 ===
+// === ドラム缶・木箱の散布 (v0.2.3: 破壊可能) ===
 {
-  const barrelGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 10);
   [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [52, 45], [24, 8], [-6, 29], [78, -55], [-72, 52], [-92, -80], [98, 92]].forEach(([x, z], i) => {
-    const gy = terrainH(x, z);
-    const b = new THREE.Mesh(barrelGeo, i % 2 ? matBarrel2 : matBarrel);
-    b.position.set(x, gy + 0.6, z);
-    b.castShadow = !isMobile;
-    scene.add(b);
-    obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, y0: gy, h: gy + 1.2 });
+    addDestructibleBarrel(x, z, i % 2 === 1);
   });
   for (let i = 0; i < 14; i++) {
     const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 110;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (onRoad(x, z)) continue;
-    addBox(x, z, 1.6, 1.6, 1.6, matCrate, Math.random() < .5 ? 0 : Math.PI / 2);
+    addDestructibleCrate(x, z, Math.random() < .5 ? 0 : Math.PI / 2);
   }
 }
 
@@ -864,8 +1051,10 @@ const player = {
 const game = {
   score: 0, kills: 0, running: false,
   ticketsBlue: 150, ticketsRed: 150,
-  bleedT: 0
+  bleedT: 0,
+  timeLeft: 15 * 60, timerT: 0   // v0.2.3: 試合時間制限 15分
 };
+const MATCH_TIME = 15 * 60;
 
 // ---------- Weapons (v0.2.2: 選択制) ----------
 const WEAPONS = {
@@ -1195,6 +1384,9 @@ const markerTexRed = makeMarkerTexture('#e0392c');
 const markerMatBlue = new THREE.SpriteMaterial({ map: markerTexBlue, transparent: true, depthTest: false, depthWrite: false });
 const markerMatRed = new THREE.SpriteMaterial({ map: markerTexRed, transparent: true, depthWrite: false });
 
+// v0.2.3: AI兵士名 (スコアボード用)
+const SOLDIER_NAMES = ['WOLF', 'HAWK', 'VIPER', 'BEAR', 'FOX', 'RAVEN', 'COBRA', 'LYNX', 'ORCA', 'PUMA', 'IBIS', 'MOOSE', 'GECKO', 'RHINO', 'CRANE', 'BISON', 'EGRET', 'DINGO', 'TAPIR', 'OKAPI'];
+let soldierNameIdx = 0;
 function createSoldier(team, x, z) {
   const matBody = team === 1 ? matBodyBlue : matBodyRed;
   const matGear = team === 1 ? matGearBlue : matGearRed;
@@ -1227,7 +1419,10 @@ function createSoldier(team, x, z) {
     prevX: x, prevZ: z, stuckT: 0,
     targetFlag: null, thinkT: Math.random() * 2,
     engageTarget: null, engageT: 0,
-    respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false
+    respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false,
+    // v0.2.3: スコアボード用戦績
+    name: (team === 1 ? 'BLU-' : 'RED-') + SOLDIER_NAMES[soldierNameIdx++ % SOLDIER_NAMES.length],
+    kills: 0, deaths: 0, score: 0
   };
   g.traverse(m => { if (m.isMesh) { m.userData.soldier = s; m.castShadow = !isMobile; soldierHitMeshes.push(m); } });
   scene.add(g);
@@ -1514,18 +1709,20 @@ function updateSoldiers(dt) {
         const target = tPos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
         spawnTracer(eye, target, tracerColor);
-        if (hit) damageSoldier(tgt.s, 12 + Math.random() * 14, target, s.team === 1);
+        if (hit) damageSoldier(tgt.s, 12 + Math.random() * 14, target, s.team === 1, s);
       }
     }
   }
 }
 
-function damageSoldier(s, dmg, point, byPlayerTeam) {
+function damageSoldier(s, dmg, point, byPlayerTeam, killer = null) {
   if (!s.alive) return;
   s.hp -= dmg;
   spawnParticles(point, 0xbb2222, 5, 3);
   if (s.hp <= 0) {
     s.alive = false; s.deathT = 0;
+    s.deaths++;                                    // v0.2.3
+    if (killer && killer.alive) { killer.kills++; killer.score += 100; }
     // チケット減少
     if (s.team === 1) game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
     else game.ticketsRed = Math.max(0, game.ticketsRed - 1);
@@ -1537,6 +1734,7 @@ function damageSoldier(s, dmg, point, byPlayerTeam) {
 function playerKillSoldier(s, point, isHead = false) {
   if (!s.alive) return;
   s.alive = false; s.deathT = 0;
+  s.deaths++;                                      // v0.2.3
   game.kills++;
   game.score += isHead ? 150 : 100;
   game.ticketsRed = Math.max(0, game.ticketsRed - 1);
@@ -1646,6 +1844,30 @@ function updateFlags(dt) {
   }
 }
 // チケット bleed: 過半数 (3以上) 保持で相手チケット減少
+// v0.2.3: 試合タイマー
+function updateMatchTimer(dt) {
+  game.timeLeft -= dt;
+  game.timerT += dt;
+  if (game.timerT >= 0.5) {
+    game.timerT = 0;
+    const t = Math.max(0, game.timeLeft);
+    const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+    const el = ui.matchTimer;
+    el.textContent = mm + ':' + String(ss).padStart(2, '0');
+    el.classList.toggle('low', t <= 60);
+  }
+  if (game.timeLeft <= 0) {
+    // 時間切れ: チケットが多い方の勝ち (同点は拠点数で判定)
+    let win;
+    if (game.ticketsBlue !== game.ticketsRed) win = game.ticketsBlue > game.ticketsRed;
+    else {
+      let b = 0, r = 0;
+      for (const f of flags) { if (f.own === 1) b++; else if (f.own === -1) r++; }
+      win = b >= r;
+    }
+    endMatch(win, true);
+  }
+}
 function updateTickets(dt) {
   game.bleedT += dt;
   if (game.bleedT < 1) return;
@@ -1665,7 +1887,7 @@ function checkMatchEnd() {
   if (game.ticketsRed <= 0) endMatch(true);
   else if (game.ticketsBlue <= 0) endMatch(false);
 }
-function endMatch(win) {
+function endMatch(win, timeUp = false) {
   game.running = false;
   stopEngine();
   document.exitPointerLock && document.exitPointerLock();
@@ -1673,8 +1895,10 @@ function endMatch(win) {
   title.textContent = win ? '勝利' : '敗北';
   title.style.color = win ? '#8affc1' : '#ff6b5e';
   title.style.textShadow = win ? '0 0 25px rgba(0,255,140,.9)' : '0 0 25px rgba(255,60,40,.9)';
+  const kd = (player.deaths || 0) === 0 ? game.kills : (game.kills / player.deaths).toFixed(1);
   document.getElementById('final-stats').innerHTML =
-    `SCORE: ${game.score}<br>KILLS: ${game.kills}<br>チケット BLUE ${game.ticketsBlue} — RED ${game.ticketsRed}`;
+    (timeUp ? '⏱ 時間切れ<br>' : '') +
+    `SCORE: ${game.score}<br>KILLS: ${game.kills} / DEATHS: ${player.deaths || 0} (K/D ${kd})<br>チケット BLUE ${game.ticketsBlue} — RED ${game.ticketsRed}`;
   document.getElementById('respawn-screen').style.display = 'none';
   document.getElementById('gameover-screen').style.display = 'flex';
 }
@@ -1888,6 +2112,11 @@ function explodeAt(pos, radius = 6.5, dmg = 140) {
   }
   const pd = player.pos.distanceTo(pos);
   if (!curVehicle && pd < radius * 0.8) damagePlayer(Math.round(35 * (1 - pd / (radius * 0.8))), pos);
+  // v0.2.3: 破壊可能オブジェクトへの範囲ダメージ (樽の誘爆も発生)
+  for (const dd of destructibles) {
+    if (dd.dead) continue;
+    if (dd.m.position.distanceTo(pos) < radius) damageDestructible(dd, 100);
+  }
   const camD = camera.position.distanceTo(pos);
   if (camD < 25) shake = Math.max(shake, 0.5 * (1 - camD / 25));
 }
@@ -2065,6 +2294,8 @@ function collidesAt(x, z, r, yRef, skipVehicle = null) {
     if (x + r > o.minX && x - r < o.maxX && z + r > o.minZ && z - r < o.maxZ) {
       // 足元がオブジェクト上面近く以上なら乗り越え可能
       if (yRef !== undefined && yRef > o.h - 0.4) continue;
+      // v0.2.3: オブジェクトの下をくぐれる (ドアのまぐさなど、底面が高い障害物)
+      if (yRef !== undefined && yRef + 1.9 < o.y0) continue;
       return true;
     }
   }
@@ -2141,7 +2372,9 @@ function playerShoot() {
       anyHit = true; if (isHead) anyHead = true;
     } else if (wDist < Infinity) {
       end = hitsW[0].point;
-      spawnParticles(end, 0xb0a890, 3, 2);
+      const dd = hitsW[0].object.userData.destructible;
+      if (dd) damageDestructible(dd, w.dmg * (curWeaponId === 'sg' ? 1 : 1.5));   // v0.2.3
+      else spawnParticles(end, 0xb0a890, 3, 2);
     }
     spawnTracer(muzzleWorld, end);
   }
@@ -2337,6 +2570,7 @@ function damagePlayer(dmg, fromPos = null) {
 function playerDie() {
   player.alive = false;
   player.respawnT = 5;
+  player.deaths = (player.deaths || 0) + 1;        // v0.2.3
   firing = false;
   setAds(false);
   game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
@@ -2373,6 +2607,11 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE' || e.code === 'KeyF') toggleVehicle();
   if (e.code === 'KeyG') throwGrenade();          // v0.2.2
   if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
+  if (e.code === 'Tab') { e.preventDefault(); toggleScoreboard(true); }   // v0.2.3
+  if (e.code === 'Escape') { toggleSettings(false); toggleScoreboard(false); }
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Tab') toggleScoreboard(false);   // v0.2.3: Tab離しで閉じる
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -2381,7 +2620,7 @@ if (!isMobile) {
   canvas.addEventListener('click', () => { if (game.running) canvas.requestPointerLock(); });
   window.addEventListener('mousemove', e => {
     if (document.pointerLockElement !== canvas) return;
-    const sens = 0.0022 * (1 - ads.t * 0.5);   // ADS中は感度低下
+    const sens = 0.0022 * settings.sens * (1 - ads.t * 0.5);   // ADS中は感度低下 (v0.2.3: 設定反映)
     player.yaw -= e.movementX * sens;
     player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * sens));
   });
@@ -2441,7 +2680,7 @@ if (isMobile) {
         joy.x = dx / JOY_R; joy.y = dy / JOY_R;
         joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       } else if (t.identifier === look.id) {
-        const sens = 0.0045 * (1 - ads.t * 0.5);   // ADS中は感度低下
+        const sens = 0.0045 * settings.sens * (1 - ads.t * 0.5);   // ADS中は感度低下 (v0.2.3: 設定反映)
         player.yaw -= (t.clientX - look.lx) * sens;
         player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - (t.clientY - look.ly) * sens));
         look.lx = t.clientX; look.ly = t.clientY;
@@ -2476,8 +2715,10 @@ if (isMobile) {
   bindBtn('btn-weapon', () => cycleWeapon());       // v0.2.2: 次の武器に切替
   bindBtn('btn-vehicle', () => toggleVehicle());
   document.getElementById('btn-map').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleFullmap(); }, { passive: false });
+  document.getElementById('btn-score').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleScoreboard(); }, { passive: false });
 } else {
   document.getElementById('btn-map').style.display = 'none';
+  document.getElementById('btn-score').style.display = 'none';
 }
 
 // v0.2.2: 武器選択 (スタート画面) & サイクル切替 (1-4キー/WPNボタン)
@@ -2604,7 +2845,8 @@ const ui = {
   capBox: document.getElementById('cap-box'), capLabel: document.getElementById('cap-label'),
   capFill: document.getElementById('cap-fill'),
   waveBanner: document.getElementById('wave-banner'),
-  respawnTimer: document.getElementById('respawn-timer')
+  respawnTimer: document.getElementById('respawn-timer'),
+  matchTimer: document.getElementById('match-timer')   // v0.2.3
 };
 // 拠点アイコンを生成
 {
@@ -2675,6 +2917,90 @@ function updateInteractHint(dt) {
     if (isMobile) ui.btnVehicle.style.display = 'none';
   }
 }
+/* =========================================================
+   v0.2.3: スコアボード (Tabキー / 戦績ボタン)
+   ========================================================= */
+let scoreboardOpen = false;
+const sbWrap = document.getElementById('scoreboard-wrap');
+function toggleScoreboard(force) {
+  if (!game.running) return;
+  scoreboardOpen = force !== undefined ? force : !scoreboardOpen;
+  sbWrap.style.display = scoreboardOpen ? 'flex' : 'none';
+  if (scoreboardOpen) drawScoreboard();
+}
+sbWrap.addEventListener('click', () => toggleScoreboard(false));
+function sbRow(name, score, k, d, alive, me = false) {
+  return `<div class="sb-row${me ? ' me' : ''}"><span>${name}</span><span>${score}</span><span>${k}</span><span>${d}</span><span class="${alive ? '' : 'dead'}">${alive ? '出撃中' : '戦死'}</span></div>`;
+}
+function drawScoreboard() {
+  const blue = [], red = [];
+  // プレイヤー
+  blue.push({ name: 'YOU', score: game.score, kills: game.kills, deaths: player.deaths || 0, alive: player.alive, me: true });
+  for (const s of soldiers) {
+    (s.team === 1 ? blue : red).push({ name: s.name, score: s.score, kills: s.kills, deaths: s.deaths, alive: s.alive });
+  }
+  blue.sort((a, b) => b.score - a.score || b.kills - a.kills);
+  red.sort((a, b) => b.score - a.score || b.kills - a.kills);
+  document.getElementById('sb-blue-tk').textContent = 'チケット ' + game.ticketsBlue;
+  document.getElementById('sb-red-tk').textContent = 'チケット ' + game.ticketsRed;
+  document.getElementById('sb-blue-rows').innerHTML = blue.map(p => sbRow(p.name, p.score, p.kills, p.deaths, p.alive, p.me)).join('');
+  document.getElementById('sb-red-rows').innerHTML = red.map(p => sbRow(p.name, p.score, p.kills, p.deaths, p.alive)).join('');
+}
+
+/* =========================================================
+   v0.2.3: 設定画面 (描画品質・感度・描画距離)
+   ========================================================= */
+const settings = { quality: isMobile ? 'mid' : 'high', sens: 1.0, fogDist: 'mid' };
+try {
+  const saved = JSON.parse(localStorage.getItem('sf_settings') || 'null');
+  if (saved) Object.assign(settings, saved);
+} catch (e) { /* ignore */ }
+function saveSettings() {
+  try { localStorage.setItem('sf_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
+}
+function applyQuality() {
+  const q = settings.quality;
+  const pr = q === 'low' ? (isMobile ? 0.75 : 1) : q === 'mid' ? (isMobile ? 1.0 : 1.5) : Math.min(window.devicePixelRatio, isMobile ? 1.25 : 2);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = q === 'high' && !isMobile;
+  sun.castShadow = q === 'high' && !isMobile;
+}
+function applyFogDist() {
+  const f = settings.fogDist;
+  if (f === 'near') { scene.fog.near = 60; scene.fog.far = 240; }
+  else if (f === 'mid') { scene.fog.near = 110; scene.fog.far = 420; }
+  else { scene.fog.near = 160; scene.fog.far = 600; }
+}
+let settingsOpen = false;
+const setWrap = document.getElementById('settings-wrap');
+function toggleSettings(force) {
+  settingsOpen = force !== undefined ? force : !settingsOpen;
+  setWrap.style.display = settingsOpen ? 'flex' : 'none';
+  if (settingsOpen && document.pointerLockElement) document.exitPointerLock();
+}
+function syncSettingsUI() {
+  document.querySelectorAll('[data-q]').forEach(b => b.classList.toggle('sel', b.dataset.q === settings.quality));
+  document.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('sel', b.dataset.f === settings.fogDist));
+  document.getElementById('sens-range').value = settings.sens;
+  document.getElementById('sens-val').textContent = settings.sens.toFixed(1);
+  document.getElementById('fog-val').textContent = settings.fogDist === 'near' ? '近い' : settings.fogDist === 'far' ? '遠い' : '標準';
+}
+document.getElementById('btn-settings').addEventListener('click', () => toggleSettings());
+document.getElementById('settings-close').addEventListener('click', () => toggleSettings(false));
+document.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+  settings.quality = b.dataset.q; applyQuality(); syncSettingsUI(); saveSettings();
+}));
+document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+  settings.fogDist = b.dataset.f; applyFogDist(); syncSettingsUI(); saveSettings();
+}));
+document.getElementById('sens-range').addEventListener('input', e => {
+  settings.sens = parseFloat(e.target.value);
+  document.getElementById('sens-val').textContent = settings.sens.toFixed(1);
+  saveSettings();
+});
+applyQuality(); applyFogDist(); syncSettingsUI();
+
 /* =========================================================
    v0.2.2: 全体マップ (Mキー / MAPボタン)
    ========================================================= */
@@ -2822,6 +3148,12 @@ function resetGame() {
   for (const g of nadePool) { g.active = false; g.m.visible = false; }
   for (const pk of pickups) { pk.active = true; pk.obj.visible = true; pk.respawnT = 0; }
   fullmapOpen = false; fmWrap.style.display = 'none';
+  scoreboardOpen = false; sbWrap.style.display = 'none';   // v0.2.3
+  resetDestructibles();                                     // v0.2.3
+  game.timeLeft = MATCH_TIME; game.timerT = 0;              // v0.2.3
+  ui.matchTimer.textContent = '15:00'; ui.matchTimer.classList.remove('low');
+  player.deaths = 0;
+  soldierNameIdx = 0;
   game.score = 0; game.kills = 0; firing = false; fireLatch = false;
   game.ticketsBlue = 150; game.ticketsRed = 150; game.bleedT = 0;
   shake = 0;
@@ -2858,7 +3190,7 @@ document.getElementById('restart-btn').addEventListener('click', () => {
 });
 
 // ---------- Main loop ----------
-let lastT = performance.now(), elapsed = 0, bobT = 0, radarT = 0, shake = 0;
+let lastT = performance.now(), elapsed = 0, bobT = 0, radarT = 0, shake = 0, sbT = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min((now - lastT) / 1000, 0.05);
@@ -2900,8 +3232,11 @@ function loop(now) {
     updateDamageArcs(dt);
     updateGrenades(dt);
     updatePickups(dt);
+    updateMatchTimer(dt);   // v0.2.3
     radarT += dt;
     if (radarT > 0.12) { radarT = 0; drawRadar(); if (fullmapOpen) drawFullmap(); }
+    sbT += dt;
+    if (scoreboardOpen && sbT > 0.5) { sbT = 0; drawScoreboard(); }   // v0.2.3
   }
   if (!ctxLost) {
     try { renderer.render(scene, camera); } catch (err) { /* ignore */ }
