@@ -80,6 +80,7 @@ function createSoldier(team, x, z) {
     targetFlag: null, thinkT: Math.random() * 2,
     engageTarget: null, engageT: 0,
     respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false,
+    inVehicle: null, seatIdx: 0, gunCd: 0, spotted: 0,   // v0.3
     // v0.2.3: スコアボード用戦績
     name: (team === 1 ? 'BLU-' : 'RED-') + SOLDIER_NAMES[soldierNameIdx++ % SOLDIER_NAMES.length],
     kills: 0, deaths: 0, score: 0
@@ -175,6 +176,20 @@ function targetAlive(t) {
 function updateSoldiers(dt) {
   for (let i = soldiers.length - 1; i >= 0; i--) {
     const s = soldiers[i];
+    // v0.3: ドローンによるスポット残時間
+    if (s.spotted > 0) s.spotted -= dt;
+    // v0.3: 車両に搭乗中のAIは座席位置に追従 (思考・移動スキップ)
+    if (s.alive && s.inVehicle) {
+      const v = s.inVehicle;
+      if (!v.alive) { s.inVehicle = null; }
+      else {
+        const wp = seatWorldPos(v, s.seatIdx);
+        s.obj.position.set(wp.x, wp.y - 1.0, wp.z);
+        s.obj.rotation.y = v.yaw + Math.PI;
+        s.marker.visible = s.team === 1;
+        continue;
+      }
+    }
     if (!s.alive) {
       s.marker.visible = false;
       s.deathT += dt;
@@ -208,7 +223,7 @@ function updateSoldiers(dt) {
         const pd = Math.hypot(sp.x - player.pos.x, sp.z - player.pos.z);
         s.seenByPlayer = player.alive && pd < 70 &&
           hasLineOfSight(player.pos.clone(), new THREE.Vector3(sp.x, sp.y + 1.5, sp.z));
-        s.marker.visible = s.seenByPlayer;
+        s.marker.visible = s.seenByPlayer || s.spotted > 0;   // v0.3: スポット中も表示
       } else {
         s.marker.visible = true;
         // 距離に応じて味方マーカーを少し大きく (遠くでも見える)
@@ -302,7 +317,7 @@ function updateSoldiers(dt) {
       mvx = ax; mvz = az;
     } else if (mvx || mvz) {
       const px = sp.x + mvx * s.speed * dt * 8, pz = sp.z + mvz * s.speed * dt * 8;
-      if (collidesAt(px, pz, 0.4, sp.y)) {
+      if (collidesAt(px, pz, 0.4, sp.y) || isDeepWater(px, pz)) {   // v0.3: 深水も回避
         s.avoidDir = Math.random() < .5 ? -1 : 1;
         if (collidesAt(sp.x - mvz * s.avoidDir * 1.5, sp.z + mvx * s.avoidDir * 1.5, 0.4, sp.y)) s.avoidDir *= -1;
         s.avoidT = 0.5 + Math.random() * 0.5;
@@ -310,11 +325,13 @@ function updateSoldiers(dt) {
     }
 
     // 目的地が遠く非交戦ならダッシュ (広いマップでの移動時間短縮)
-    const spd = (!tgt && dist > 30) ? s.speed * 1.7 : s.speed;
+    let spd = (!tgt && dist > 30) ? s.speed * 1.7 : s.speed;
+    const inWater = terrainH(sp.x, sp.z) < WATER_Y - 0.2;   // v0.3: 浅瀬は渡れるが減速
+    if (inWater) spd *= 0.5;
     const nx = sp.x + mvx * spd * dt, nz = sp.z + mvz * spd * dt;
-    if (!collidesAt(nx, sp.z, 0.4, sp.y)) sp.x = nx;
-    if (!collidesAt(sp.x, nz, 0.4, sp.y)) sp.z = nz;
-    sp.y = terrainH(sp.x, sp.z); // 地形追従
+    if (!collidesAt(nx, sp.z, 0.4, sp.y) && !isDeepWater(nx, sp.z)) sp.x = nx;
+    if (!collidesAt(sp.x, nz, 0.4, sp.y) && !isDeepWater(sp.x, nz)) sp.z = nz;
+    sp.y = Math.max(terrainH(sp.x, sp.z), inWater ? WATER_Y - 0.9 : -Infinity); // 地形追従
 
     // スタック検知
     s.stuckT += dt;
@@ -351,10 +368,9 @@ function updateSoldiers(dt) {
         if (hit) {
           const raw = 6 + Math.random() * 8;
           const vdmg = curVehicle.type === 'tank' ? raw * 0.35 : raw * 1.6;
-          curVehicle.hp -= vdmg;
           spawnParticles(target, 0xffee88, 3, 3);
-          if (curVehicle.hp <= 0) destroyVehicle(curVehicle);
-          else updateVehicleUI();
+          damageVehicle(curVehicle, vdmg, 'smallarms');   // v0.3
+          showDamageDirection(eye);
         }
       } else if (tgt.kind === 'player') {
         const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
@@ -375,12 +391,20 @@ function updateSoldiers(dt) {
   }
 }
 
+// v0.3: 死亡時に座席を解放
+function vacateSeat(s) {
+  if (!s.inVehicle) return;
+  const v = s.inVehicle;
+  if (v.seats[s.seatIdx] && v.seats[s.seatIdx].occ === s) v.seats[s.seatIdx].occ = null;
+  s.inVehicle = null;
+}
 function damageSoldier(s, dmg, point, byPlayerTeam, killer = null) {
   if (!s.alive) return;
   s.hp -= dmg;
   spawnParticles(point, 0xbb2222, 5, 3);
   if (s.hp <= 0) {
     s.alive = false; s.deathT = 0;
+    vacateSeat(s);
     s.deaths++;                                    // v0.2.3
     if (killer && killer.alive) { killer.kills++; killer.score += 100; }
     // チケット減少
@@ -394,6 +418,7 @@ function damageSoldier(s, dmg, point, byPlayerTeam, killer = null) {
 function playerKillSoldier(s, point, isHead = false) {
   if (!s.alive) return;
   s.alive = false; s.deathT = 0;
+  vacateSeat(s);
   s.deaths++;                                      // v0.2.3
   game.kills++;
   game.score += isHead ? 150 : 100;

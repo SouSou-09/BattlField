@@ -196,8 +196,9 @@ const pickups = [];
     makePickup('ammo', f.x + 6, f.z + 5);
     makePickup('health', f.x - 6, f.z - 5);
   }
-  makePickup('ammo', -45, 100);  makePickup('health', -50, -20);
-  makePickup('ammo', 45, -100);  makePickup('health', 50, 20);
+  makePickup('ammo', -55, 120);  makePickup('health', -60, -30);
+  makePickup('ammo', 55, -120);  makePickup('health', 60, 25);
+  makePickup('ammo', 100, 10);   makePickup('health', -10, 95);
   makePickup('health', HQ_BLUE.x + 8, HQ_BLUE.z + 6);
   makePickup('ammo', HQ_BLUE.x - 8, HQ_BLUE.z + 6);
   makePickup('health', HQ_RED.x - 8, HQ_RED.z - 6);
@@ -288,17 +289,21 @@ function playerDie() {
   player.deaths = (player.deaths || 0) + 1;        // v0.2.3
   firing = false;
   setAds(false);
+  if (drone.active) endDrone(false);               // v0.3
   game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
   updateTicketsUI();
   if (curVehicle) exitVehicle(true);
   document.getElementById('respawn-screen').style.display = 'flex';
+  deployReady = false;                             // v0.3
   checkMatchEnd();
 }
-function respawnPlayer() {
-  // 保持拠点 or HQ からリスポーン (最後尾の安全な保持拠点を優先)
-  let sp = HQ_BLUE;
-  const owned = flags.filter(f => f.own === 1);
-  if (owned.length) sp = owned[Math.floor(Math.random() * owned.length)];
+// v0.3: デプロイ画面で選んだ地点から出撃
+function respawnPlayer(sp = null) {
+  if (!sp) {
+    sp = HQ_BLUE;
+    const owned = flags.filter(f => f.own === 1);
+    if (owned.length) sp = owned[Math.floor(Math.random() * owned.length)];
+  }
   const rx = sp.x + (Math.random() - .5) * 10, rz = sp.z + (Math.random() - .5) * 10;
   player.pos.set(rx, terrainH(rx, rz) + player.eyeHeight, rz);
   player.vel.set(0, 0, 0);

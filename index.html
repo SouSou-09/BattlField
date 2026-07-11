@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>STEEL FRONT v0.2 - Conquest</title>
+<title>STEEL FRONT v0.3 - Conquest</title>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -35,6 +35,7 @@
       <div id="vehicle-name">JEEP</div>
       <div id="vehicle-bar"><div id="vehicle-fill"></div></div>
       <div id="vehicle-speed">0 km/h</div>
+      <div id="vehicle-parts"></div>
     </div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
     <div id="hp-text">HP 100</div>
@@ -49,6 +50,13 @@
   <div id="killfeed"></div>
   <div id="wave-banner">CONQUEST</div>
   <div id="hs-banner">HEADSHOT!</div>
+  <!-- v0.3: ドローンHUD -->
+  <div id="drone-hud">
+    <div id="drone-title">偵察ドローン</div>
+    <div id="drone-battery"><div id="drone-battery-fill"></div></div>
+    <div id="drone-spot"></div>
+    <div id="drone-frame"></div>
+  </div>
 </section>
 
 <!-- v0.2.2: スナイパースコープ -->
@@ -112,6 +120,16 @@
   <div id="respawn-timer">再出撃まで 5</div>
 </div>
 
+<!-- v0.3: デプロイ画面 -->
+<div id="deploy-wrap">
+  <div id="deploy-panel">
+    <h3>DEPLOY — 出撃地点を選択</h3>
+    <canvas id="deploy-map" width="360" height="360"></canvas>
+    <div id="deploy-hint">HQ または保持拠点をタップして選択</div>
+    <button class="big-btn" id="deploy-btn">出撃</button>
+  </div>
+</div>
+
 <div id="ctx-lost">描画コンテキストを復旧中...<br>数秒待っても直らない場合は再読み込みしてください</div>
 
 <!-- ===== Touch controls ===== -->
@@ -125,6 +143,14 @@
   <button class="tbtn" id="btn-nade">GRND</button>
   <button class="tbtn" id="btn-weapon">WPN</button>
   <button class="tbtn" id="btn-vehicle">乗る</button>
+  <!-- v0.3 -->
+  <button class="tbtn" id="btn-seat">席</button>
+  <button class="tbtn" id="btn-drone">DRN</button>
+  <button class="tbtn" id="btn-repair">修理</button>
+  <button class="tbtn" id="btn-up">▲UP</button>
+  <button class="tbtn" id="btn-down">▼DN</button>
+  <button class="tbtn" id="btn-rocket">🚀</button>
+  <button class="tbtn" id="btn-horn">📢</button>
   <button id="btn-map">MAP</button>
   <button id="btn-score">戦績</button>
 </div>
@@ -132,7 +158,7 @@
 <!-- ===== Start screen ===== -->
 <section class="screen" id="start-screen">
   <h1>STEEL FRONT</h1>
-  <div class="sub">CONQUEST — 10 vs 10 拠点占領戦</div>
+  <div class="sub">CONQUEST — 10 vs 10 拠点占領戦 (A〜F / 400mマップ)</div>
   <div class="wsel-row" id="wsel-row">
     <button class="wsel sel" data-w="ar">M4A1<span class="wd">アサルトライフル</span></button>
     <button class="wsel" data-w="smg">MP5<span class="wd">サブマシンガン</span></button>

@@ -165,15 +165,25 @@ const sfx = {
   shotgun: () => { playShot(0.35, 500); playShot(0.2, 240); },
   headshot: () => { playBeep(1750, 0.07, 0.16, 'square'); setTimeout(() => playBeep(2300, 0.1, 0.13, 'square'), 55); },
   pin: () => playBeep(900, 0.05, 0.1, 'square'),
-  pickup: () => { playBeep(760, 0.07, 0.13); setTimeout(() => playBeep(1150, 0.09, 0.13), 80); }
+  pickup: () => { playBeep(760, 0.07, 0.13); setTimeout(() => playBeep(1150, 0.09, 0.13), 80); },
+  // v0.3
+  repair: () => playBeep(1500 + Math.random() * 600, 0.04, 0.07, 'square'),
+  horn: () => { playBeep(420, 0.28, 0.22, 'sawtooth'); playBeep(530, 0.28, 0.18, 'sawtooth'); },
+  rocket: () => { playShot(0.32, 260); playExplosionSfx(0.14); },
+  drone: () => { playBeep(600, 0.08, 0.1, 'square'); setTimeout(() => playBeep(900, 0.1, 0.1, 'square'), 100); },
+  flak: () => playShot(0.24, 480),
+  flakDist: d => { if (d < 160) playShot(Math.max(0.02, 0.2 - d * 0.001), 420); },
+  roadkill: () => { playBeep(180, 0.12, 0.2, 'sawtooth'); playBeep(90, 0.18, 0.2, 'square'); }
 };
 let engine = null;
 function startEngine(type) {
   if (!AC) return;
   stopEngine();
-  const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 50;
-  const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 320;
-  const g = AC.createGain(); g.gain.value = 0.035;
+  const o = AC.createOscillator();
+  o.type = type === 'heli' ? 'triangle' : 'sawtooth';
+  o.frequency.value = type === 'heli' ? 26 : 50;
+  const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = type === 'heli' ? 500 : 320;
+  const g = AC.createGain(); g.gain.value = type === 'heli' ? 0.05 : 0.035;
   o.connect(f).connect(g).connect(AC.destination);
   o.start();
   engine = { o, g, type };
@@ -184,6 +194,11 @@ function stopEngine() {
 function updateEngine(speed) {
   if (!engine) return;
   const s = Math.abs(speed);
+  if (engine.type === 'heli') {
+    engine.o.frequency.value = 24 + s * 1.2;
+    engine.g.gain.value = 0.045 + s * 0.0015;
+    return;
+  }
   engine.o.frequency.value = (engine.type === 'tank' ? 38 : 52) + s * (engine.type === 'tank' ? 5 : 7);
   engine.g.gain.value = 0.03 + s * 0.0035;
 }

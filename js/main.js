@@ -8,8 +8,13 @@ function resetGame() {
   soldiers.length = 0; soldierHitMeshes.length = 0;
   clearEffects();
   for (const s of shells) { s.ttl = 0; s.m.visible = false; }
-  if (curVehicle) { curVehicle = null; gunGroup.visible = true; stopEngine(); }
+  if (curVehicle) { curVehicle = null; curSeat = 0; gunGroup.visible = true; stopEngine(); }
   ui.vehicleBox.style.display = 'none';
+  if (drone.active) endDrone(false);               // v0.3
+  drone.cooldown = 0;
+  deployReady = false; deploySelected = null;      // v0.3
+  deployWrap.style.display = 'none';
+  repairKeyHeld = false; heliUpHeld = false; heliDownHeld = false;
   spawnVehicles();
   // 拠点リセット
   for (const f of flags) { f.own = 0; f.cap = 0; updateFlagVisual(f); }
@@ -64,7 +69,7 @@ document.getElementById('restart-btn').addEventListener('click', () => {
 });
 
 // ---------- Main loop ----------
-let lastT = performance.now(), elapsed = 0, bobT = 0, radarT = 0, shake = 0, sbT = 0;
+let lastT = performance.now(), elapsed = 0, bobT = 0, radarT = 0, shake = 0, sbT = 0, deployT = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min((now - lastT) / 1000, 0.05);
@@ -73,10 +78,19 @@ function loop(now) {
     elapsed += dt;
     shake = Math.max(0, shake - dt * 1.6);
     if (!player.alive) {
-      // リスポーン待機
-      player.respawnT -= dt;
-      ui.respawnTimer.textContent = '再出撃まで ' + Math.max(1, Math.ceil(player.respawnT));
-      if (player.respawnT <= 0 && game.ticketsBlue > 0) respawnPlayer();
+      // v0.3: リスポーン待機 → デプロイ画面
+      if (!deployReady) {
+        player.respawnT -= dt;
+        ui.respawnTimer.textContent = '再出撃まで ' + Math.max(1, Math.ceil(player.respawnT));
+        if (player.respawnT <= 0 && game.ticketsBlue > 0) openDeployScreen();
+      } else if (deployT > 0.4) {
+        deployT = 0; drawDeployMap();   // デプロイマップを定期更新
+      }
+      deployT += dt;
+    } else if (drone.active) {
+      // v0.3: ドローン操作中 (本体はその場に留まる)
+      muzzleFlash.material.opacity = 0;
+      muzzleLight.intensity = 0;
     } else if (curVehicle) {
       updateVehicle(dt);
       if (player.hp < player.maxHp && elapsed - player.lastDamageTime > 4) {
@@ -100,6 +114,9 @@ function loop(now) {
     updateFlags(dt);
     updateTickets(dt);
     updateShells(dt);
+    updateVehiclesGlobal(dt);   // v0.3: 炎上/AI砲手/自動対空砲
+    updateDrone(dt);            // v0.3
+    updateRepair(dt);           // v0.3
     updateEffects(dt);
     updateInteractHint(dt);
     updateAds(dt);
