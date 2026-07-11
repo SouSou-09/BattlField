@@ -798,7 +798,12 @@ function createEnemy(x, z) {
   const e = {
     obj: g, head, legL, legR, hp: 100, alive: true,
     shootCd: 1 + Math.random() * 2, strafeT: 0, strafeDir: 1,
-    speed: 2.6 + Math.random() * 0.9, deathT: 0, walkPhase: Math.random() * 6
+    speed: 2.6 + Math.random() * 0.9, deathT: 0, walkPhase: Math.random() * 6,
+    // v0.1.1: AI改善用ステート
+    avoidT: 0, avoidDir: 1,        // 障害物回避 (壁沿い移動)
+    aimT: 0,                        // 射撃前のエイム時間 (視線が通ってから撃つまで)
+    losT: 0, hasLos: false,         // 視線チェックの間引き用
+    prevX: x, prevZ: z, stuckT: 0   // スタック検知
   };
   g.traverse(m => { if (m.isMesh) { m.userData.enemy = e; m.castShadow = !isMobile; enemyHitMeshes.push(m); } });
   scene.add(g);
@@ -1135,9 +1140,9 @@ function updateVehicle(dt) {
   // 照準方向
   const camDir = new THREE.Vector3();
   camera.getWorldDirection(camDir);
-  // 砲塔をエイム方向へ
+  // 砲塔をエイム方向へ (v0.1.1: +Math.PI で180°反転していたのを修正)
   const aimYaw = Math.atan2(-camDir.x, -camDir.z);
-  v.turret.rotation.y = aimYaw - v.yaw + Math.PI;
+  v.turret.rotation.y = aimYaw - v.yaw;
 
   // 射撃
   v.cd -= dt;
@@ -1324,18 +1329,56 @@ function updateEnemies(dt) {
     // face target
     e.obj.rotation.y = Math.atan2(dx, dz);
 
+    // --- v0.1.1: 視線チェックを間引きしつつキャッシュ (AI判断に利用) ---
+    e.losT -= dt;
+    if (e.losT <= 0) {
+      e.losT = 0.25 + Math.random() * 0.15;
+      const eyeE = new THREE.Vector3(ep.x, 1.6, ep.z);
+      e.hasLos = dist < 80 && hasLineOfSight(eyeE, targetPos.clone());
+    }
+
     // movement: approach until ~14m, then strafe (対車両はもう少し離れる)
     const keepDist = curVehicle ? 20 : 14;
     e.strafeT -= dt;
     if (e.strafeT <= 0) { e.strafeT = 1.5 + Math.random() * 2; e.strafeDir = Math.random() < .5 ? -1 : 1; }
     let mvx = 0, mvz = 0;
-    if (dist > keepDist) { mvx = dx / dist; mvz = dz / dist; }
+    if (!e.hasLos && dist < 70) {
+      // v0.1.1: 視線が通らない時は距離に関係なく接近して回り込む
+      mvx = dx / dist; mvz = dz / dist;
+    } else if (dist > keepDist) { mvx = dx / dist; mvz = dz / dist; }
     else if (dist < 7) { mvx = -dx / dist * .6; mvz = -dz / dist * .6; }
     else { mvx = -dz / dist * e.strafeDir * .7; mvz = dx / dist * e.strafeDir * .7; }
+
+    // v0.1.1: 障害物回避 — 進行方向が塞がっていたら左右にスライドして壁沿いに進む
+    if (e.avoidT > 0) {
+      e.avoidT -= dt;
+      const ax = -mvz * e.avoidDir, az = mvx * e.avoidDir;
+      mvx = ax; mvz = az;
+    } else {
+      const px = ep.x + mvx * e.speed * dt * 8, pz = ep.z + mvz * e.speed * dt * 8; // 少し先を確認
+      if (collides(px, pz, 0.4)) {
+        e.avoidDir = Math.random() < .5 ? -1 : 1;
+        // 回避方向が塞がっていれば反対へ
+        if (collides(ep.x - mvz * e.avoidDir * 1.5, ep.z + mvx * e.avoidDir * 1.5, 0.4)) e.avoidDir *= -1;
+        e.avoidT = 0.5 + Math.random() * 0.5;
+      }
+    }
 
     const nx = ep.x + mvx * e.speed * dt, nz = ep.z + mvz * e.speed * dt;
     if (!collides(nx, ep.z, 0.4)) ep.x = nx;
     if (!collides(ep.x, nz, 0.4)) ep.z = nz;
+
+    // v0.1.1: スタック検知 — 1.2秒間ほぼ動けていなければ回避モードに入る
+    e.stuckT += dt;
+    if (e.stuckT > 1.2) {
+      const moved = Math.hypot(ep.x - e.prevX, ep.z - e.prevZ);
+      if (moved < 0.6 && dist > keepDist) {
+        e.avoidDir = Math.random() < .5 ? -1 : 1;
+        e.avoidT = 0.8 + Math.random() * 0.6;
+        e.strafeT = 0;
+      }
+      e.prevX = ep.x; e.prevZ = ep.z; e.stuckT = 0;
+    }
 
     // walk animation
     if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
@@ -1344,12 +1387,13 @@ function updateEnemies(dt) {
       e.legR.rotation.x = -Math.sin(e.walkPhase) * 0.7;
     } else { e.legL.rotation.x = e.legR.rotation.x = 0; }
 
-    // shooting
+    // shooting — v0.1.1: 視線が通ってから少しエイムしてから撃つ (即撃ち理不尽さを緩和)
     e.shootCd -= dt;
-    if (e.shootCd <= 0 && dist < 65) {
+    if (e.hasLos && dist < 65) e.aimT += dt; else e.aimT = 0;
+    if (e.shootCd <= 0 && e.aimT > 0.35 && dist < 65) {
       e.shootCd = 1.1 + Math.random() * 1.6;
       const eyeE = new THREE.Vector3(ep.x, 1.6, ep.z);
-      if (hasLineOfSight(eyeE.clone(), targetPos.clone())) {
+      {
         sfx.enemyShoot(dist);
         if (curVehicle) {
           // 対車両: 命中しやすいがダメージは車両へ
@@ -1509,8 +1553,9 @@ function updatePlayer(dt) {
   }
   const speed = sprint ? 9.5 : 5.5;
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
-  const wx = (ix * cos - iz * sin) * speed;
-  const wz = (-ix * sin - iz * cos) * -speed; // forward = -Z in camera space
+  // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1: 横向き時に前後が反転するバグを修正)
+  const wx = (ix * cos + iz * sin) * speed;
+  const wz = (iz * cos - ix * sin) * speed;
 
   // gravity & jump
   if (jumpQueued && player.onGround) { player.vel.y = 6.5; player.onGround = false; }
