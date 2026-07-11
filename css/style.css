@@ -1,0 +1,169 @@
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Segoe UI',Meiryo,sans-serif; touch-action:none; }
+  #game-canvas { position:fixed; inset:0; }
+
+  /* ===== HUD ===== */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:24px; height:24px; }
+  #crosshair span { position:absolute; background:rgba(255,255,255,.85); box-shadow:0 0 3px rgba(0,0,0,.8); }
+  #crosshair .ch-t { left:11px; top:0; width:2px; height:7px; }
+  #crosshair .ch-b { left:11px; bottom:0; width:2px; height:7px; }
+  #crosshair .ch-l { left:0; top:11px; width:7px; height:2px; }
+  #crosshair .ch-r { right:0; top:11px; width:7px; height:2px; }
+  #hitmarker { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(45deg); width:26px; height:26px; opacity:0; transition:opacity .1s; }
+  #hitmarker span { position:absolute; background:#ff3b30; box-shadow:0 0 4px #ff3b30; }
+  #hitmarker .hm1 { left:12px; top:0; width:2px; height:8px; }
+  #hitmarker .hm2 { left:12px; bottom:0; width:2px; height:8px; }
+  #hitmarker .hm3 { left:0; top:12px; width:8px; height:2px; }
+  #hitmarker .hm4 { right:0; top:12px; width:8px; height:2px; }
+
+  #damage-vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(200,0,0,.55) 100%); opacity:0; transition:opacity .15s; }
+
+  /* ダメージ方向インジケーター (v0.2.1) */
+  .dmg-arc { position:absolute; left:50%; top:50%; width:150px; height:150px; margin:-75px 0 0 -75px; pointer-events:none; opacity:0; }
+  .dmg-arc::before { content:''; position:absolute; left:50%; top:-14px; transform:translateX(-50%); width:64px; height:30px; background:radial-gradient(ellipse at 50% 100%, rgba(255,40,20,.95), rgba(255,40,20,0) 70%); clip-path:polygon(15% 100%, 50% 0%, 85% 100%); filter:drop-shadow(0 0 6px rgba(255,0,0,.8)); }
+
+  /* コンクエストHUD: チケット + 拠点ストリップ */
+  #top-bar { position:absolute; top:calc(8px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; color:#fff; }
+  #tickets-row { display:flex; align-items:center; gap:10px; justify-content:center; }
+  .tk { font-size:19px; font-weight:800; text-shadow:0 1px 3px #000; min-width:44px; }
+  #t-blue { color:#6db4ff; text-align:right; }
+  #t-red { color:#ff6b5e; text-align:left; }
+  #flags-strip { display:flex; gap:5px; }
+  .flag-ic { width:22px; height:22px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.4); text-shadow:0 1px 2px #000; transition:background .3s; }
+  .flag-ic.f-blue { background:rgba(45,110,220,.9); border-color:rgba(140,190,255,.8); }
+  .flag-ic.f-red { background:rgba(205,50,40,.9); border-color:rgba(255,150,140,.8); }
+  .flag-ic.f-hot { animation:flagBlink .8s infinite; }
+  @keyframes flagBlink { 50% { opacity:.45; } }
+  #mode-label { font-size:10px; letter-spacing:3px; color:#9fd4ff; margin-top:2px; text-shadow:0 0 6px rgba(0,120,255,.8); }
+
+  #cap-box { position:absolute; top:19%; left:50%; transform:translateX(-50%); display:none; text-align:center; color:#fff; }
+  #cap-label { font-size:15px; font-weight:800; text-shadow:0 1px 3px #000; letter-spacing:2px; }
+  #cap-bar { width:190px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.45); border-radius:4px; overflow:hidden; margin-top:4px; }
+  #cap-fill { height:100%; width:50%; background:#6db4ff; transition:width .15s linear; }
+
+  #score-box { position:absolute; top:calc(10px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right)); text-align:right; color:#fff; text-shadow:0 1px 3px #000; }
+  #score-box .score { font-size:18px; font-weight:700; color:#ffd257; }
+  #score-box .kills { font-size:11px; color:rgba(255,255,255,.8); }
+
+  #radar { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left)); width:112px; height:112px; border-radius:50%; border:2px solid rgba(120,200,255,.5); background:rgba(0,20,35,.55); box-shadow:0 0 12px rgba(0,0,0,.5); }
+
+  #bottom-left { position:absolute; left:calc(14px + env(safe-area-inset-left)); bottom:calc(14px + env(safe-area-inset-bottom)); color:#fff; }
+  #hp-bar { width:170px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); border-radius:4px; overflow:hidden; }
+  #hp-fill { height:100%; width:100%; background:linear-gradient(90deg,#3ddc84,#a7f3c8); transition:width .2s; }
+  #hp-text { font-size:12px; margin-top:3px; text-shadow:0 1px 2px #000; font-weight:600; }
+
+  #vehicle-box { display:none; margin-bottom:8px; }
+  #vehicle-name { font-size:11px; letter-spacing:2px; color:#8affc1; text-shadow:0 1px 2px #000; font-weight:700; }
+  #vehicle-bar { width:170px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); border-radius:4px; overflow:hidden; margin-top:2px; }
+  #vehicle-fill { height:100%; width:100%; background:linear-gradient(90deg,#3dc9dc,#a7e9f3); transition:width .2s; }
+  #vehicle-speed { font-size:11px; color:rgba(255,255,255,.75); margin-top:2px; text-shadow:0 1px 2px #000; }
+
+  #ammo-box { position:absolute; right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom)); text-align:right; color:#fff; text-shadow:0 1px 3px #000; }
+  #ammo-mag { font-size:30px; font-weight:800; line-height:1; }
+  #ammo-reserve { font-size:14px; color:rgba(255,255,255,.7); }
+  #weapon-name { font-size:11px; letter-spacing:2px; color:#9fd4ff; }
+  #reload-hint { font-size:11px; color:#ffd257; height:14px; }
+
+  #interact-hint { position:absolute; left:50%; bottom:26%; transform:translateX(-50%); font-size:14px; font-weight:700; color:#8affc1; text-shadow:0 0 8px rgba(0,255,140,.6); white-space:nowrap; display:none; }
+
+  #killfeed { position:absolute; top:32%; left:50%; transform:translateX(-50%); text-align:center; }
+  .feed-item { color:#ffd257; font-size:15px; font-weight:700; text-shadow:0 0 8px rgba(255,150,0,.7); animation:feedUp 1.4s ease-out forwards; }
+  .feed-item.blue { color:#8fc4ff; text-shadow:0 0 8px rgba(60,140,255,.8); }
+  .feed-item.red { color:#ff8a80; text-shadow:0 0 8px rgba(255,60,40,.8); }
+  @keyframes feedUp { 0%{opacity:1; transform:translateY(0);} 100%{opacity:0; transform:translateY(-30px);} }
+
+  #wave-banner { position:absolute; top:25%; left:50%; transform:translateX(-50%); font-size:28px; font-weight:900; letter-spacing:6px; color:#9fd4ff; text-shadow:0 0 20px rgba(0,140,255,.9); opacity:0; transition:opacity .4s; white-space:nowrap; }
+
+  /* リスポーン待機オーバーレイ */
+  #respawn-screen { position:fixed; inset:0; z-index:40; display:none; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(40,0,0,.5), rgba(20,0,0,.8)); color:#fff; text-align:center; }
+  #respawn-screen h2 { font-size:32px; font-weight:900; letter-spacing:6px; color:#ff6b5e; text-shadow:0 0 18px rgba(255,60,40,.9); margin-bottom:12px; }
+  #respawn-timer { font-size:20px; color:#ffd257; }
+
+  #ctx-lost { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.75); color:#ffd257; font-size:15px; text-align:center; line-height:1.8; }
+
+  /* ===== Touch controls ===== */
+  #touch-layer { position:fixed; inset:0; z-index:20; display:none; }
+  #joystick-base { position:absolute; width:110px; height:110px; border-radius:50%; border:2px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08); display:none; }
+  #joystick-stick { position:absolute; left:50%; top:50%; width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.45); transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(0,0,0,.4); }
+  .tbtn { position:absolute; border-radius:50%; border:2px solid rgba(255,255,255,.4); background:rgba(20,30,40,.45); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; text-shadow:0 1px 2px #000; backdrop-filter:blur(2px); }
+  .tbtn:active { background:rgba(120,200,255,.35); }
+  #btn-fire { width:88px; height:88px; right:calc(26px + env(safe-area-inset-right)); bottom:calc(110px + env(safe-area-inset-bottom)); font-size:13px; border-color:rgba(255,120,100,.6); background:rgba(120,30,20,.4); }
+  #btn-fire-alt { width:58px; height:58px; right:calc(140px + env(safe-area-inset-right)); bottom:calc(70px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,120,100,.5); background:rgba(120,30,20,.35); }
+  #btn-jump { width:56px; height:56px; right:calc(30px + env(safe-area-inset-right)); bottom:calc(220px + env(safe-area-inset-bottom)); font-size:11px; }
+  #btn-reload { width:56px; height:56px; right:calc(120px + env(safe-area-inset-right)); bottom:calc(190px + env(safe-area-inset-bottom)); font-size:11px; }
+  #btn-aim { width:62px; height:62px; right:calc(190px + env(safe-area-inset-right)); bottom:calc(120px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); }
+  #btn-aim.aiming { background:rgba(255,210,87,.5); border-color:#ffd257; }
+  #btn-vehicle { width:64px; height:64px; right:calc(38px + env(safe-area-inset-right)); bottom:calc(300px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(120,255,180,.6); background:rgba(20,90,50,.45); display:none; }
+  /* v0.2.2 buttons */
+  #btn-nade { width:56px; height:56px; right:calc(118px + env(safe-area-inset-right)); bottom:calc(258px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(180,255,120,.5); background:rgba(60,90,20,.4); }
+  #btn-weapon { width:56px; height:56px; right:calc(196px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(200,180,255,.5); background:rgba(60,40,90,.4); }
+  #btn-map { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:calc(130px + env(safe-area-inset-top)); width:48px; height:34px; border-radius:8px; border:2px solid rgba(120,200,255,.45); background:rgba(0,30,50,.55); color:#9fd4ff; font-size:10px; font-weight:700; }
+
+  /* v0.2.2: 全体マップ */
+  #fullmap-wrap { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.6); }
+  #fullmap { border:2px solid rgba(120,200,255,.55); background:#0a1a28; border-radius:10px; box-shadow:0 0 40px rgba(0,0,0,.7); }
+  #fullmap-hint { position:absolute; bottom:8%; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.7); font-size:12px; letter-spacing:2px; }
+
+  /* v0.2.2: スナイパースコープ */
+  #scope-overlay { position:fixed; inset:0; z-index:12; display:none; pointer-events:none; background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 24%, rgba(0,0,0,.55) 33%, rgba(0,0,0,.97) 40%); }
+  #scope-overlay .sc-h, #scope-overlay .sc-v { position:absolute; left:50%; top:50%; background:rgba(0,0,0,.85); }
+  #scope-overlay .sc-h { width:56vmin; height:1.5px; transform:translate(-50%,-50%); }
+  #scope-overlay .sc-v { width:1.5px; height:56vmin; transform:translate(-50%,-50%); }
+
+  /* v0.2.2: ヘッドショット演出 */
+  #hs-banner { position:fixed; left:50%; top:36%; transform:translate(-50%,-50%) scale(.7); z-index:15; font-weight:900; font-size:26px; letter-spacing:5px; color:#ffd257; text-shadow:0 0 14px rgba(255,110,30,.95), 0 2px 3px #000; opacity:0; pointer-events:none; transition:opacity .12s, transform .25s; }
+  #hs-banner.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #hitmarker.hs span { background:#ff5030 !important; box-shadow:0 0 8px rgba(255,80,40,.9); }
+
+  /* v0.2.2: 武器選択 */
+  .wsel-row { display:flex; gap:10px; margin-bottom:24px; pointer-events:auto; flex-wrap:wrap; justify-content:center; }
+  .wsel { padding:10px 14px; border:2px solid rgba(120,200,255,.35); background:rgba(15,35,55,.7); color:#cfe9ff; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; letter-spacing:1px; }
+  .wsel .wd { display:block; font-size:9px; font-weight:400; color:rgba(255,255,255,.55); margin-top:3px; letter-spacing:0; }
+  .wsel.sel { background:rgba(80,160,230,.45); border-color:#9fd4ff; box-shadow:0 0 12px rgba(80,180,255,.4); }
+  #nade-row { font-size:12px; color:#cfe9a0; margin-top:2px; }
+
+  /* v0.2.3: 試合タイマー */
+  #match-timer { font-size:15px; font-weight:800; letter-spacing:2px; color:#fff; text-shadow:0 1px 3px #000; margin-top:1px; }
+  #match-timer.low { color:#ff6b5e; animation:blinktm 1s infinite; }
+  @keyframes blinktm { 50% { opacity:.45; } }
+
+  /* v0.2.3: スコアボード */
+  #scoreboard-wrap { position:fixed; inset:0; z-index:42; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.65); }
+  #scoreboard { width:min(560px, 92vw); max-height:80vh; overflow:auto; background:rgba(8,20,32,.95); border:2px solid rgba(120,200,255,.4); border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 0 40px rgba(0,0,0,.7); }
+  #scoreboard h3 { text-align:center; letter-spacing:4px; color:#9fd4ff; font-size:15px; margin-bottom:8px; }
+  .sb-team { margin-bottom:10px; }
+  .sb-team-h { font-size:12px; font-weight:800; letter-spacing:2px; padding:4px 8px; border-radius:4px; margin-bottom:3px; display:flex; justify-content:space-between; }
+  .sb-team-h.blue { background:rgba(61,127,224,.35); color:#9fd4ff; }
+  .sb-team-h.red { background:rgba(208,52,40,.35); color:#ffa49c; }
+  .sb-row { display:grid; grid-template-columns: 1fr 52px 42px 42px 62px; font-size:12px; padding:2.5px 8px; border-bottom:1px solid rgba(255,255,255,.06); }
+  .sb-row.head { color:rgba(255,255,255,.5); font-size:10px; letter-spacing:1px; }
+  .sb-row.me { background:rgba(255,210,87,.14); color:#ffd257; font-weight:700; }
+  .sb-row span:not(:first-child) { text-align:right; }
+  .sb-row .dead { color:#ff6b5e; }
+  #btn-score { position:absolute; left:calc(66px + env(safe-area-inset-left)); top:calc(130px + env(safe-area-inset-top)); width:48px; height:34px; border-radius:8px; border:2px solid rgba(255,210,120,.45); background:rgba(50,35,0,.55); color:#ffd257; font-size:10px; font-weight:700; }
+
+  /* v0.2.3: 設定画面 */
+  #btn-settings { position:fixed; z-index:30; right:calc(10px + env(safe-area-inset-right)); top:calc(64px + env(safe-area-inset-top)); width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.35); background:rgba(20,30,40,.55); color:#fff; font-size:16px; pointer-events:auto; }
+  #settings-wrap { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.72); }
+  #settings-panel { width:min(420px, 92vw); background:rgba(8,20,32,.97); border:2px solid rgba(120,200,255,.4); border-radius:10px; padding:18px 20px; color:#fff; }
+  #settings-panel h3 { text-align:center; letter-spacing:4px; color:#9fd4ff; font-size:15px; margin-bottom:14px; }
+  .set-row { margin-bottom:14px; }
+  .set-row label { display:block; font-size:12px; color:rgba(255,255,255,.8); margin-bottom:5px; letter-spacing:1px; }
+  .set-row input[type=range] { width:100%; }
+  .set-val { float:right; color:#ffd257; font-weight:700; }
+  .set-btns { display:flex; gap:8px; }
+  .set-btn { flex:1; padding:8px 4px; border:2px solid rgba(120,200,255,.35); background:rgba(15,35,55,.7); color:#cfe9ff; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; }
+  .set-btn.sel { background:rgba(80,160,230,.45); border-color:#9fd4ff; }
+  #settings-close { display:block; width:100%; margin-top:6px; padding:10px; border:none; border-radius:6px; background:linear-gradient(180deg,#9fd4ff,#4da3e0); color:#06131f; font-weight:800; font-size:14px; letter-spacing:2px; cursor:pointer; }
+
+  /* ===== Screens ===== */
+  .screen { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(160deg,#06131f 0%,#0b2438 55%,#123c55 100%); color:#fff; text-align:center; padding:20px; }
+  .screen h1 { font-size:44px; font-weight:900; letter-spacing:10px; color:#cfe9ff; text-shadow:0 0 25px rgba(0,150,255,.9); margin-bottom:6px; }
+  .screen .sub { font-size:13px; letter-spacing:4px; color:#7fb8e0; margin-bottom:28px; }
+  .big-btn { pointer-events:auto; padding:14px 60px; font-size:18px; font-weight:800; letter-spacing:4px; color:#06131f; background:linear-gradient(180deg,#9fd4ff,#4da3e0); border:none; border-radius:6px; cursor:pointer; box-shadow:0 0 20px rgba(80,180,255,.5); }
+  .big-btn:active { transform:scale(.96); }
+  .howto { margin-top:26px; font-size:12px; line-height:1.9; color:rgba(255,255,255,.75); }
+  #gameover-screen { display:none; background:rgba(5,5,12,.9); }
+  #gameover-title { }
+  #final-stats { font-size:16px; margin-bottom:26px; color:#ffd257; line-height:1.8; }
