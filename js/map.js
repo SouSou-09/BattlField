@@ -7,31 +7,39 @@
    ========================================================= */
 const FLAG_R = 14;                 // 占領判定半径
 const flags = [
-  { id: 'A', x: -95, z: -85, own: 0, cap: 0 },   // 北西の丘の上
-  { id: 'B', x: -75, z: 55,  own: 0, cap: 0 },   // 南西の村
+  { id: 'A', x: -125, z: -110, own: 0, cap: 0 }, // 北西の丘の上
+  { id: 'B', x: -100, z: 75,  own: 0, cap: 0 },  // 南西の村
   { id: 'C', x: 0,   z: 0,   own: 0, cap: 0 },   // 中央市街地
-  { id: 'D', x: 80,  z: -60, own: 0, cap: 0 },   // 北東の倉庫地区
-  { id: 'E', x: 100, z: 95,  own: 0, cap: 0 }    // 南東の高地基地
+  { id: 'D', x: 105, z: -80, own: 0, cap: 0 },   // 北東の倉庫地区
+  { id: 'E', x: 130, z: 125, own: 0, cap: 0 },   // 南東の高地基地
+  { id: 'F', x: 60,  z: 60,  own: 0, cap: 0 }    // v0.3: 湖の島
 ];
-const HQ_BLUE = { x: -130, z: 130 };   // 南西端
-const HQ_RED  = { x: 130,  z: -130 };  // 北東端
+const HQ_BLUE = { x: -170, z: 170 };   // 南西端
+const HQ_RED  = { x: 170,  z: -170 };  // 北東端
 
 // 拠点・HQ周辺を平地化
 for (const f of flags) flattenAt(f.x, f.z, 22);
 flattenAt(HQ_BLUE.x, HQ_BLUE.z, 20);
 flattenAt(HQ_RED.x, HQ_RED.z, 20);
+// v0.3: 島Fへの土手道 (水面より上に盛り土)
+for (let bx = 14; bx <= 48; bx += 4) {
+  FLATS.push([bx, 60, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, 60))]);
+}
 
 // ---------- 道路網 (拠点を結ぶ / 地形追従) ----------
 // 道路セグメント定義 [x1,z1,x2,z2] — レンダリングと「道路上か」判定に使用
 const ROADS = [
-  [HQ_BLUE.x, HQ_BLUE.z, -75, 55],    // 青HQ → B
-  [-75, 55, 0, 0],                     // B → C
-  [0, 0, 80, -60],                     // C → D
-  [80, -60, HQ_RED.x, HQ_RED.z],      // D → 赤HQ
-  [-95, -85, 0, 0],                    // A → C
-  [0, 0, 100, 95],                     // C → E
-  [-95, -85, -75, 55],                 // A → B
-  [80, -60, 100, 95]                   // D → E
+  [HQ_BLUE.x, HQ_BLUE.z, -100, 75],    // 青HQ → B
+  [-100, 75, 0, 0],                    // B → C
+  [0, 0, 105, -80],                    // C → D
+  [105, -80, HQ_RED.x, HQ_RED.z],      // D → 赤HQ
+  [-125, -110, 0, 0],                  // A → C
+  [0, 0, 30, 115],                     // C → (湖の南) → E
+  [30, 115, 130, 125],
+  [-125, -110, -100, 75],              // A → B
+  [105, -80, 160, 15],                 // D → (湖の東) → E
+  [160, 15, 130, 125],
+  [15, 60, 47, 60]                     // v0.3: 土手道 → 島F
 ];
 function onRoad(x, z) {
   for (const [x1, z1, x2, z2] of ROADS) {
@@ -47,21 +55,24 @@ function onRoad(x, z) {
 
 /* ---------- Terrain mesh (ハイトフィールド) ---------- */
 {
-  const SEG = 100;
+  const SEG = 120;
   const geo = new THREE.PlaneGeometry(WORLD * 2 + 80, WORLD * 2 + 80, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
-  // 頂点カラー: 高さ・道路で色分け (草/土/岩/道路)
+  // 頂点カラー: 高さ・道路で色分け (草/土/岩/道路/砂浜/水底)
   const colors = new Float32Array(pos.count * 3);
   const cGrass = new THREE.Color(0x6d7a4e), cDirt = new THREE.Color(0x7a7050),
         cRock = new THREE.Color(0x777872), cRoad = new THREE.Color(0x46484c),
-        cGrass2 = new THREE.Color(0x5d6f45);
+        cGrass2 = new THREE.Color(0x5d6f45),
+        cSand = new THREE.Color(0x9a8c66), cBed = new THREE.Color(0x4a5648);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
     const h = terrainH(x, z);
     pos.setY(i, h);
     let c;
-    if (onRoad(x, z)) c = cRoad;
+    if (h < WATER_Y - 0.3) c = cBed;
+    else if (h < WATER_Y + 1.0) c = cSand;
+    else if (onRoad(x, z)) c = cRoad;
     else if (h > 13) c = cRock;
     else if (h > 7) c = cDirt;
     else c = ((Math.sin(x * 0.2) + Math.cos(z * 0.23)) > 0.4) ? cGrass2 : cGrass;
@@ -72,6 +83,18 @@ function onRoad(x, z) {
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex }));
   ground.receiveShadow = !isMobile;
   scene.add(ground);
+}
+
+/* ---------- v0.3: 水面 (湖) ---------- */
+let waterMesh = null;
+{
+  const geo = new THREE.CircleGeometry(LAKE.r + 6, 40);
+  geo.rotateX(-Math.PI / 2);
+  waterMesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color: 0x2e6f8e, transparent: true, opacity: 0.78, depthWrite: false
+  }));
+  waterMesh.position.set(LAKE.x, WATER_Y, LAKE.z);
+  scene.add(waterMesh);
 }
 
 // ---------- Map objects ----------
@@ -258,7 +281,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点A: 北西の丘 (砦・監視塔) ===
 {
-  const fx = -95, fz = -85;
+  const fx = -125, fz = -110;
   // 丘上の砦壁 (コの字)
   addBox(fx, fz - 12, 22, 3, 1.4, matWall);
   addBox(fx - 11, fz, 1.4, 3, 22, matWall);
@@ -274,7 +297,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点B: 南西の村 ===
 {
-  const fx = -75, fz = 55;
+  const fx = -100, fz = 75;
   addHouse(fx - 10, fz - 8, 8, 5, 7);
   addHouse(fx + 9, fz - 10, 7, 4.5, 8, Math.PI / 2);
   addHouse(fx + 11, fz + 8, 9, 5.5, 7);
@@ -293,7 +316,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点D: 北東の倉庫地区 ===
 {
-  const fx = 80, fz = -60;
+  const fx = 105, fz = -80;
   addBuilding(fx - 12, fz - 8, 18, 8, 14, matBuildingB);
   addBuilding(fx + 13, fz + 6, 16, 7, 12, matBuildingB);
   // コンテナヤード (2段積みあり)
@@ -312,7 +335,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点E: 南東の高地基地 ===
 {
-  const fx = 100, fz = 95;
+  const fx = 130, fz = 125;
   addBuilding(fx - 8, fz - 8, 14, 9, 12, matBuildingA);
   addBuilding(fx + 10, fz + 6, 12, 6, 10, matBuildingC);
   // ヘリパッド風の台座
@@ -342,6 +365,79 @@ function buildHQ(hq, mat) {
 buildHQ(HQ_BLUE, matBuildingB);
 buildHQ(HQ_RED, matBuildingC);
 
+/* =========================================================
+   v0.3: 立体構造 — 階段 / 2階建て / 地下壕 / 島の砦
+   ========================================================= */
+// 階段: 段差0.35mのステップを並べる (collidesAtの乗り越え判定で登れる)
+function addStairs(x, z, dirX, dirZ, width, topH, yBase = null) {
+  const gy = yBase === null ? terrainH(x, z) : yBase;
+  const stepH = 0.35, stepD = 0.62;
+  const n = Math.ceil(topH / stepH);
+  for (let i = 0; i < n; i++) {
+    const sx = x + dirX * stepD * i, sz = z + dirZ * stepD * i;
+    const h = stepH * (i + 1);
+    const w = Math.abs(dirX) > 0.5 ? stepD : width;
+    const d = Math.abs(dirX) > 0.5 ? width : stepD;
+    addBox(sx, sz, w, h, d, matRoof, 0, gy);
+  }
+}
+// 2階建て (1階に入れて外階段で2階/屋上へ)
+function addTwoStoryBuilding(x, z, w, h1, h2, d, mat, doorDir = 0) {
+  const gy = terrainH(x, z);
+  addEnterableBuilding(x, z, w, h1, d, mat, doorDir);
+  // 2階 (壁のみ / 窓なしの簡易構造 + パラペット)
+  const T = 0.5;
+  addBox(x, z + d / 2 - T / 2, w, h2, T, mat, 0, gy + h1 + 0.4);
+  addBox(x - w / 2 + T / 2, z, T, h2, d, mat, 0, gy + h1 + 0.4);
+  addBox(x + w / 2 - T / 2, z, T, h2, d, mat, 0, gy + h1 + 0.4);
+  // 北側は開口 (2階の射撃窓)
+  addBox(x, z - d / 2 + T / 2, w, 1.1, T, mat, 0, gy + h1 + 0.4);            // 腰壁
+  addBox(x, z - d / 2 + T / 2, w, h2 - 2.4, T, mat, 0, gy + h1 + 0.4 + 2.4); // 上部
+  addBox(x, z, w, 0.4, d, matRoof, 0, gy + h1 + h2 + 0.4);                   // 屋根
+  // 外階段 (東側から2階フロアへ)
+  addStairs(x + w / 2 + 1.2, z + d / 2 - 1.4, 0, -1, 2.2, h1 + 0.4, gy);
+}
+// v0.3: 中央市街地に2階建て (拠点Cの縦の拠点)
+addTwoStoryBuilding(-12, 12, 10, 3.6, 3.2, 9, matBuildingA, 0);
+
+// v0.3: 地下壕 (ピットの上に屋根スラブ / 塹壕から進入)
+{
+  const [px, pz, r] = PITS[0];
+  const gy = terrainHeight(px + r + 6, pz);   // 周囲の地表高さ目安
+  const slabY = terrainH(px + r + 2, pz) + 0.1;
+  // 屋根スラブ (塹壕側に開口を残す)
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(r * 2 - 2, 0.5, r * 2 - 2), matRoof);
+  slab.position.set(px + 1.5, slabY + 0.25, pz);
+  slab.castShadow = slab.receiveShadow = !isMobile;
+  scene.add(slab);
+  solidMeshes.push(slab);
+  obstacles.push({ minX: px + 1.5 - (r - 1), maxX: px + 1.5 + (r - 1), minZ: pz - (r - 1), maxZ: pz + (r - 1), y0: slabY, h: slabY + 0.5 });
+  // 支柱
+  [[px - 2, pz - 3], [px + 4, pz + 3], [px + 4, pz - 3], [px - 2, pz + 3]].forEach(([cx, cz]) => {
+    const gy2 = terrainH(cx, cz);
+    addBox(cx, cz, 0.6, slabY - gy2 + 0.1, 0.6, matWall, 0, gy2);
+  });
+  // 内部の弾薬箱
+  addDestructibleCrate(px + 2, pz + 1.5);
+}
+
+// === v0.3 拠点F: 湖の島 (土手道で接続 / 砦 + 固定機銃) ===
+{
+  const fx = 60, fz = 60;
+  // 島の砦壁 (半円状)
+  addBox(fx, fz - 8, 14, 2.2, 1.2, matWall);
+  addBox(fx - 8, fz + 2, 1.2, 2.2, 12, matWall);
+  addBox(fx + 4, fz + 6, 8, 1.1, 1.2, matSandbag);
+  addEnterableBuilding(fx + 3, fz - 2, 7, 3.4, 6, matWall, 3);
+  addDestructibleBarrel(fx - 4, fz + 5);
+  // 桁橋風: 土手道の両脇に柵
+  for (let i = 0; i < 5; i++) {
+    const bx = 18 + i * 7;
+    addBox(bx, 57.2, 3, 0.9, 0.25, matTrunk);
+    addBox(bx, 62.8, 3, 0.9, 0.25, matTrunk);
+  }
+}
+
 // === 監視塔 (2箇所) ===
 function buildTower(tx, tz) {
   const gy = terrainH(tx, tz);
@@ -359,15 +455,16 @@ function buildTower(tx, tz) {
   scene.add(roof);
   obstacles.push({ minX: tx - 2.6, maxX: tx + 2.6, minZ: tz - 2.6, maxZ: tz + 2.6, y0: gy, h: gy + 12 });
 }
-buildTower(40, 50);
+buildTower(-25, 55);
 buildTower(-40, -45);
+buildTower(120, 20);
 
 // === 岩場 (高台の斜面や空白地帯に岩を配置) ===
 {
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
   const rockSpots = [[-60, -30], [-50, -55], [55, 25], [35, -85], [-25, 90], [60, 60], [-115, 20], [20, 115], [115, -20], [-20, -115], [70, -20], [-70, -5], [10, 60], [-35, 35], [45, -40], [90, 20], [-90, -40], [-55, 95], [120, 50], [50, -110]];
   for (const [x, z] of rockSpots) {
-    if (onRoad(x, z)) continue;
+    if (onRoad(x, z) || isWater(x, z)) continue;
     const s = 1 + Math.random() * 2.2;
     const r = new THREE.Mesh(rockGeo, matRock);
     const gy = terrainH(x, z);
@@ -391,7 +488,7 @@ buildTower(-40, -45);
     tries++;
     const x = (Math.random() * 2 - 1) * (WORLD - 12);
     const z = (Math.random() * 2 - 1) * (WORLD - 12);
-    if (onRoad(x, z)) continue;
+    if (onRoad(x, z) || isWater(x, z)) continue;
     let nearFlag = false;
     for (const f of flags) if (Math.hypot(x - f.x, z - f.z) < 16) { nearFlag = true; break; }
     if (nearFlag || Math.hypot(x - HQ_BLUE.x, z - HQ_BLUE.z) < 18 || Math.hypot(x - HQ_RED.x, z - HQ_RED.z) < 18) continue;
@@ -413,13 +510,13 @@ buildTower(-40, -45);
 
 // === ドラム缶・木箱の散布 (v0.2.3: 破壊可能) ===
 {
-  [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [52, 45], [24, 8], [-6, 29], [78, -55], [-72, 52], [-92, -80], [98, 92]].forEach(([x, z], i) => {
+  [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [24, 8], [-6, 29], [103, -75], [-97, 72], [-122, -105], [128, 122], [58, 63]].forEach(([x, z], i) => {
     addDestructibleBarrel(x, z, i % 2 === 1);
   });
-  for (let i = 0; i < 14; i++) {
-    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 110;
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 150;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (onRoad(x, z)) continue;
+    if (onRoad(x, z) || isWater(x, z)) continue;
     addDestructibleCrate(x, z, Math.random() < .5 ? 0 : Math.PI / 2);
   }
 }

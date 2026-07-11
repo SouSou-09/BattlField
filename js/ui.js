@@ -16,6 +16,10 @@ const ui = {
   vehicleName: document.getElementById('vehicle-name'),
   vehicleFill: document.getElementById('vehicle-fill'),
   vehicleSpeed: document.getElementById('vehicle-speed'),
+  vehicleParts: document.getElementById('vehicle-parts'),           // v0.3
+  droneHud: document.getElementById('drone-hud'),                   // v0.3
+  droneBattery: document.getElementById('drone-battery-fill'),      // v0.3
+  droneSpot: document.getElementById('drone-spot'),                 // v0.3
   interactHint: document.getElementById('interact-hint'),
   btnVehicle: document.getElementById('btn-vehicle'),
   tBlue: document.getElementById('t-blue'), tRed: document.getElementById('t-red'),
@@ -71,24 +75,48 @@ function addFeed(text, cls = '') {
   setTimeout(() => d.remove(), 1450);
 }
 let interactT = 0;
+function setBtn(id, show, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = show ? 'flex' : 'none';
+  if (label !== undefined) el.textContent = label;
+}
 function updateInteractHint(dt) {
   interactT += dt;
   if (interactT < 0.2) return;
   interactT = 0;
+  if (isMobile) {
+    // v0.3: 状態に応じたボタンの出し分け
+    const inV = !!curVehicle;
+    const isHeliDriver = inV && curVehicle.type === 'heli' && curVehicle.seats[curSeat].role === 'driver';
+    const canDrive = inV && curVehicle.maxSpeed > 0;
+    setBtn('btn-seat', inV && curVehicle.seats.length > 1);
+    setBtn('btn-up', isHeliDriver || drone.active);
+    setBtn('btn-down', isHeliDriver || drone.active);
+    setBtn('btn-rocket', isHeliDriver);
+    setBtn('btn-horn', canDrive && curVehicle.type !== 'heli');
+    setBtn('btn-drone', !inV && (drone.active || drone.cooldown <= 0), drone.active ? '帰還' : 'DRN');
+    setBtn('btn-repair', !inV && !drone.active && !!nearestDamagedFriendly());
+  }
+  if (drone.active) { ui.interactHint.style.display = 'none'; if (isMobile) setBtn('btn-vehicle', false); return; }
   if (curVehicle) {
     ui.interactHint.style.display = 'none';
     if (isMobile) { ui.btnVehicle.style.display = 'flex'; ui.btnVehicle.textContent = '降りる'; }
     return;
   }
   const v = nearestVehicle();
+  const dmgV = nearestDamagedFriendly();
   if (v) {
     if (isMobile) {
       ui.btnVehicle.style.display = 'flex'; ui.btnVehicle.textContent = '乗る';
       ui.interactHint.style.display = 'none';
     } else {
-      ui.interactHint.textContent = 'E: ' + v.name + ' に乗る';
+      ui.interactHint.textContent = 'E: ' + v.name + ' に乗る' + (dmgV ? ' / F長押し: 修理' : '');
       ui.interactHint.style.display = 'block';
     }
+  } else if (dmgV && !isMobile) {
+    ui.interactHint.textContent = 'F長押し: ' + dmgV.name + ' を修理' + (repairing ? ' 修理中...' : '');
+    ui.interactHint.style.display = 'block';
   } else {
     ui.interactHint.style.display = 'none';
     if (isMobile) ui.btnVehicle.style.display = 'none';
@@ -192,14 +220,23 @@ function toggleFullmap() {
   if (fullmapOpen) drawFullmap();
 }
 fmWrap.addEventListener('click', () => toggleFullmap());
-function drawFullmap() {
-  const S = fmCanvas.width, HALF = 160;   // ワールド ±160m → キャンバス
-  const g = fmCtx;
+function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
+  const S = canvas2.width, HALF = WORLD + 10;
+  const g = ctx2;
   const toMap = (wx, wz) => [(wx + HALF) / (HALF * 2) * S, (wz + HALF) / (HALF * 2) * S];
   g.clearRect(0, 0, S, S);
   // 背景
   g.fillStyle = '#12222f';
   g.fillRect(0, 0, S, S);
+  // v0.3: 湖 + 島
+  {
+    const [lx, ly] = toMap(LAKE.x, LAKE.z);
+    g.fillStyle = 'rgba(46,111,142,.75)';
+    g.beginPath(); g.arc(lx, ly, LAKE.r / (HALF * 2) * S, 0, 7); g.fill();
+    const [ix2, iy2] = toMap(ISLAND.x, ISLAND.z);
+    g.fillStyle = '#2c4638';
+    g.beginPath(); g.arc(ix2, iy2, ISLAND.r / (HALF * 2) * S, 0, 7); g.fill();
+  }
   // 道路
   g.strokeStyle = 'rgba(160,150,120,.5)';
   g.lineWidth = 4;
@@ -230,20 +267,34 @@ function drawFullmap() {
     g.fillStyle = pk.type === 'ammo' ? '#a0c060' : '#ff8080';
     g.fillRect(px - 2.5, py - 2.5, 5, 5);
   }
-  // 兵士
+  // 兵士 (v0.3: スポットされた敵は発光)
   for (const s of soldiers) {
     if (!s.alive) continue;
     const [px, py] = toMap(s.obj.position.x, s.obj.position.z);
+    if (s.team === -1 && s.spotted > 0) {
+      g.fillStyle = '#ffd257';
+      g.beginPath(); g.arc(px, py, 4.5, 0, 7); g.fill();
+    }
     g.fillStyle = s.team === 1 ? '#6db4ff' : '#ff4438';
     g.beginPath(); g.arc(px, py, 3, 0, 7); g.fill();
   }
-  // 車両
+  // 車両 (v0.3: 種別記号)
+  g.font = 'bold 8px sans-serif';
   for (const v of vehicles) {
     if (!v.alive) continue;
     const [px, py] = toMap(v.obj.position.x, v.obj.position.z);
     g.fillStyle = '#5aff9c';
     g.fillRect(px - 3.5, py - 3.5, 7, 7);
+    g.fillStyle = '#06131f';
+    g.fillText(v.type === 'heli' ? 'H' : v.type === 'boat' ? 'B' : v.type === 'tank' ? 'T' : v.type === 'aa' ? 'A' : v.type === 'mg' ? 'M' : 'J', px - 2.5, py + 3);
   }
+  // v0.3: ドローン
+  if (drone.active) {
+    const [dx2, dy2] = toMap(drone.pos.x, drone.pos.z);
+    g.fillStyle = '#ffd257';
+    g.fillRect(dx2 - 3, dy2 - 3, 6, 6);
+  }
+  if (deployMode) return;   // デプロイ画面では自機矢印を描かない
   // プレイヤー (向き付き矢印)
   const [ppx, ppy] = toMap(player.pos.x, player.pos.z);
   g.save();
@@ -253,6 +304,74 @@ function drawFullmap() {
   g.beginPath(); g.moveTo(0, -8); g.lineTo(-5.5, 6); g.lineTo(5.5, 6); g.closePath(); g.fill();
   g.restore();
 }
+
+/* =========================================================
+   v0.3: デプロイ画面 — リスポーン時に出撃地点をマップから選択
+   ========================================================= */
+let deployReady = false;        // タイマー完了後 true → 選択待ち
+let deploySelected = null;      // 選択中の出撃地点
+const deployWrap = document.getElementById('deploy-wrap');
+const dpCanvas = document.getElementById('deploy-map');
+const dpCtx = dpCanvas.getContext('2d');
+function deployPoints() {
+  const pts = [{ id: 'HQ', x: HQ_BLUE.x, z: HQ_BLUE.z }];
+  for (const f of flags) if (f.own === 1) pts.push({ id: f.id, x: f.x, z: f.z });
+  return pts;
+}
+function openDeployScreen() {
+  deployReady = true;
+  deploySelected = deploySelected || deployPoints()[0];
+  document.getElementById('respawn-screen').style.display = 'none';
+  deployWrap.style.display = 'flex';
+  drawDeployMap();
+}
+function drawDeployMap() {
+  drawFullmap(dpCanvas, dpCtx, true);
+  const S = dpCanvas.width, HALF = WORLD + 10;
+  const toMap = (wx, wz) => [(wx + HALF) / (HALF * 2) * S, (wz + HALF) / (HALF * 2) * S];
+  const g = dpCtx;
+  // 出撃可能地点をハイライト
+  for (const p of deployPoints()) {
+    const [px, py] = toMap(p.x, p.z);
+    const sel = deploySelected && deploySelected.id === p.id;
+    g.strokeStyle = sel ? '#ffd257' : 'rgba(140,220,160,.9)';
+    g.lineWidth = sel ? 3 : 2;
+    g.beginPath(); g.arc(px, py, sel ? 17 : 14, 0, 7); g.stroke();
+    if (sel) {
+      g.fillStyle = 'rgba(255,210,87,.18)';
+      g.beginPath(); g.arc(px, py, 17, 0, 7); g.fill();
+    }
+  }
+}
+function pickDeployAt(cx, cy) {
+  const rect = dpCanvas.getBoundingClientRect();
+  const S = dpCanvas.width, HALF = WORLD + 10;
+  const mx = (cx - rect.left) / rect.width * S;
+  const my = (cy - rect.top) / rect.height * S;
+  let best = null, bd = 30;
+  for (const p of deployPoints()) {
+    const px = (p.x + HALF) / (HALF * 2) * S;
+    const py = (p.z + HALF) / (HALF * 2) * S;
+    const d = Math.hypot(mx - px, my - py);
+    if (d < bd) { bd = d; best = p; }
+  }
+  if (best) { deploySelected = best; drawDeployMap(); }
+}
+dpCanvas.addEventListener('click', e => pickDeployAt(e.clientX, e.clientY));
+dpCanvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  pickDeployAt(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+document.getElementById('deploy-btn').addEventListener('click', () => {
+  if (!deployReady) return;
+  deployWrap.style.display = 'none';
+  deployReady = false;
+  // 選択拠点が失陷していたらHQにフォールバック
+  const pts = deployPoints();
+  const sp = pts.find(p => deploySelected && p.id === deploySelected.id) || pts[0];
+  respawnPlayer({ x: sp.x, z: sp.z });
+  if (!isMobile) canvas.requestPointerLock();
+});
 
 function drawRadar() {
   const g = ui.radar, S = 112, C = S / 2, RANGE = 95;

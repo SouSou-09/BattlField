@@ -6,18 +6,29 @@
    丘・高台・外周の山を解析関数で定義し、メッシュと当たり判定
    の両方で同じ terrainHeight() を使用する
    ========================================================= */
-const WORLD = 150;                 // playable half-size (300m x 300m)
+const WORLD = 200;                 // playable half-size (400m x 400m) v0.3
+const WATER_Y = -1.6;              // v0.3: 水面の高さ
 
 // なだらかな丘 (ガウス型) の定義 [x, z, 半径, 高さ]
 const HILLS = [
-  [-95, -85, 55, 14],    // 北西の大きな丘 (拠点A)
-  [100, 95, 60, 16],     // 南東の高地 (拠点E)
-  [95, -100, 45, 10],    // 北東の丘
-  [-100, 105, 42, 9],    // 南西の丘
-  [0, 0, 30, 5],         // 中央のゆるい盛り上がり (拠点C)
-  [-45, 60, 25, 6],      // 南西寄りの小丘
-  [55, -50, 22, 5]       // 北東寄りの小丘
+  [-125, -110, 62, 14],  // 北西の大きな丘 (拠点A)
+  [130, 125, 68, 16],    // 南東の高地 (拠点E)
+  [125, -135, 50, 10],   // 北東の丘
+  [-135, 140, 46, 9],    // 南西の丘
+  [0, 0, 32, 5],         // 中央のゆるい盛り上がり (拠点C)
+  [-60, 82, 28, 6],      // 南西寄りの小丘
+  [72, -68, 25, 5]       // 北東寄りの小丘
 ];
+// v0.3: 湖 (くぼ地) と島 [x, z, 半径, 深さ] / 島は湖中央の盛り上がり
+const LAKE = { x: 60, z: 60, r: 45, depth: 8 };
+const ISLAND = { x: 60, z: 60, r: 13, h: 9.5 };
+// v0.3: 塹壕 [x1,z1,x2,z2,幅,深さ] — 両端はスロープで地上に接続
+const TRENCHES = [
+  [-45, -15, 15, -8, 3.2, 2.4],     // 中央北の塹壕 (A-C間)
+  [32, -30, 46, -30, 2.6, 3.0]      // 地下壕への進入路
+];
+// v0.3: 地下壕ピット [x, z, 半径, 深さ] — 上に屋根スラブを被せて地下室化
+const PITS = [[50, -30, 6.5, 3.0]];
 function terrainHeight(x, z) {
   let h = 0;
   // 丘 (滑らかに合成)
@@ -29,14 +40,52 @@ function terrainHeight(x, z) {
       h += hh * t * t;               // 滑らかな山型
     }
   }
+  // v0.3: 湖のくぼみ + 島
+  {
+    const d2 = (x - LAKE.x) * (x - LAKE.x) + (z - LAKE.z) * (z - LAKE.z);
+    const rr = LAKE.r * LAKE.r;
+    if (d2 < rr) { const t = 1 - d2 / rr; h -= LAKE.depth * t * t; }
+    const di2 = (x - ISLAND.x) * (x - ISLAND.x) + (z - ISLAND.z) * (z - ISLAND.z);
+    const ri = ISLAND.r * ISLAND.r;
+    if (di2 < ri) { const t = 1 - di2 / ri; h += ISLAND.h * t * t; }
+  }
+  // v0.3: 塹壕 (線分に沿って掘り下げ / 両端スロープ)
+  let carve = 0;
+  for (const [x1, z1, x2, z2, w, dep] of TRENCHES) {
+    const dx = x2 - x1, dz = z2 - z1;
+    const len2 = dx * dx + dz * dz;
+    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t, pz = z1 + dz * t;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < w) {
+      const cross = 1 - d / w;                     // 断面 (中心で最大)
+      const len = Math.sqrt(len2);
+      const ramp = Math.min(1, Math.min(t, 1 - t) * len / 5);  // 端はスロープ
+      carve = Math.max(carve, dep * Math.min(1, cross * 1.6) * ramp);
+    }
+  }
+  // v0.3: 地下壕ピット
+  for (const [px, pz, r, dep] of PITS) {
+    const d = Math.hypot(x - px, z - pz);
+    if (d < r) {
+      const t = 1 - d / r;
+      carve = Math.max(carve, dep * Math.min(1, t * 2.2));
+    }
+  }
+  h -= carve;
   // 外周の山 (プレイエリア外へ向かって上がる)
   const edge = Math.max(Math.abs(x), Math.abs(z));
   if (edge > WORLD - 8) h += (edge - (WORLD - 8)) * 1.4;
-  // 細かい起伏 (低周波ノイズ風)
-  h += Math.sin(x * 0.045) * Math.cos(z * 0.05) * 1.1
-     + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.5;
+  // 細かい起伏 (低周波ノイズ風) — 塹壕/ピット内では抑える
+  const noiseScale = carve > 0.5 ? 0.15 : 1;
+  h += (Math.sin(x * 0.045) * Math.cos(z * 0.05) * 1.1
+     + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.5) * noiseScale;
   return h;
 }
+// v0.3: 水域判定
+function isWater(x, z) { return terrainH(x, z) < WATER_Y - 0.25; }
+function isDeepWater(x, z) { return terrainH(x, z) < WATER_Y - 1.1; }
 // 道路・拠点まわりを平らに補正するための「平地パッチ」
 // [x, z, 半径, 目標高さ(nullなら中心の高さ)]
 const FLATS = [];

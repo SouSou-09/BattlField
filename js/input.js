@@ -6,7 +6,12 @@ const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyR') reload();
-  if (e.code === 'KeyE' || e.code === 'KeyF') toggleVehicle();
+  if (e.code === 'KeyE') toggleVehicle();
+  if (e.code === 'KeyF') repairKeyHeld = true;     // v0.3: F長押しで修理
+  if (e.code === 'KeyX') switchSeat();             // v0.3: 座席切替
+  if (e.code === 'KeyT') toggleDrone();            // v0.3: 偵察ドローン
+  if (e.code === 'KeyH') honk();                   // v0.3: クラクション
+  if (e.code === 'KeyQ') heliRockets();            // v0.3: ヘリロケット
   if (e.code === 'KeyG') throwGrenade();          // v0.2.2
   if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
   if (e.code === 'Tab') { e.preventDefault(); toggleScoreboard(true); }   // v0.2.3
@@ -14,6 +19,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => {
   if (e.code === 'Tab') toggleScoreboard(false);   // v0.2.3: Tab離しで閉じる
+  if (e.code === 'KeyF') repairKeyHeld = false;    // v0.3
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -23,6 +29,11 @@ if (!isMobile) {
   window.addEventListener('mousemove', e => {
     if (document.pointerLockElement !== canvas) return;
     const sens = 0.0022 * settings.sens * (1 - ads.t * 0.5);   // ADS中は感度低下 (v0.2.3: 設定反映)
+    if (drone.active) {   // v0.3: ドローン視点
+      drone.yaw -= e.movementX * sens;
+      drone.pitch = Math.max(-1.45, Math.min(1.0, drone.pitch - e.movementY * sens));
+      return;
+    }
     player.yaw -= e.movementX * sens;
     player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * sens));
   });
@@ -83,8 +94,13 @@ if (isMobile) {
         joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       } else if (t.identifier === look.id) {
         const sens = 0.0045 * settings.sens * (1 - ads.t * 0.5);   // ADS中は感度低下 (v0.2.3: 設定反映)
-        player.yaw -= (t.clientX - look.lx) * sens;
-        player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - (t.clientY - look.ly) * sens));
+        if (drone.active) {   // v0.3: ドローン視点
+          drone.yaw -= (t.clientX - look.lx) * sens;
+          drone.pitch = Math.max(-1.45, Math.min(1.0, drone.pitch - (t.clientY - look.ly) * sens));
+        } else {
+          player.yaw -= (t.clientX - look.lx) * sens;
+          player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - (t.clientY - look.ly) * sens));
+        }
         look.lx = t.clientX; look.ly = t.clientY;
       }
     }
@@ -116,6 +132,14 @@ if (isMobile) {
   bindBtn('btn-nade', () => throwGrenade());        // v0.2.2
   bindBtn('btn-weapon', () => cycleWeapon());       // v0.2.2: 次の武器に切替
   bindBtn('btn-vehicle', () => toggleVehicle());
+  // v0.3: 新ボタン
+  bindBtn('btn-seat', () => switchSeat());
+  bindBtn('btn-drone', () => toggleDrone());
+  bindBtn('btn-repair', () => repairKeyHeld = true, () => repairKeyHeld = false);
+  bindBtn('btn-up', () => heliUpHeld = true, () => heliUpHeld = false);
+  bindBtn('btn-down', () => heliDownHeld = true, () => heliDownHeld = false);
+  bindBtn('btn-rocket', () => heliRockets());
+  bindBtn('btn-horn', () => honk());
   document.getElementById('btn-map').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleFullmap(); }, { passive: false });
   document.getElementById('btn-score').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleScoreboard(); }, { passive: false });
 } else {
@@ -165,13 +189,16 @@ function updatePlayer(dt) {
     if (keys['Space']) jumpQueued = true;
   }
   if (ads.t > 0.5) sprint = false;               // ADS中はダッシュ不可
-  const speed = (sprint ? 9.5 : 5.5) * (1 - ads.t * 0.45);  // ADS中は移動速度低下
+  // v0.3: 泳ぎ — 水域では低速・ジャンプ不可
+  const swimming = terrainH(player.pos.x, player.pos.z) < WATER_Y - 0.2;
+  if (swimming) sprint = false;
+  const speed = (sprint ? 9.5 : 5.5) * (1 - ads.t * 0.45) * (swimming ? 0.45 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1 修正済み)
   const wx = (ix * cos + iz * sin) * speed;
   const wz = (iz * cos - ix * sin) * speed;
 
-  if (jumpQueued && player.onGround) { player.vel.y = 6.5; player.onGround = false; }
+  if (jumpQueued && player.onGround && !swimming) { player.vel.y = 6.5; player.onGround = false; }
   jumpQueued = false;
   player.vel.y -= 18 * dt;
 
@@ -181,8 +208,9 @@ function updatePlayer(dt) {
   const nz = player.pos.z + wz * dt;
   if (!collidesAt(player.pos.x, nz, player.radius, footY)) player.pos.z = nz;
   player.pos.y += player.vel.y * dt;
-  // 地形との接地
-  const groundY = terrainH(player.pos.x, player.pos.z) + player.eyeHeight;
+  // 地形との接地 (v0.3: 水域では水面付近に浮く)
+  const th = terrainH(player.pos.x, player.pos.z);
+  const groundY = (th < WATER_Y - 0.2 ? Math.max(th, WATER_Y - 1.1) : th) + player.eyeHeight;
   if (player.pos.y <= groundY) {
     player.pos.y = groundY; player.vel.y = 0; player.onGround = true;
   }
@@ -190,8 +218,9 @@ function updatePlayer(dt) {
   camera.position.copy(player.pos);
   const moving = Math.hypot(wx, wz) > 0.5;
   if (moving && player.onGround) {
-    bobT += dt * (sprint ? 13 : 9);
-    camera.position.y += Math.sin(bobT) * 0.035;
+    bobT += dt * (sprint ? 13 : swimming ? 5 : 9);
+    camera.position.y += Math.sin(bobT) * (swimming ? 0.06 : 0.035);
+    if (swimming && Math.random() < dt * 6) spawnParticles(player.pos.clone().setY(WATER_Y + 0.1), 0xbfe3ef, 2, 1.5, 0.7);
   }
   camera.rotation.set(player.pitch, player.yaw, 0);
   if (shake > 0.01) {
