@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>STEEL FRONT - Mobile FPS</title>
+<title>STEEL FRONT v0.2 - Conquest</title>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
@@ -28,15 +28,30 @@
 
   #damage-vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(200,0,0,.55) 100%); opacity:0; transition:opacity .15s; }
 
-  #top-bar { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; color:#fff; }
-  #wave-label { font-size:13px; letter-spacing:3px; color:#9fd4ff; text-shadow:0 0 6px rgba(0,120,255,.8); font-weight:700; }
-  #enemy-count { font-size:11px; color:rgba(255,255,255,.75); margin-top:2px; }
+  /* コンクエストHUD: チケット + 拠点ストリップ */
+  #top-bar { position:absolute; top:calc(8px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; color:#fff; }
+  #tickets-row { display:flex; align-items:center; gap:10px; justify-content:center; }
+  .tk { font-size:19px; font-weight:800; text-shadow:0 1px 3px #000; min-width:44px; }
+  #t-blue { color:#6db4ff; text-align:right; }
+  #t-red { color:#ff6b5e; text-align:left; }
+  #flags-strip { display:flex; gap:5px; }
+  .flag-ic { width:22px; height:22px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.4); text-shadow:0 1px 2px #000; transition:background .3s; }
+  .flag-ic.f-blue { background:rgba(45,110,220,.9); border-color:rgba(140,190,255,.8); }
+  .flag-ic.f-red { background:rgba(205,50,40,.9); border-color:rgba(255,150,140,.8); }
+  .flag-ic.f-hot { animation:flagBlink .8s infinite; }
+  @keyframes flagBlink { 50% { opacity:.45; } }
+  #mode-label { font-size:10px; letter-spacing:3px; color:#9fd4ff; margin-top:2px; text-shadow:0 0 6px rgba(0,120,255,.8); }
+
+  #cap-box { position:absolute; top:19%; left:50%; transform:translateX(-50%); display:none; text-align:center; color:#fff; }
+  #cap-label { font-size:15px; font-weight:800; text-shadow:0 1px 3px #000; letter-spacing:2px; }
+  #cap-bar { width:190px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.45); border-radius:4px; overflow:hidden; margin-top:4px; }
+  #cap-fill { height:100%; width:50%; background:#6db4ff; transition:width .15s linear; }
 
   #score-box { position:absolute; top:calc(10px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right)); text-align:right; color:#fff; text-shadow:0 1px 3px #000; }
   #score-box .score { font-size:18px; font-weight:700; color:#ffd257; }
   #score-box .kills { font-size:11px; color:rgba(255,255,255,.8); }
 
-  #radar { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left)); width:104px; height:104px; border-radius:50%; border:2px solid rgba(120,200,255,.5); background:rgba(0,20,35,.55); box-shadow:0 0 12px rgba(0,0,0,.5); }
+  #radar { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left)); width:112px; height:112px; border-radius:50%; border:2px solid rgba(120,200,255,.5); background:rgba(0,20,35,.55); box-shadow:0 0 12px rgba(0,0,0,.5); }
 
   #bottom-left { position:absolute; left:calc(14px + env(safe-area-inset-left)); bottom:calc(14px + env(safe-area-inset-bottom)); color:#fff; }
   #hp-bar { width:170px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); border-radius:4px; overflow:hidden; }
@@ -57,11 +72,18 @@
 
   #interact-hint { position:absolute; left:50%; bottom:26%; transform:translateX(-50%); font-size:14px; font-weight:700; color:#8affc1; text-shadow:0 0 8px rgba(0,255,140,.6); white-space:nowrap; display:none; }
 
-  #killfeed { position:absolute; top:34%; left:50%; transform:translateX(-50%); text-align:center; }
-  .feed-item { color:#ffd257; font-size:15px; font-weight:700; text-shadow:0 0 8px rgba(255,150,0,.7); animation:feedUp 1.2s ease-out forwards; }
+  #killfeed { position:absolute; top:32%; left:50%; transform:translateX(-50%); text-align:center; }
+  .feed-item { color:#ffd257; font-size:15px; font-weight:700; text-shadow:0 0 8px rgba(255,150,0,.7); animation:feedUp 1.4s ease-out forwards; }
+  .feed-item.blue { color:#8fc4ff; text-shadow:0 0 8px rgba(60,140,255,.8); }
+  .feed-item.red { color:#ff8a80; text-shadow:0 0 8px rgba(255,60,40,.8); }
   @keyframes feedUp { 0%{opacity:1; transform:translateY(0);} 100%{opacity:0; transform:translateY(-30px);} }
 
-  #wave-banner { position:absolute; top:26%; left:50%; transform:translateX(-50%); font-size:34px; font-weight:900; letter-spacing:8px; color:#9fd4ff; text-shadow:0 0 20px rgba(0,140,255,.9); opacity:0; transition:opacity .4s; white-space:nowrap; }
+  #wave-banner { position:absolute; top:25%; left:50%; transform:translateX(-50%); font-size:28px; font-weight:900; letter-spacing:6px; color:#9fd4ff; text-shadow:0 0 20px rgba(0,140,255,.9); opacity:0; transition:opacity .4s; white-space:nowrap; }
+
+  /* リスポーン待機オーバーレイ */
+  #respawn-screen { position:fixed; inset:0; z-index:40; display:none; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(40,0,0,.5), rgba(20,0,0,.8)); color:#fff; text-align:center; }
+  #respawn-screen h2 { font-size:32px; font-weight:900; letter-spacing:6px; color:#ff6b5e; text-shadow:0 0 18px rgba(255,60,40,.9); margin-bottom:12px; }
+  #respawn-timer { font-size:20px; color:#ffd257; }
 
   #ctx-lost { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.75); color:#ffd257; font-size:15px; text-align:center; line-height:1.8; }
 
@@ -84,8 +106,8 @@
   .big-btn { pointer-events:auto; padding:14px 60px; font-size:18px; font-weight:800; letter-spacing:4px; color:#06131f; background:linear-gradient(180deg,#9fd4ff,#4da3e0); border:none; border-radius:6px; cursor:pointer; box-shadow:0 0 20px rgba(80,180,255,.5); }
   .big-btn:active { transform:scale(.96); }
   .howto { margin-top:26px; font-size:12px; line-height:1.9; color:rgba(255,255,255,.75); }
-  #gameover-screen { display:none; background:rgba(10,0,0,.88); }
-  #gameover-screen h1 { color:#ff6b5e; text-shadow:0 0 25px rgba(255,60,40,.9); }
+  #gameover-screen { display:none; background:rgba(5,5,12,.9); }
+  #gameover-title { }
   #final-stats { font-size:16px; margin-bottom:26px; color:#ffd257; line-height:1.8; }
 </style>
 </head>
@@ -98,9 +120,17 @@
   <div id="damage-vignette"></div>
   <div id="crosshair"><span class="ch-t"></span><span class="ch-b"></span><span class="ch-l"></span><span class="ch-r"></span></div>
   <div id="hitmarker"><span class="hm1"></span><span class="hm2"></span><span class="hm3"></span><span class="hm4"></span></div>
-  <div id="top-bar"><div id="wave-label">WAVE 1</div><div id="enemy-count">敵 残り 0</div></div>
+  <div id="top-bar">
+    <div id="tickets-row">
+      <span class="tk" id="t-blue">150</span>
+      <div id="flags-strip"></div>
+      <span class="tk" id="t-red">150</span>
+    </div>
+    <div id="mode-label">CONQUEST 10 vs 10</div>
+  </div>
+  <div id="cap-box"><div id="cap-label">B 占領中</div><div id="cap-bar"><div id="cap-fill"></div></div></div>
   <div id="score-box"><div class="score" id="score-val">0</div><div class="kills" id="kills-val">0 KILLS</div></div>
-  <canvas id="radar" width="104" height="104"></canvas>
+  <canvas id="radar" width="112" height="112"></canvas>
   <div id="bottom-left">
     <div id="vehicle-box">
       <div id="vehicle-name">JEEP</div>
@@ -117,8 +147,14 @@
   </div>
   <div id="interact-hint"></div>
   <div id="killfeed"></div>
-  <div id="wave-banner">WAVE 1</div>
+  <div id="wave-banner">CONQUEST</div>
 </section>
+
+<!-- リスポーン待機 -->
+<div id="respawn-screen">
+  <h2>戦死</h2>
+  <div id="respawn-timer">再出撃まで 5</div>
+</div>
 
 <div id="ctx-lost">描画コンテキストを復旧中...<br>数秒待っても直らない場合は再読み込みしてください</div>
 
@@ -135,14 +171,14 @@
 <!-- ===== Start screen ===== -->
 <section class="screen" id="start-screen">
   <h1>STEEL FRONT</h1>
-  <div class="sub">MOBILE 3D FPS — BATTLEFIELD STYLE</div>
+  <div class="sub">CONQUEST — 10 vs 10 拠点占領戦</div>
   <button class="big-btn" id="start-btn">出撃する</button>
   <div class="howto" id="howto-text"></div>
 </section>
 
-<!-- ===== Game over screen ===== -->
+<!-- ===== Match end screen ===== -->
 <section class="screen" id="gameover-screen">
-  <h1>戦死</h1>
+  <h1 id="gameover-title">勝利</h1>
   <div id="final-stats"></div>
   <button class="big-btn" id="restart-btn">再出撃</button>
 </section>
@@ -151,14 +187,14 @@
 'use strict';
 /* =========================================================
    STEEL FRONT — Mobile 3D FPS (single file, Three.js)
-   v2: 描画フリーズ修正 / マップ強化 / 乗り物(ジープ・戦車)
+   v0.2: コンクエスト(拠点占領)モード 10vs10 /
+         高低差のある大型マップ (300m x 300m)
    ---------------------------------------------------------
-   フリーズ修正の要点:
-   - トレーサー/パーティクルを全てプール化(毎フレームの
-     ジオメトリ・マテリアル生成/破棄を撤廃 → GPUメモリ枯渇と
-     WebGLコンテキストロストを防止)
-   - webglcontextlost / restored ハンドラで自動復旧
-   - モバイルは pixelRatio 1.25 上限に抑えGPU負荷を軽減
+   - 5つの占領拠点 (A〜E) + 両軍HQ
+   - チケット制: 拠点過半数保持で敵チケットが減少 / 戦死で-1
+   - 味方AI 9体 + 敵AI 10体 (拠点への移動・交戦・占領を行う)
+   - ハイトフィールド地形 (丘・高台・外周の山) と地形追従の道路
+   - 市街地 / 村 / 倉庫地区 / 監視塔 / 岩場などの地区
    ========================================================= */
 
 // ---------- Device detection ----------
@@ -166,8 +202,8 @@ const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
                  (navigator.maxTouchPoints > 1 && 'ontouchstart' in window);
 
 document.getElementById('howto-text').innerHTML = isMobile
-  ? '左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点操作 / FIRE:射撃 / JUMP / RELOAD<br>乗り物に近づいて「乗る」ボタンでジープ・戦車に搭乗!'
-  : 'WASD:移動 / マウス:視点 / 左クリック:射撃<br>Shift:ダッシュ / Space:ジャンプ / R:リロード<br>E:乗り物に乗る・降りる / 画面クリックでマウス操作開始';
+  ? 'A〜Eの拠点を占領してチケットで勝利せよ!<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / 乗り物ボタンで搭乗'
+  : 'A〜Eの拠点を占領してチケットで勝利せよ!<br>WASD:移動 / マウス:視点 / 左クリック:射撃<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物';
 
 // ---------- Core three.js setup ----------
 const canvas = document.getElementById('game-canvas');
@@ -177,11 +213,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = !isMobile;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
-// --- WebGL context-loss recovery (フリーズ対策) ---
+// --- WebGL context-loss recovery ---
 let ctxLost = false;
 const ctxLostEl = document.getElementById('ctx-lost');
 canvas.addEventListener('webglcontextlost', e => {
-  e.preventDefault();               // restore を許可するために必須
+  e.preventDefault();
   ctxLost = true;
   ctxLostEl.style.display = 'flex';
 }, false);
@@ -191,9 +227,9 @@ canvas.addEventListener('webglcontextrestored', () => {
 }, false);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xc3d2de, 80, 300);
+scene.fog = new THREE.Fog(0xc3d2de, 110, 420);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 900);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1200);
 camera.rotation.order = 'YXZ';
 
 window.addEventListener('resize', () => {
@@ -205,15 +241,67 @@ window.addEventListener('resize', () => {
 // ---------- Lights ----------
 scene.add(new THREE.HemisphereLight(0xd8e8f4, 0x50584a, 0.95));
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.05);
-sun.position.set(60, 90, 30);
+sun.position.set(90, 130, 45);
 if (!isMobile) {
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -110; sun.shadow.camera.right = 110;
-  sun.shadow.camera.top = 110; sun.shadow.camera.bottom = -110;
-  sun.shadow.camera.far = 250;
+  sun.shadow.camera.left = -160; sun.shadow.camera.right = 160;
+  sun.shadow.camera.top = 160; sun.shadow.camera.bottom = -160;
+  sun.shadow.camera.far = 400;
 }
 scene.add(sun);
+
+/* =========================================================
+   Terrain — ハイトフィールド地形 (v0.2)
+   丘・高台・外周の山を解析関数で定義し、メッシュと当たり判定
+   の両方で同じ terrainHeight() を使用する
+   ========================================================= */
+const WORLD = 150;                 // playable half-size (300m x 300m)
+
+// なだらかな丘 (ガウス型) の定義 [x, z, 半径, 高さ]
+const HILLS = [
+  [-95, -85, 55, 14],    // 北西の大きな丘 (拠点A)
+  [100, 95, 60, 16],     // 南東の高地 (拠点E)
+  [95, -100, 45, 10],    // 北東の丘
+  [-100, 105, 42, 9],    // 南西の丘
+  [0, 0, 30, 5],         // 中央のゆるい盛り上がり (拠点C)
+  [-45, 60, 25, 6],      // 南西寄りの小丘
+  [55, -50, 22, 5]       // 北東寄りの小丘
+];
+function terrainHeight(x, z) {
+  let h = 0;
+  // 丘 (滑らかに合成)
+  for (const [hx, hz, r, hh] of HILLS) {
+    const d2 = (x - hx) * (x - hx) + (z - hz) * (z - hz);
+    const rr = r * r;
+    if (d2 < rr) {
+      const t = 1 - d2 / rr;
+      h += hh * t * t;               // 滑らかな山型
+    }
+  }
+  // 外周の山 (プレイエリア外へ向かって上がる)
+  const edge = Math.max(Math.abs(x), Math.abs(z));
+  if (edge > WORLD - 8) h += (edge - (WORLD - 8)) * 1.4;
+  // 細かい起伏 (低周波ノイズ風)
+  h += Math.sin(x * 0.045) * Math.cos(z * 0.05) * 1.1
+     + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.5;
+  return h;
+}
+// 道路・拠点まわりを平らに補正するための「平地パッチ」
+// [x, z, 半径, 目標高さ(nullなら中心の高さ)]
+const FLATS = [];
+function flattenAt(x, z, r) { FLATS.push([x, z, r, terrainHeight(x, z)]); }
+function terrainH(x, z) {
+  let h = terrainHeight(x, z);
+  for (const [fx, fz, fr, fh] of FLATS) {
+    const d = Math.hypot(x - fx, z - fz);
+    if (d < fr) {
+      const t = Math.min(1, (fr - d) / (fr * 0.45)); // 端はブレンド
+      h = h * (1 - t) + fh * t;
+    }
+  }
+  return h;
+}
 
 // ---------- Procedural textures ----------
 function makeCanvasTexture(size, painter, repeatX = 1, repeatY = 1) {
@@ -231,27 +319,24 @@ const groundTex = makeCanvasTexture(256, (g, s) => {
     g.fillStyle = `rgba(${70 + Math.random() * 50 | 0},${78 + Math.random() * 45 | 0},${45 + Math.random() * 35 | 0},.55)`;
     g.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 4, 2 + Math.random() * 4);
   }
-  // 草むらパッチ
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 28; i++) {
     const x = Math.random() * s, y = Math.random() * s, r = 8 + Math.random() * 18;
     const gr = g.createRadialGradient(x, y, 0, x, y, r);
     gr.addColorStop(0, 'rgba(84,110,58,.55)'); gr.addColorStop(1, 'rgba(84,110,58,0)');
     g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
   }
-}, 40, 40);
+}, 56, 56);
 const roadTex = makeCanvasTexture(256, (g, s) => {
   g.fillStyle = '#3c3e42'; g.fillRect(0, 0, s, s);
   for (let i = 0; i < 500; i++) {
     g.fillStyle = `rgba(${50 + Math.random() * 40 | 0},${52 + Math.random() * 40 | 0},${55 + Math.random() * 40 | 0},.4)`;
     g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
   }
-  // 中央破線 (テクスチャは横方向に走る道路用)
   g.fillStyle = 'rgba(230,220,180,.85)';
   for (let x = 8; x < s; x += 64) g.fillRect(x, s / 2 - 3, 34, 6);
-  // 端の白線
   g.fillStyle = 'rgba(220,220,220,.5)';
   g.fillRect(0, 8, s, 4); g.fillRect(0, s - 12, s, 4);
-}, 24, 1);
+}, 1, 1);
 function facadeTex(base, winLit) {
   return makeCanvasTexture(256, (g, s) => {
     g.fillStyle = base; g.fillRect(0, 0, s, s);
@@ -261,18 +346,27 @@ function facadeTex(base, winLit) {
     }
     for (let y = 20; y < s - 30; y += 52) {
       for (let x = 16; x < s - 30; x += 46) {
-        g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x - 2, y - 2, 32, 40); // 窓枠影
+        g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x - 2, y - 2, 32, 40);
         g.fillStyle = Math.random() < winLit ? 'rgba(255,238,170,.75)' : 'rgba(28,40,52,.9)';
         g.fillRect(x, y, 28, 36);
-        g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x, y, 28, 8); // 反射
+        g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x, y, 28, 8);
       }
     }
-    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, s - 12, s, 12); // 基礎
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, s - 12, s, 12);
   }, 2, 2);
 }
 const buildingTexA = facadeTex('#8f8d84', 0.28);
 const buildingTexB = facadeTex('#7c8894', 0.2);
 const buildingTexC = facadeTex('#9a8f7c', 0.35);
+const brickTex = makeCanvasTexture(128, (g, s) => {
+  g.fillStyle = '#8a5a44'; g.fillRect(0, 0, s, s);
+  g.strokeStyle = 'rgba(60,35,25,.7)'; g.lineWidth = 2;
+  for (let y = 0; y < s; y += 16) {
+    g.beginPath(); g.moveTo(0, y); g.lineTo(s, y); g.stroke();
+    const off = (y / 16) % 2 ? 16 : 0;
+    for (let x = off; x < s; x += 32) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 16); g.stroke(); }
+  }
+}, 3, 2);
 const containerTex = makeCanvasTexture(128, (g, s) => {
   g.fillStyle = '#7d3b2c'; g.fillRect(0, 0, s, s);
   g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 3;
@@ -298,13 +392,12 @@ const crateTex = makeCanvasTexture(128, (g, s) => {
   sg.fillStyle = grad; sg.fillRect(0, 0, 32, 256);
   const skyTex = new THREE.CanvasTexture(skyTexC);
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(430, 20, 14),
+    new THREE.SphereGeometry(600, 20, 14),
     new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false })
   );
   sky.renderOrder = -10;
   scene.add(sky);
 
-  // 雲 (スプライト)
   const cloudC = document.createElement('canvas');
   cloudC.width = 128; cloudC.height = 64;
   const cg = cloudC.getContext('2d');
@@ -315,15 +408,14 @@ const crateTex = makeCanvasTexture(128, (g, s) => {
     cg.fillStyle = rg; cg.beginPath(); cg.arc(x, y, r, 0, 7); cg.fill();
   }
   const cloudTex = new THREE.CanvasTexture(cloudC);
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 11; i++) {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.55 + Math.random() * 0.3, fog: false, depthWrite: false }));
-    const a = Math.random() * Math.PI * 2, r = 160 + Math.random() * 190;
-    sp.position.set(Math.cos(a) * r, 95 + Math.random() * 70, Math.sin(a) * r);
-    sp.scale.set(90 + Math.random() * 80, 40 + Math.random() * 30, 1);
+    const a = Math.random() * Math.PI * 2, r = 230 + Math.random() * 260;
+    sp.position.set(Math.cos(a) * r, 130 + Math.random() * 90, Math.sin(a) * r);
+    sp.scale.set(110 + Math.random() * 100, 50 + Math.random() * 36, 1);
     scene.add(sp);
   }
 
-  // 太陽グロー
   const sunC = document.createElement('canvas');
   sunC.width = sunC.height = 64;
   const sc = sunC.getContext('2d');
@@ -331,59 +423,111 @@ const crateTex = makeCanvasTexture(128, (g, s) => {
   srg.addColorStop(0, 'rgba(255,250,220,1)'); srg.addColorStop(0.3, 'rgba(255,235,170,.8)'); srg.addColorStop(1, 'rgba(255,220,140,0)');
   sc.fillStyle = srg; sc.fillRect(0, 0, 64, 64);
   const sunSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(sunC), transparent: true, fog: false, depthWrite: false }));
-  sunSp.position.set(210, 300, 105);
-  sunSp.scale.set(120, 120, 1);
+  sunSp.position.set(290, 400, 150);
+  sunSp.scale.set(150, 150, 1);
   scene.add(sunSp);
 
-  // 山並み (遠景シルエット)
+  // 遠景の山並み
   const mtnMat = new THREE.MeshBasicMaterial({ color: 0x5f7488 });
-  for (let i = 0; i < 22; i++) {
-    const a = (i / 22) * Math.PI * 2 + Math.random() * 0.2;
-    const r = 245 + Math.random() * 45;
-    const h = 34 + Math.random() * 55;
-    const m = new THREE.Mesh(new THREE.ConeGeometry(45 + Math.random() * 40, h, 5), mtnMat);
-    m.position.set(Math.cos(a) * r, h / 2 - 4, Math.sin(a) * r);
+  const mtnMat2 = new THREE.MeshBasicMaterial({ color: 0x6d8296 });
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * Math.PI * 2 + Math.random() * 0.2;
+    const r = 340 + Math.random() * 70;
+    const h = 55 + Math.random() * 85;
+    const m = new THREE.Mesh(new THREE.ConeGeometry(60 + Math.random() * 55, h, 5), i % 2 ? mtnMat : mtnMat2);
+    m.position.set(Math.cos(a) * r, h / 2 - 6, Math.sin(a) * r);
     m.rotation.y = Math.random() * 3;
     scene.add(m);
   }
 }
 
-// ---------- Map ----------
-const WORLD = 96;                 // playable half-size
-const obstacles = [];             // AABB list {minX,maxX,minZ,maxZ,h}
-const solidMeshes = [];           // for line-of-sight raycasts
+/* =========================================================
+   Conquest flags — 拠点定義 (地形パッチより先に確定)
+   own: 1=BLUE(プレイヤー側) / -1=RED / 0=中立
+   ========================================================= */
+const FLAG_R = 14;                 // 占領判定半径
+const flags = [
+  { id: 'A', x: -95, z: -85, own: 0, cap: 0 },   // 北西の丘の上
+  { id: 'B', x: -75, z: 55,  own: 0, cap: 0 },   // 南西の村
+  { id: 'C', x: 0,   z: 0,   own: 0, cap: 0 },   // 中央市街地
+  { id: 'D', x: 80,  z: -60, own: 0, cap: 0 },   // 北東の倉庫地区
+  { id: 'E', x: 100, z: 95,  own: 0, cap: 0 }    // 南東の高地基地
+];
+const HQ_BLUE = { x: -130, z: 130 };   // 南西端
+const HQ_RED  = { x: 130,  z: -130 };  // 北東端
 
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(WORLD * 2 + 60, WORLD * 2 + 60),
-  new THREE.MeshLambertMaterial({ map: groundTex })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
+// 拠点・HQ周辺を平地化
+for (const f of flags) flattenAt(f.x, f.z, 22);
+flattenAt(HQ_BLUE.x, HQ_BLUE.z, 20);
+flattenAt(HQ_RED.x, HQ_RED.z, 20);
 
-// 道路 (十字 / 当たり判定なし)
-const matRoad = new THREE.MeshLambertMaterial({ map: roadTex });
-{
-  const roadEW = new THREE.Mesh(new THREE.PlaneGeometry(WORLD * 2 + 20, 9), matRoad);
-  roadEW.rotation.x = -Math.PI / 2; roadEW.position.set(0, 0.03, 0);
-  roadEW.receiveShadow = !isMobile;
-  scene.add(roadEW);
-  const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(WORLD * 2 + 20, 9), matRoad);
-  roadNS.rotation.x = -Math.PI / 2; roadNS.rotation.z = Math.PI / 2;
-  roadNS.position.set(0, 0.032, 0);
-  roadNS.receiveShadow = !isMobile;
-  scene.add(roadNS);
+// ---------- 道路網 (拠点を結ぶ / 地形追従) ----------
+// 道路セグメント定義 [x1,z1,x2,z2] — レンダリングと「道路上か」判定に使用
+const ROADS = [
+  [HQ_BLUE.x, HQ_BLUE.z, -75, 55],    // 青HQ → B
+  [-75, 55, 0, 0],                     // B → C
+  [0, 0, 80, -60],                     // C → D
+  [80, -60, HQ_RED.x, HQ_RED.z],      // D → 赤HQ
+  [-95, -85, 0, 0],                    // A → C
+  [0, 0, 100, 95],                     // C → E
+  [-95, -85, -75, 55],                 // A → B
+  [80, -60, 100, 95]                   // D → E
+];
+function onRoad(x, z) {
+  for (const [x1, z1, x2, z2] of ROADS) {
+    const dx = x2 - x1, dz = z2 - z1;
+    const len2 = dx * dx + dz * dz;
+    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t, pz = z1 + dz * t;
+    if (Math.hypot(x - px, z - pz) < 5.5) return true;
+  }
+  return false;
 }
 
-function addBox(x, z, w, h, d, material, rotY = 0, yBase = 0, solid = true) {
+/* ---------- Terrain mesh (ハイトフィールド) ---------- */
+{
+  const SEG = 100;
+  const geo = new THREE.PlaneGeometry(WORLD * 2 + 80, WORLD * 2 + 80, SEG, SEG);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  // 頂点カラー: 高さ・道路で色分け (草/土/岩/道路)
+  const colors = new Float32Array(pos.count * 3);
+  const cGrass = new THREE.Color(0x6d7a4e), cDirt = new THREE.Color(0x7a7050),
+        cRock = new THREE.Color(0x777872), cRoad = new THREE.Color(0x46484c),
+        cGrass2 = new THREE.Color(0x5d6f45);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x, z);
+    pos.setY(i, h);
+    let c;
+    if (onRoad(x, z)) c = cRoad;
+    else if (h > 13) c = cRock;
+    else if (h > 7) c = cDirt;
+    else c = ((Math.sin(x * 0.2) + Math.cos(z * 0.23)) > 0.4) ? cGrass2 : cGrass;
+    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex }));
+  ground.receiveShadow = !isMobile;
+  scene.add(ground);
+}
+
+// ---------- Map objects ----------
+const obstacles = [];             // AABB list {minX,maxX,minZ,maxZ,y0,h} (y0=底面, h=上面の絶対高さ)
+const solidMeshes = [];           // for line-of-sight raycasts
+
+function addBox(x, z, w, h, d, material, rotY = 0, yBase = null, solid = true) {
+  const gy = yBase === null ? terrainH(x, z) : yBase;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-  m.position.set(x, yBase + h / 2, z);
+  m.position.set(x, gy + h / 2, z);
   m.rotation.y = rotY;
   m.castShadow = m.receiveShadow = !isMobile;
   scene.add(m);
   if (solid) {
-    const rw = Math.abs(rotY) > 0.7 ? d : w, rd = Math.abs(rotY) > 0.7 ? w : d;
-    obstacles.push({ minX: x - rw / 2, maxX: x + rw / 2, minZ: z - rd / 2, maxZ: z + rd / 2, h: yBase + h });
+    const rw = Math.abs(Math.sin(rotY)) > 0.7 ? d : w, rd = Math.abs(Math.sin(rotY)) > 0.7 ? w : d;
+    obstacles.push({ minX: x - rw / 2, maxX: x + rw / 2, minZ: z - rd / 2, maxZ: z + rd / 2, y0: gy, h: gy + h });
     solidMeshes.push(m);
   }
   return m;
@@ -391,9 +535,12 @@ function addBox(x, z, w, h, d, material, rotY = 0, yBase = 0, solid = true) {
 const matBuildingA = new THREE.MeshLambertMaterial({ map: buildingTexA });
 const matBuildingB = new THREE.MeshLambertMaterial({ map: buildingTexB });
 const matBuildingC = new THREE.MeshLambertMaterial({ map: buildingTexC });
+const matBrick = new THREE.MeshLambertMaterial({ map: brickTex });
 const matRoof = new THREE.MeshLambertMaterial({ color: 0x5a5e63 });
+const matRoofRed = new THREE.MeshLambertMaterial({ color: 0x7a4438 });
 const matContainer = new THREE.MeshLambertMaterial({ map: containerTex });
 const matContainer2 = new THREE.MeshLambertMaterial({ color: 0x3d6b4f });
+const matContainer3 = new THREE.MeshLambertMaterial({ color: 0x38506b });
 const matCrate = new THREE.MeshLambertMaterial({ map: crateTex });
 const matSandbag = new THREE.MeshLambertMaterial({ color: 0x9a8f6a });
 const matWall = new THREE.MeshLambertMaterial({ color: 0x777d80 });
@@ -403,143 +550,267 @@ const matLeaf2 = new THREE.MeshLambertMaterial({ color: 0x5d7c3f });
 const matPole = new THREE.MeshLambertMaterial({ color: 0x4c5257 });
 const matBarrel = new THREE.MeshLambertMaterial({ color: 0x7a2e22 });
 const matBarrel2 = new THREE.MeshLambertMaterial({ color: 0x40563e });
+const matRock = new THREE.MeshLambertMaterial({ color: 0x6e6f68 });
 
-// 建物 (屋根パラペット + 屋上設備つき)
-function addBuilding(x, z, w, h, d, mat) {
+// 建物 (パラペット・屋上設備つき)
+function addBuilding(x, z, w, h, d, mat, roofMat = matRoof) {
+  const gy = terrainH(x, z);
   addBox(x, z, w, h, d, mat);
-  // パラペット (見た目のみ)
-  const p = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.7, d + 0.5), matRoof);
-  p.position.set(x, h + 0.35, z);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.7, d + 0.5), roofMat);
+  p.position.set(x, gy + h + 0.35, z);
   p.castShadow = false; p.receiveShadow = !isMobile;
   scene.add(p);
-  // 屋上の室外機・小屋
   if (w > 13) {
     const u = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 1.6), matRoof);
-    u.position.set(x + (Math.random() - .5) * (w * 0.4), h + 1.4, z + (Math.random() - .5) * (d * 0.4));
+    u.position.set(x + (Math.random() - .5) * (w * 0.4), gy + h + 1.4, z + (Math.random() - .5) * (d * 0.4));
     scene.add(u);
   }
 }
-[[-45, -40, 18, 14, 22, matBuildingA], [40, -48, 24, 10, 16, matBuildingB], [55, 20, 16, 18, 16, matBuildingA],
- [-55, 30, 20, 12, 18, matBuildingC], [-20, 60, 26, 9, 14, matBuildingB], [25, 55, 14, 15, 14, matBuildingA],
- [70, -15, 14, 8, 26, matBuildingC], [-75, -10, 12, 11, 20, matBuildingB], [18, -70, 30, 12, 14, matBuildingA],
- [-35, -75, 14, 16, 14, matBuildingC]]
- .forEach(b => addBuilding(b[0], b[1], b[2], b[3], b[4], b[5]));
+// 三角屋根の家 (村用)
+function addHouse(x, z, w, h, d, rotY = 0) {
+  const gy = terrainH(x, z);
+  addBox(x, z, w, h, d, matBrick, rotY);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, h * 0.55, 4), matRoofRed);
+  roof.position.set(x, gy + h + h * 0.27, z);
+  roof.rotation.y = rotY + Math.PI / 4;
+  roof.castShadow = !isMobile;
+  scene.add(roof);
+}
 
-// 廃墟壁 (遮蔽物)
-[[-14, 42, 10, 3.5, 1, 0], [36, 30, 8, 2.8, 1, Math.PI / 2], [-40, -12, 9, 3, 1, Math.PI / 2], [60, -40, 10, 2.5, 1, 0]]
+/* ---------- 地区の構築 ---------- */
+// === 拠点C: 中央市街地 ===
+[[-18, -16, 16, 15, 18, matBuildingA], [20, -18, 18, 11, 14, matBuildingB],
+ [22, 16, 14, 18, 14, matBuildingA], [-22, 18, 18, 12, 16, matBuildingC],
+ [-2, -30, 22, 9, 12, matBuildingB], [0, 30, 20, 13, 12, matBuildingC]]
+ .forEach(b => addBuilding(b[0], b[1], b[2], b[3], b[4], b[5]));
+// 市街地の遮蔽物
+[[-8, 8, 8, 1.1, 1.2, 0], [10, -6, 8, 1.1, 1.2, Math.PI / 2], [6, 8, 6, 1.1, 1.2, 0]]
+ .forEach(s => addBox(s[0], s[1], s[2], s[3], s[4], matSandbag, s[5]));
+[[-12, -4, 0], [12, 6, Math.PI / 2]].forEach(c => addBox(c[0], c[1], 12, 3, 3.2, matContainer, c[2]));
+// 廃墟壁
+[[-6, 20, 10, 3.5, 1, 0], [14, -12, 8, 2.8, 1, Math.PI / 2], [-16, 6, 9, 3, 1, Math.PI / 2]]
  .forEach(w => addBox(w[0], w[1], w[2], w[3], w[4], matWall, w[5]));
 
-// コンテナ (一部2段積み)
-[[-15, -25, 0], [12, 20, Math.PI / 2], [30, -10, 0], [-30, 15, Math.PI / 2], [50, 45, 0], [-60, -45, Math.PI / 2]]
- .forEach((c, i) => {
-   addBox(c[0], c[1], 12, 3, 3.2, i % 2 ? matContainer2 : matContainer, c[2]);
-   if (i % 3 === 0) addBox(c[0] + 0.4, c[1], 12, 3, 3.2, i % 2 ? matContainer : matContainer2, c[2], 3, false);
- });
-// 木箱
-for (let i = 0; i < 16; i++) {
-  const a = Math.random() * Math.PI * 2, r = 16 + Math.random() * 62;
-  const x = Math.cos(a) * r, z = Math.sin(a) * r;
-  if (Math.abs(x) < 7 || Math.abs(z) < 7) continue; // 道路上は避ける
-  addBox(x, z, 1.6, 1.6, 1.6, matCrate, Math.random() < .5 ? 0 : Math.PI / 2);
-}
-// 土のう
-[[8, -18, 8, 1.1, 1.2, 0], [-8, 25, 8, 1.1, 1.2, Math.PI / 2], [22, 8, 8, 1.1, 1.2, 0]]
- .forEach(s => addBox(s[0], s[1], s[2], s[3], s[4], matSandbag, s[5]));
-// 外周壁
-addBox(0, -WORLD - 2, WORLD * 2 + 8, 5, 2, matWall);
-addBox(0, WORLD + 2, WORLD * 2 + 8, 5, 2, matWall);
-addBox(-WORLD - 2, 0, 2, 5, WORLD * 2 + 8, matWall);
-addBox(WORLD + 2, 0, 2, 5, WORLD * 2 + 8, matWall);
-
-// 監視塔
+// === 拠点A: 北西の丘 (砦・監視塔) ===
 {
-  const tx = 62, tz = -62;
-  const legGeo = new THREE.BoxGeometry(0.5, 8, 0.5);
-  [[-2, -2], [2, -2], [-2, 2], [2, 2]].forEach(o => {
-    const leg = new THREE.Mesh(legGeo, matTrunk);
-    leg.position.set(tx + o[0], 4, tz + o[1]);
-    leg.castShadow = !isMobile;
-    scene.add(leg);
-  });
-  addBox(tx, tz, 5.6, 0.5, 5.6, matRoof, 0, 8, false);
-  addBox(tx, tz, 5.6, 2.2, 5.6, matWall, 0, 8.5, false);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(4.4, 2, 4), matRoof);
-  roof.position.set(tx, 11.8, tz); roof.rotation.y = Math.PI / 4;
-  scene.add(roof);
-  // 支柱まとめて1つの当たり判定
-  obstacles.push({ minX: tx - 2.6, maxX: tx + 2.6, minZ: tz - 2.6, maxZ: tz + 2.6, h: 12 });
+  const fx = -95, fz = -85;
+  // 丘上の砦壁 (コの字)
+  addBox(fx, fz - 12, 22, 3, 1.4, matWall);
+  addBox(fx - 11, fz, 1.4, 3, 22, matWall);
+  addBox(fx + 11, fz, 1.4, 3, 22, matWall);
+  addBox(fx - 5, fz + 4, 8, 1.1, 1.2, matSandbag);
+  addBox(fx + 5, fz - 4, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
+  addBuilding(fx + 3, fz + 8, 10, 6, 8, matBuildingC);
+  addBox(fx - 6, fz - 6, 1.6, 1.6, 1.6, matCrate);
+  addBox(fx - 4.5, fz - 6.5, 1.6, 1.6, 1.6, matCrate, 0.4);
 }
 
-// 街灯 (道路沿い)
+// === 拠点B: 南西の村 ===
 {
-  const poleGeo = new THREE.CylinderGeometry(0.12, 0.16, 5.5, 6);
-  const armGeo = new THREE.BoxGeometry(0.12, 0.12, 1.6);
-  const lampGeo = new THREE.BoxGeometry(0.5, 0.18, 0.7);
-  const lampMat = new THREE.MeshBasicMaterial({ color: 0xf5f0d8 });
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue;
-    [[i * 26, 6.2, 0], [6.2, i * 26, 1]].forEach(cfg => {
-      const [px, pz, rot] = cfg;
-      const g = new THREE.Group();
-      const pole = new THREE.Mesh(poleGeo, matPole); pole.position.y = 2.75;
-      const arm = new THREE.Mesh(armGeo, matPole); arm.position.set(0, 5.4, -0.7);
-      const lamp = new THREE.Mesh(lampGeo, lampMat); lamp.position.set(0, 5.32, -1.35);
-      g.add(pole, arm, lamp);
-      g.position.set(px, 0, pz);
-      g.rotation.y = rot ? Math.PI / 2 : 0;
-      pole.castShadow = !isMobile;
-      scene.add(g);
-      obstacles.push({ minX: px - 0.25, maxX: px + 0.25, minZ: pz - 0.25, maxZ: pz + 0.25, h: 5.5 });
-    });
+  const fx = -75, fz = 55;
+  addHouse(fx - 10, fz - 8, 8, 5, 7);
+  addHouse(fx + 9, fz - 10, 7, 4.5, 8, Math.PI / 2);
+  addHouse(fx + 11, fz + 8, 9, 5.5, 7);
+  addHouse(fx - 12, fz + 10, 7, 4.5, 7, Math.PI / 2);
+  addHouse(fx - 1, fz + 16, 8, 5, 8);
+  // 井戸
+  const gy = terrainH(fx, fz + 2);
+  const well = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 1.1, 10), matBrick);
+  well.position.set(fx, gy + 0.55, fz + 2);
+  scene.add(well); solidMeshes.push(well);
+  obstacles.push({ minX: fx - 1.3, maxX: fx + 1.3, minZ: fz + 0.7, maxZ: fz + 3.3, y0: gy, h: gy + 1.1 });
+  // 畑の柵
+  addBox(fx + 2, fz - 18, 14, 1.0, 0.3, matTrunk);
+  addBox(fx + 2, fz - 24, 14, 1.0, 0.3, matTrunk);
+}
+
+// === 拠点D: 北東の倉庫地区 ===
+{
+  const fx = 80, fz = -60;
+  addBuilding(fx - 12, fz - 8, 18, 8, 14, matBuildingB);
+  addBuilding(fx + 13, fz + 6, 16, 7, 12, matBuildingB);
+  // コンテナヤード (2段積みあり)
+  [[fx - 2, fz + 10, 0, matContainer], [fx + 4, fz - 12, Math.PI / 2, matContainer3],
+   [fx + 12, fz - 10, 0, matContainer2], [fx - 8, fz + 4, Math.PI / 2, matContainer]]
+   .forEach((c, i) => {
+     addBox(c[0], c[1], 12, 3, 3.2, c[3], c[2]);
+     if (i % 2 === 0) addBox(c[0] + 0.4, c[1], 12, 3, 3.2, i % 2 ? c[3] : matContainer2, c[2], terrainH(c[0], c[1]) + 3, false);
+   });
+  for (let i = 0; i < 6; i++) {
+    addBox(fx - 10 + Math.random() * 20, fz - 4 + Math.random() * 8, 1.6, 1.6, 1.6, matCrate, Math.random());
   }
 }
 
-// 木
+// === 拠点E: 南東の高地基地 ===
+{
+  const fx = 100, fz = 95;
+  addBuilding(fx - 8, fz - 8, 14, 9, 12, matBuildingA);
+  addBuilding(fx + 10, fz + 6, 12, 6, 10, matBuildingC);
+  // ヘリパッド風の台座
+  const gy = terrainH(fx + 2, fz + 14);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 0.4, 16), matRoof);
+  pad.position.set(fx + 2, gy + 0.2, fz + 14);
+  pad.receiveShadow = !isMobile;
+  scene.add(pad);
+  addBox(fx - 12, fz + 8, 8, 1.1, 1.2, matSandbag);
+  addBox(fx + 2, fz - 14, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
+  // アンテナ塔
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.3, 14, 6), matPole);
+  ant.position.set(fx - 14, terrainH(fx - 14, fz - 12) + 7, fz - 12);
+  scene.add(ant);
+  obstacles.push({ minX: fx - 14.4, maxX: fx - 13.6, minZ: fz - 12.4, maxZ: fz - 11.6, y0: 0, h: terrainH(fx - 14, fz - 12) + 14 });
+}
+
+// === HQ (両軍ベース) ===
+function buildHQ(hq, mat) {
+  addBuilding(hq.x, hq.z - 8, 14, 7, 10, mat);
+  addBox(hq.x - 9, hq.z + 2, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
+  addBox(hq.x + 9, hq.z + 2, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
+  addBox(hq.x, hq.z + 10, 10, 1.1, 1.2, matSandbag);
+}
+buildHQ(HQ_BLUE, matBuildingB);
+buildHQ(HQ_RED, matBuildingC);
+
+// === 監視塔 (2箇所) ===
+function buildTower(tx, tz) {
+  const gy = terrainH(tx, tz);
+  const legGeo = new THREE.BoxGeometry(0.5, 8, 0.5);
+  [[-2, -2], [2, -2], [-2, 2], [2, 2]].forEach(o => {
+    const leg = new THREE.Mesh(legGeo, matTrunk);
+    leg.position.set(tx + o[0], gy + 4, tz + o[1]);
+    leg.castShadow = !isMobile;
+    scene.add(leg);
+  });
+  addBox(tx, tz, 5.6, 0.5, 5.6, matRoof, 0, gy + 8, false);
+  addBox(tx, tz, 5.6, 2.2, 5.6, matWall, 0, gy + 8.5, false);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(4.4, 2, 4), matRoof);
+  roof.position.set(tx, gy + 11.8, tz); roof.rotation.y = Math.PI / 4;
+  scene.add(roof);
+  obstacles.push({ minX: tx - 2.6, maxX: tx + 2.6, minZ: tz - 2.6, maxZ: tz + 2.6, y0: gy, h: gy + 12 });
+}
+buildTower(40, 50);
+buildTower(-40, -45);
+
+// === 岩場 (高台の斜面や空白地帯に岩を配置) ===
+{
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  const rockSpots = [[-60, -30], [-50, -55], [55, 25], [35, -85], [-25, 90], [60, 60], [-115, 20], [20, 115], [115, -20], [-20, -115], [70, -20], [-70, -5], [10, 60], [-35, 35], [45, -40], [90, 20], [-90, -40], [-55, 95], [120, 50], [50, -110]];
+  for (const [x, z] of rockSpots) {
+    if (onRoad(x, z)) continue;
+    const s = 1 + Math.random() * 2.2;
+    const r = new THREE.Mesh(rockGeo, matRock);
+    const gy = terrainH(x, z);
+    r.position.set(x, gy + s * 0.4, z);
+    r.scale.set(s, s * (0.6 + Math.random() * 0.5), s);
+    r.rotation.set(Math.random(), Math.random() * 3, Math.random());
+    r.castShadow = !isMobile;
+    scene.add(r);
+    solidMeshes.push(r);
+    obstacles.push({ minX: x - s * 0.8, maxX: x + s * 0.8, minZ: z - s * 0.8, maxZ: z + s * 0.8, y0: gy, h: gy + s });
+  }
+}
+
+// === 木 (道路・拠点を避けてランダム + 固定) ===
 {
   const trunkGeo = new THREE.CylinderGeometry(0.22, 0.34, 2.4, 6);
   const leafGeo1 = new THREE.ConeGeometry(1.9, 2.6, 7);
   const leafGeo2 = new THREE.ConeGeometry(1.4, 2.2, 7);
-  const treeSpots = [[-24, -50], [-62, 12], [44, 12], [78, 34], [-14, 78], [58, 70], [-80, 58], [30, -30], [-46, 52], [80, -52], [-70, -60], [14, 40], [-30, -14], [46, -22]];
-  for (const [x, z] of treeSpots) {
-    if (Math.abs(x) < 7 || Math.abs(z) < 7) continue;
+  let placed = 0, tries = 0;
+  while (placed < 42 && tries < 300) {
+    tries++;
+    const x = (Math.random() * 2 - 1) * (WORLD - 12);
+    const z = (Math.random() * 2 - 1) * (WORLD - 12);
+    if (onRoad(x, z)) continue;
+    let nearFlag = false;
+    for (const f of flags) if (Math.hypot(x - f.x, z - f.z) < 16) { nearFlag = true; break; }
+    if (nearFlag || Math.hypot(x - HQ_BLUE.x, z - HQ_BLUE.z) < 18 || Math.hypot(x - HQ_RED.x, z - HQ_RED.z) < 18) continue;
     const g = new THREE.Group();
     const trunk = new THREE.Mesh(trunkGeo, matTrunk); trunk.position.y = 1.2;
     const l1 = new THREE.Mesh(leafGeo1, Math.random() < .5 ? matLeaf : matLeaf2); l1.position.y = 3.3;
     const l2 = new THREE.Mesh(leafGeo2, matLeaf2); l2.position.y = 4.6;
     trunk.castShadow = l1.castShadow = !isMobile;
     g.add(trunk, l1, l2);
-    const s = 0.8 + Math.random() * 0.7;
+    const s = 0.8 + Math.random() * 0.8;
     g.scale.setScalar(s);
-    g.position.set(x, 0, z);
+    const gy = terrainH(x, z);
+    g.position.set(x, gy, z);
     scene.add(g);
-    obstacles.push({ minX: x - 0.4 * s, maxX: x + 0.4 * s, minZ: z - 0.4 * s, maxZ: z + 0.4 * s, h: 2.4 * s });
+    obstacles.push({ minX: x - 0.4 * s, maxX: x + 0.4 * s, minZ: z - 0.4 * s, maxZ: z + 0.4 * s, y0: gy, h: gy + 2.4 * s });
+    placed++;
   }
 }
 
-// ドラム缶
+// === ドラム缶・木箱の散布 ===
 {
   const barrelGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 10);
-  [[-12, -30], [-11, -29], [33, -12], [14, 22.5], [-32, 17], [52, 43], [24, 6.5], [-6, 27]].forEach(([x, z], i) => {
+  [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [52, 45], [24, 8], [-6, 29], [78, -55], [-72, 52], [-92, -80], [98, 92]].forEach(([x, z], i) => {
+    const gy = terrainH(x, z);
     const b = new THREE.Mesh(barrelGeo, i % 2 ? matBarrel2 : matBarrel);
-    b.position.set(x, 0.6, z);
+    b.position.set(x, gy + 0.6, z);
     b.castShadow = !isMobile;
     scene.add(b);
-    obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, h: 1.2 });
+    obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, y0: gy, h: gy + 1.2 });
   });
+  for (let i = 0; i < 14; i++) {
+    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 110;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (onRoad(x, z)) continue;
+    addBox(x, z, 1.6, 1.6, 1.6, matCrate, Math.random() < .5 ? 0 : Math.PI / 2);
+  }
+}
+
+// === 外周フェンス ===
+addBox(0, -WORLD - 2, WORLD * 2 + 8, 5, 2, matWall, 0, 0);
+addBox(0, WORLD + 2, WORLD * 2 + 8, 5, 2, matWall, 0, 0);
+addBox(-WORLD - 2, 0, 2, 5, WORLD * 2 + 8, matWall, 0, 0);
+addBox(WORLD + 2, 0, 2, 5, WORLD * 2 + 8, matWall, 0, 0);
+
+// === 拠点の旗ポール & 旗メッシュ ===
+const flagMeshes = [];
+{
+  const poleGeo = new THREE.CylinderGeometry(0.09, 0.12, 9, 6);
+  const flagGeo = new THREE.PlaneGeometry(2.4, 1.5);
+  const ringGeo = new THREE.RingGeometry(FLAG_R - 0.6, FLAG_R, 36);
+  for (const f of flags) {
+    const gy = terrainH(f.x, f.z);
+    const pole = new THREE.Mesh(poleGeo, matPole);
+    pole.position.set(f.x, gy + 4.5, f.z);
+    scene.add(pole);
+    const fm = new THREE.Mesh(flagGeo, new THREE.MeshBasicMaterial({ color: 0xbbbbbb, side: THREE.DoubleSide }));
+    fm.position.set(f.x + 1.25, gy + 8, f.z);
+    scene.add(fm);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xbbbbbb, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(f.x, gy + 0.25, f.z);
+    scene.add(ring);
+    f.gy = gy;
+    flagMeshes.push({ f, fm, ring });
+  }
+}
+function flagColorHex(own) { return own === 1 ? 0x3d7fe0 : own === -1 ? 0xd03428 : 0xbbbbbb; }
+function updateFlagVisual(f) {
+  const rec = flagMeshes.find(r => r.f === f);
+  if (!rec) return;
+  rec.fm.material.color.setHex(flagColorHex(f.own));
+  rec.ring.material.color.setHex(flagColorHex(f.own));
 }
 
 // ---------- Player state ----------
 const player = {
-  pos: new THREE.Vector3(0, 1.7, 8),
+  pos: new THREE.Vector3(HQ_BLUE.x, 1.7, HQ_BLUE.z),
   vel: new THREE.Vector3(),
   yaw: 0, pitch: 0,
   hp: 100, maxHp: 100,
   onGround: true,
   lastDamageTime: -99,
   radius: 0.45, eyeHeight: 1.7,
-  alive: true
+  alive: true, respawnT: 0
 };
-const game = { score: 0, kills: 0, wave: 0, running: false, waveClearTimer: 0 };
+const game = {
+  score: 0, kills: 0, running: false,
+  ticketsBlue: 150, ticketsRed: 150,
+  bleedT: 0
+};
 
 // ---------- Weapon ----------
 const weapon = {
@@ -577,12 +848,8 @@ gunGroup.add(muzzleFlash);
 const muzzleLight = new THREE.PointLight(0xffaa44, 0, 8);
 gunGroup.add(muzzleLight);
 
-/* =========================================================
-   Effects — 完全プール化 (フリーズ対策の核心)
-   毎フレームの new Geometry / new Material / dispose を撤廃
-   ========================================================= */
-// --- トレーサープール ---
-const TRACER_MAX = 28;
+/* ===== Effects — 完全プール化 ===== */
+const TRACER_MAX = 40;
 const tracerPool = [];
 let tracerIdx = 0;
 for (let i = 0; i < TRACER_MAX; i++) {
@@ -606,14 +873,13 @@ function spawnTracer(from, to, color = 0xffe08a) {
   t.line.visible = true;
   t.ttl = 0.08;
 }
-// --- パーティクルプール (マテリアルは色ごとにキャッシュ共有) ---
 const particleGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
 const pMatCache = {};
 function pMat(color) {
   if (!pMatCache[color]) pMatCache[color] = new THREE.MeshBasicMaterial({ color });
   return pMatCache[color];
 }
-const PARTICLE_MAX = 150;
+const PARTICLE_MAX = 160;
 const particlePool = [];
 let particleIdx = 0;
 for (let i = 0; i < PARTICLE_MAX; i++) {
@@ -635,7 +901,6 @@ function spawnParticles(pos, color, count = 6, speed = 3, size = 1) {
       .normalize().multiplyScalar(speed * (0.4 + Math.random() * 0.8));
   }
 }
-// --- 爆発ライトプール ---
 const expLights = [];
 for (let i = 0; i < 3; i++) {
   const l = new THREE.PointLight(0xff9944, 0, 26);
@@ -678,7 +943,7 @@ function clearEffects() {
   for (const e of expLights) { e.ttl = 0; e.l.intensity = 0; }
 }
 
-// ---------- Audio (WebAudio, no external assets) ----------
+// ---------- Audio ----------
 let AC = null, noiseBuf = null, noiseBufLong = null;
 function initAudio() {
   if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
@@ -732,16 +997,17 @@ const sfx = {
   shoot: () => playShot(0.2, 1000),
   mg: () => playShot(0.16, 700),
   cannon: () => { playShot(0.4, 300); playExplosionSfx(0.25); },
-  enemyShoot: dist => playShot(Math.max(0.02, 0.15 - dist * 0.0015), 500),
+  distShoot: dist => { if (dist < 90) playShot(Math.max(0.015, 0.14 - dist * 0.0015), 500); },
   hit: () => playBeep(1300, 0.05, 0.12, 'square'),
   kill: () => { playBeep(880, 0.08, 0.12); setTimeout(() => playBeep(1320, 0.12, 0.12), 70); },
   reload: () => { playBeep(400, 0.05, 0.1, 'square'); setTimeout(() => playBeep(600, 0.06, 0.1, 'square'), 250); },
   empty: () => playBeep(240, 0.05, 0.1, 'square'),
   damage: () => playBeep(110, 0.18, 0.22, 'sawtooth'),
   explosion: () => playExplosionSfx(0.5),
-  enter: () => { playBeep(500, 0.06, 0.12, 'square'); setTimeout(() => playBeep(700, 0.08, 0.12, 'square'), 90); }
+  enter: () => { playBeep(500, 0.06, 0.12, 'square'); setTimeout(() => playBeep(700, 0.08, 0.12, 'square'), 90); },
+  capture: () => { playBeep(660, 0.1, 0.14); setTimeout(() => playBeep(880, 0.1, 0.14), 120); setTimeout(() => playBeep(1100, 0.16, 0.14), 240); },
+  lost: () => { playBeep(440, 0.12, 0.14); setTimeout(() => playBeep(300, 0.18, 0.14), 140); }
 };
-// エンジン音 (ループ)
 let engine = null;
 function startEngine(type) {
   if (!AC) return;
@@ -763,15 +1029,20 @@ function updateEngine(speed) {
   engine.g.gain.value = 0.03 + s * 0.0035;
 }
 
-// ---------- Enemies ----------
-const enemies = [];
-const enemyHitMeshes = [];
-const matEnemyBody = new THREE.MeshLambertMaterial({ color: 0x5a5245 });
-const matEnemyHead = new THREE.MeshLambertMaterial({ color: 0xc9a07a });
-const matEnemyGear = new THREE.MeshLambertMaterial({ color: 0x8a1f1f });
-const matEnemyGun = new THREE.MeshLambertMaterial({ color: 0x1c1e20 });
-// 共有ジオメトリ (生成/破棄コスト削減)
-const EG = {
+/* =========================================================
+   Soldiers — 10 vs 10 (プレイヤー1 + 味方AI9 vs 敵AI10)
+   team: 1 = BLUE (味方) / -1 = RED (敵)
+   AIは拠点へ移動 → 交戦 → 占領 のループを行う
+   ========================================================= */
+const soldiers = [];
+const soldierHitMeshes = [];
+const matBodyRed = new THREE.MeshLambertMaterial({ color: 0x5a5245 });
+const matBodyBlue = new THREE.MeshLambertMaterial({ color: 0x46545f });
+const matHead = new THREE.MeshLambertMaterial({ color: 0xc9a07a });
+const matGearRed = new THREE.MeshLambertMaterial({ color: 0x8a1f1f });
+const matGearBlue = new THREE.MeshLambertMaterial({ color: 0x1f4a8a });
+const matGun = new THREE.MeshLambertMaterial({ color: 0x1c1e20 });
+const SG = {
   torso: new THREE.BoxGeometry(0.62, 0.78, 0.36),
   vest: new THREE.BoxGeometry(0.66, 0.5, 0.4),
   head: new THREE.BoxGeometry(0.32, 0.32, 0.32),
@@ -781,48 +1052,387 @@ const EG = {
   gun: new THREE.BoxGeometry(0.08, 0.1, 0.8)
 };
 
-function createEnemy(x, z) {
+function createSoldier(team, x, z) {
+  const matBody = team === 1 ? matBodyBlue : matBodyRed;
+  const matGear = team === 1 ? matGearBlue : matGearRed;
   const g = new THREE.Group();
-  const torso = new THREE.Mesh(EG.torso, matEnemyBody); torso.position.y = 1.05;
-  const vest = new THREE.Mesh(EG.vest, matEnemyGear); vest.position.y = 1.12;
-  const head = new THREE.Mesh(EG.head, matEnemyHead); head.position.y = 1.66;
-  const helmet = new THREE.Mesh(EG.helmet, matEnemyGear); helmet.position.y = 1.84;
-  const legL = new THREE.Mesh(EG.leg, matEnemyBody); legL.position.set(-0.16, 0.33, 0);
+  const torso = new THREE.Mesh(SG.torso, matBody); torso.position.y = 1.05;
+  const vest = new THREE.Mesh(SG.vest, matGear); vest.position.y = 1.12;
+  const head = new THREE.Mesh(SG.head, matHead); head.position.y = 1.66;
+  const helmet = new THREE.Mesh(SG.helmet, matGear); helmet.position.y = 1.84;
+  const legL = new THREE.Mesh(SG.leg, matBody); legL.position.set(-0.16, 0.33, 0);
   const legR = legL.clone(); legR.position.x = 0.16;
-  const armL = new THREE.Mesh(EG.arm, matEnemyBody); armL.position.set(-0.42, 1.1, 0);
+  const armL = new THREE.Mesh(SG.arm, matBody); armL.position.set(-0.42, 1.1, 0);
   const armR = armL.clone(); armR.position.x = 0.42;
-  const gun = new THREE.Mesh(EG.gun, matEnemyGun); gun.position.set(0.2, 1.25, -0.4);
+  const gun = new THREE.Mesh(SG.gun, matGun); gun.position.set(0.2, 1.25, -0.4);
   head.userData.isHead = true;
   g.add(torso, vest, head, helmet, legL, legR, armL, armR, gun);
-  g.position.set(x, 0, z);
-  const e = {
-    obj: g, head, legL, legR, hp: 100, alive: true,
+  g.position.set(x, terrainH(x, z), z);
+  const s = {
+    team, obj: g, head, legL, legR, hp: 100, alive: true,
     shootCd: 1 + Math.random() * 2, strafeT: 0, strafeDir: 1,
-    speed: 2.6 + Math.random() * 0.9, deathT: 0, walkPhase: Math.random() * 6,
-    // v0.1.1: AI改善用ステート
-    avoidT: 0, avoidDir: 1,        // 障害物回避 (壁沿い移動)
-    aimT: 0,                        // 射撃前のエイム時間 (視線が通ってから撃つまで)
-    losT: 0, hasLos: false,         // 視線チェックの間引き用
-    prevX: x, prevZ: z, stuckT: 0   // スタック検知
+    speed: 2.7 + Math.random() * 1.0, deathT: 0, walkPhase: Math.random() * 6,
+    avoidT: 0, avoidDir: 1,
+    aimT: 0, losT: Math.random() * 0.3, hasLos: false,
+    prevX: x, prevZ: z, stuckT: 0,
+    targetFlag: null, thinkT: Math.random() * 2,
+    engageTarget: null, engageT: 0,
+    respawnT: 0
   };
-  g.traverse(m => { if (m.isMesh) { m.userData.enemy = e; m.castShadow = !isMobile; enemyHitMeshes.push(m); } });
+  g.traverse(m => { if (m.isMesh) { m.userData.soldier = s; m.castShadow = !isMobile; soldierHitMeshes.push(m); } });
   scene.add(g);
-  enemies.push(e);
-  return e;
+  soldiers.push(s);
+  return s;
 }
 
-const spawnPoints = [[-85, -85], [85, -85], [-85, 85], [85, 85], [0, -88], [0, 88], [-88, 0], [88, 0]];
-function startWave(n) {
-  game.wave = n;
-  const count = 3 + n * 2;
-  for (let i = 0; i < count; i++) {
-    const sp = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-    createEnemy(sp[0] + (Math.random() - .5) * 10, sp[1] + (Math.random() - .5) * 10);
+// AI: 目標拠点を選ぶ (未確保 or 争奪中 or 最寄り)
+function pickFlagFor(s) {
+  let best = null, bestScore = -Infinity;
+  for (const f of flags) {
+    const d = Math.hypot(f.x - s.obj.position.x, f.z - s.obj.position.z);
+    let score = -d * 0.02;
+    if (f.own !== s.team) score += 4;                // 敵/中立拠点を優先
+    if (f.own === 0) score += 1.5;                   // 中立はさらに優先
+    // 同じ拠点に味方が集中しすぎないように分散
+    let allies = 0;
+    for (const o of soldiers) {
+      if (o !== s && o.alive && o.team === s.team && o.targetFlag === f) allies++;
+    }
+    score -= allies * 0.9;
+    score += Math.random() * 1.2;
+    if (score > bestScore) { bestScore = score; best = f; }
   }
-  ui.waveLabel.textContent = 'WAVE ' + n;
-  ui.waveBanner.textContent = 'WAVE ' + n;
-  ui.waveBanner.style.opacity = 1;
-  setTimeout(() => ui.waveBanner.style.opacity = 0, 1800);
+  return best;
+}
+
+// AI: 最も近い視認可能な敵ターゲットを探す (プレイヤー含む)
+function findEnemyTarget(s) {
+  let best = null, bd = 60;
+  // プレイヤー (敵チームのAIのみ)
+  if (s.team === -1 && player.alive) {
+    const pd = Math.hypot(player.pos.x - s.obj.position.x, player.pos.z - s.obj.position.z);
+    if (pd < bd) { bd = pd; best = { kind: 'player' }; }
+  }
+  for (const o of soldiers) {
+    if (!o.alive || o.team === s.team) continue;
+    const d = Math.hypot(o.obj.position.x - s.obj.position.x, o.obj.position.z - s.obj.position.z);
+    if (d < bd) { bd = d; best = { kind: 'soldier', s: o }; }
+  }
+  // 敵AIは搭乗中の車両も狙う
+  if (s.team === -1 && curVehicle) {
+    const vd = Math.hypot(curVehicle.obj.position.x - s.obj.position.x, curVehicle.obj.position.z - s.obj.position.z);
+    if (vd < bd + 10) best = { kind: 'vehicle' };
+  }
+  return best;
+}
+function targetPosOf(t) {
+  if (!t) return null;
+  if (t.kind === 'player') return player.pos.clone();
+  if (t.kind === 'vehicle' && curVehicle) return curVehicle.obj.position.clone().setY(curVehicle.obj.position.y + 1.4);
+  if (t.kind === 'soldier') return t.s.obj.position.clone().setY(t.s.obj.position.y + 1.4);
+  return null;
+}
+function targetAlive(t) {
+  if (!t) return false;
+  if (t.kind === 'player') return player.alive && !curVehicle;
+  if (t.kind === 'vehicle') return !!curVehicle;
+  if (t.kind === 'soldier') return t.s.alive;
+  return false;
+}
+
+function updateSoldiers(dt) {
+  for (let i = soldiers.length - 1; i >= 0; i--) {
+    const s = soldiers[i];
+    if (!s.alive) {
+      s.deathT += dt;
+      s.obj.rotation.x = Math.min(s.deathT * 4, Math.PI / 2);
+      if (s.deathT > 2.4) {
+        // リスポーン (チケットがあれば HQ から再出撃)
+        const tk = s.team === 1 ? game.ticketsBlue : game.ticketsRed;
+        if (tk > 0 && game.running) {
+          const hq = s.team === 1 ? HQ_BLUE : HQ_RED;
+          const rx = hq.x + (Math.random() - .5) * 14, rz = hq.z + (Math.random() - .5) * 14;
+          s.obj.position.set(rx, terrainH(rx, rz), rz);
+          s.obj.rotation.x = 0;
+          s.hp = 100; s.alive = true; s.deathT = 0;
+          s.targetFlag = null; s.engageTarget = null; s.aimT = 0;
+          s.shootCd = 1 + Math.random();
+        } else {
+          s.obj.visible = false; // チケット切れは復活しない
+        }
+      }
+      continue;
+    }
+    const sp = s.obj.position;
+
+    // ---- 思考: 目標拠点の再選定 ----
+    s.thinkT -= dt;
+    if (s.thinkT <= 0) {
+      s.thinkT = 2.5 + Math.random() * 2;
+      if (!s.targetFlag || (s.targetFlag.own === s.team && Math.random() < 0.6)) {
+        s.targetFlag = pickFlagFor(s);
+      }
+    }
+
+    // ---- 交戦相手の探索 ----
+    s.engageT -= dt;
+    if (s.engageT <= 0) {
+      s.engageT = 0.5 + Math.random() * 0.4;
+      if (!targetAlive(s.engageTarget)) s.engageTarget = findEnemyTarget(s);
+    }
+    const tgt = targetAlive(s.engageTarget) ? s.engageTarget : null;
+    const tPos = targetPosOf(tgt);
+    const tDist = tPos ? Math.hypot(tPos.x - sp.x, tPos.z - sp.z) : Infinity;
+
+    // ---- 視線チェック (間引き) ----
+    s.losT -= dt;
+    if (s.losT <= 0) {
+      s.losT = 0.25 + Math.random() * 0.15;
+      if (tPos && tDist < 80) {
+        const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
+        s.hasLos = hasLineOfSight(eye, tPos);
+      } else s.hasLos = false;
+    }
+
+    // ---- 移動先の決定 ----
+    let destX, destZ, wantDist = 0;
+    if (tgt && s.hasLos && tDist < 45) {
+      // 交戦: 距離を保ちつつストレイフ
+      destX = tPos.x; destZ = tPos.z; wantDist = 13;
+    } else if (s.targetFlag) {
+      destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+    } else { destX = sp.x; destZ = sp.z; }
+
+    const dx = destX - sp.x, dz = destZ - sp.z;
+    const dist = Math.hypot(dx, dz) || 0.001;
+
+    // 向き: 交戦中はターゲット、それ以外は進行方向
+    if (tgt && s.hasLos) s.obj.rotation.y = Math.atan2(tPos.x - sp.x, tPos.z - sp.z);
+    else if (dist > 1) s.obj.rotation.y = Math.atan2(dx, dz);
+
+    s.strafeT -= dt;
+    if (s.strafeT <= 0) { s.strafeT = 1.5 + Math.random() * 2; s.strafeDir = Math.random() < .5 ? -1 : 1; }
+    let mvx = 0, mvz = 0;
+    if (dist > wantDist + 2) { mvx = dx / dist; mvz = dz / dist; }
+    else if (tgt && s.hasLos && dist < 7) { mvx = -dx / dist * .6; mvz = -dz / dist * .6; }
+    else if (tgt && s.hasLos) { mvx = -dz / dist * s.strafeDir * .7; mvz = dx / dist * s.strafeDir * .7; }
+    else if (dist > wantDist * 0.5) { mvx = dx / dist * 0.5; mvz = dz / dist * 0.5; }
+
+    // 障害物回避
+    if (s.avoidT > 0) {
+      s.avoidT -= dt;
+      const ax = -mvz * s.avoidDir, az = mvx * s.avoidDir;
+      mvx = ax; mvz = az;
+    } else if (mvx || mvz) {
+      const px = sp.x + mvx * s.speed * dt * 8, pz = sp.z + mvz * s.speed * dt * 8;
+      if (collidesAt(px, pz, 0.4, sp.y)) {
+        s.avoidDir = Math.random() < .5 ? -1 : 1;
+        if (collidesAt(sp.x - mvz * s.avoidDir * 1.5, sp.z + mvx * s.avoidDir * 1.5, 0.4, sp.y)) s.avoidDir *= -1;
+        s.avoidT = 0.5 + Math.random() * 0.5;
+      }
+    }
+
+    // 目的地が遠く非交戦ならダッシュ (広いマップでの移動時間短縮)
+    const spd = (!tgt && dist > 30) ? s.speed * 1.7 : s.speed;
+    const nx = sp.x + mvx * spd * dt, nz = sp.z + mvz * spd * dt;
+    if (!collidesAt(nx, sp.z, 0.4, sp.y)) sp.x = nx;
+    if (!collidesAt(sp.x, nz, 0.4, sp.y)) sp.z = nz;
+    sp.y = terrainH(sp.x, sp.z); // 地形追従
+
+    // スタック検知
+    s.stuckT += dt;
+    if (s.stuckT > 1.2) {
+      const moved = Math.hypot(sp.x - s.prevX, sp.z - s.prevZ);
+      if (moved < 0.6 && dist > wantDist + 3) {
+        s.avoidDir = Math.random() < .5 ? -1 : 1;
+        s.avoidT = 0.8 + Math.random() * 0.6;
+        s.strafeT = 0;
+      }
+      s.prevX = sp.x; s.prevZ = sp.z; s.stuckT = 0;
+    }
+
+    // 歩行アニメ
+    if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
+      s.walkPhase += dt * 9;
+      s.legL.rotation.x = Math.sin(s.walkPhase) * 0.7;
+      s.legR.rotation.x = -Math.sin(s.walkPhase) * 0.7;
+    } else { s.legL.rotation.x = s.legR.rotation.x = 0; }
+
+    // ---- 射撃 ----
+    s.shootCd -= dt;
+    if (tgt && s.hasLos && tDist < 65) s.aimT += dt; else s.aimT = 0;
+    if (s.shootCd <= 0 && s.aimT > 0.35 && tgt && tDist < 65) {
+      s.shootCd = 1.0 + Math.random() * 1.5;
+      const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
+      sfx.distShoot(camera.position.distanceTo(eye));
+      const tracerColor = s.team === 1 ? 0x8ecbff : 0xff8866;
+      if (tgt.kind === 'vehicle' && curVehicle) {
+        const hit = Math.random() < Math.max(0.15, 0.75 - tDist * 0.007);
+        const target = tPos.clone();
+        if (!hit) { target.x += (Math.random() - .5) * 4; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 4; }
+        spawnTracer(eye, target, tracerColor);
+        if (hit) {
+          const raw = 6 + Math.random() * 8;
+          const vdmg = curVehicle.type === 'tank' ? raw * 0.35 : raw * 1.6;
+          curVehicle.hp -= vdmg;
+          spawnParticles(target, 0xffee88, 3, 3);
+          if (curVehicle.hp <= 0) destroyVehicle(curVehicle);
+          else updateVehicleUI();
+        }
+      } else if (tgt.kind === 'player') {
+        const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
+        const hitChance = Math.max(0.05, 0.5 - tDist * 0.007 - playerMoving);
+        const hit = Math.random() < hitChance;
+        const target = player.pos.clone();
+        if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
+        spawnTracer(eye, target, tracerColor);
+        if (hit) damagePlayer(6 + Math.random() * 8 | 0);
+      } else if (tgt.kind === 'soldier') {
+        const hit = Math.random() < Math.max(0.08, 0.42 - tDist * 0.005);
+        const target = tPos.clone();
+        if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
+        spawnTracer(eye, target, tracerColor);
+        if (hit) damageSoldier(tgt.s, 12 + Math.random() * 14, target, s.team === 1);
+      }
+    }
+  }
+}
+
+function damageSoldier(s, dmg, point, byPlayerTeam) {
+  if (!s.alive) return;
+  s.hp -= dmg;
+  spawnParticles(point, 0xbb2222, 5, 3);
+  if (s.hp <= 0) {
+    s.alive = false; s.deathT = 0;
+    // チケット減少
+    if (s.team === 1) game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
+    else game.ticketsRed = Math.max(0, game.ticketsRed - 1);
+    updateTicketsUI();
+    checkMatchEnd();
+  }
+}
+// プレイヤーの攻撃による撃破
+function playerKillSoldier(s, point) {
+  if (!s.alive) return;
+  s.alive = false; s.deathT = 0;
+  game.kills++; game.score += 100;
+  game.ticketsRed = Math.max(0, game.ticketsRed - 1);
+  sfx.kill();
+  addFeed('敵兵を倒した +100');
+  updateScoreUI(); updateTicketsUI();
+  checkMatchEnd();
+}
+function damageSoldierByPlayer(s, dmg, point) {
+  if (!s.alive) return;
+  if (s.team === 1) return; // 味方は撃てない (FFなし)
+  s.hp -= dmg;
+  spawnParticles(point, 0xbb2222, 6, 3);
+  sfx.hit();
+  if (s.hp <= 0) playerKillSoldier(s, point);
+}
+
+/* =========================================================
+   Conquest logic — 占領・チケット
+   ========================================================= */
+const CAP_TIME = 8;    // 占領に要する秒数 (人数で加速)
+function countInFlag(f) {
+  let blue = 0, red = 0;
+  if (player.alive && Math.hypot(player.pos.x - f.x, player.pos.z - f.z) < FLAG_R) blue++;
+  for (const s of soldiers) {
+    if (!s.alive) continue;
+    if (Math.hypot(s.obj.position.x - f.x, s.obj.position.z - f.z) < FLAG_R) {
+      if (s.team === 1) blue++; else red++;
+    }
+  }
+  return [blue, red];
+}
+function updateFlags(dt) {
+  let playerCapping = null;
+  for (const f of flags) {
+    const [blue, red] = countInFlag(f);
+    const net = blue - red;
+    const el = document.getElementById('flag-' + f.id);
+    let hot = false;
+    if (net !== 0 && (blue > 0) !== (red > 0) || (blue > 0 && red > 0)) hot = blue > 0 || red > 0;
+    if (net > 0 && f.own !== 1) {
+      // 青が占領を進める (中立化 → 占領)
+      f.cap += dt * Math.min(net, 3) / CAP_TIME;
+      hot = true;
+      if (f.cap >= 1) {
+        f.cap = 0;
+        if (f.own === -1) { f.own = 0; }            // まず中立化
+        else {
+          f.own = 1;
+          sfx.capture();
+          addFeed(f.id + ' 拠点を占領!', 'blue');
+          if (blue > 0 && Math.hypot(player.pos.x - f.x, player.pos.z - f.z) < FLAG_R) {
+            game.score += 200; addFeed('占領ボーナス +200'); updateScoreUI();
+          }
+        }
+        updateFlagVisual(f);
+      }
+    } else if (net < 0 && f.own !== -1) {
+      f.cap += dt * Math.min(-net, 3) / CAP_TIME;
+      hot = true;
+      if (f.cap >= 1) {
+        f.cap = 0;
+        if (f.own === 1) { f.own = 0; sfx.lost(); addFeed(f.id + ' 拠点を失った', 'red'); }
+        else f.own = -1;
+        updateFlagVisual(f);
+      }
+    } else if (net === 0) {
+      f.cap = Math.max(0, f.cap - dt * 0.15);
+    }
+    // HUD 拠点アイコン
+    if (el) {
+      el.className = 'flag-ic' + (f.own === 1 ? ' f-blue' : f.own === -1 ? ' f-red' : '') + (hot ? ' f-hot' : '');
+    }
+    // プレイヤーが圏内で進行中なら占領バー表示
+    if (Math.hypot(player.pos.x - f.x, player.pos.z - f.z) < FLAG_R && f.cap > 0.01 && net > 0 && f.own !== 1) {
+      playerCapping = f;
+    }
+  }
+  // 占領バーUI
+  if (playerCapping) {
+    ui.capBox.style.display = 'block';
+    ui.capLabel.textContent = playerCapping.id + (playerCapping.own === -1 ? ' 中立化中' : ' 占領中');
+    ui.capFill.style.width = (playerCapping.cap * 100) + '%';
+  } else {
+    ui.capBox.style.display = 'none';
+  }
+}
+// チケット bleed: 過半数 (3以上) 保持で相手チケット減少
+function updateTickets(dt) {
+  game.bleedT += dt;
+  if (game.bleedT < 1) return;
+  game.bleedT = 0;
+  let blueFlags = 0, redFlags = 0;
+  for (const f of flags) {
+    if (f.own === 1) blueFlags++;
+    else if (f.own === -1) redFlags++;
+  }
+  let changed = false;
+  if (blueFlags >= 3) { game.ticketsRed = Math.max(0, game.ticketsRed - (blueFlags - 2)); changed = true; }
+  if (redFlags >= 3) { game.ticketsBlue = Math.max(0, game.ticketsBlue - (redFlags - 2)); changed = true; }
+  if (changed) { updateTicketsUI(); checkMatchEnd(); }
+}
+function checkMatchEnd() {
+  if (!game.running) return;
+  if (game.ticketsRed <= 0) endMatch(true);
+  else if (game.ticketsBlue <= 0) endMatch(false);
+}
+function endMatch(win) {
+  game.running = false;
+  stopEngine();
+  document.exitPointerLock && document.exitPointerLock();
+  const title = document.getElementById('gameover-title');
+  title.textContent = win ? '勝利' : '敗北';
+  title.style.color = win ? '#8affc1' : '#ff6b5e';
+  title.style.textShadow = win ? '0 0 25px rgba(0,255,140,.9)' : '0 0 25px rgba(255,60,40,.9)';
+  document.getElementById('final-stats').innerHTML =
+    `SCORE: ${game.score}<br>KILLS: ${game.kills}<br>チケット BLUE ${game.ticketsBlue} — RED ${game.ticketsRed}`;
+  document.getElementById('respawn-screen').style.display = 'none';
+  document.getElementById('gameover-screen').style.display = 'flex';
 }
 
 // ---------- Vehicles ----------
@@ -847,7 +1457,6 @@ function createJeep(x, z, rotY = 0) {
   const barR = barL.clone(); barR.position.x = 0.85;
   const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.25, 0.25), matVDark); bumper.position.set(0, 0.62, -1.85);
   g.add(body, hood, seatBack, windshield, rollbar, barL, barR, bumper);
-  // タイヤ
   const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.32, 10);
   const wheels = [];
   [[-0.95, -1.2], [0.95, -1.2], [-0.95, 1.2], [0.95, 1.2]].forEach(o => {
@@ -856,7 +1465,6 @@ function createJeep(x, z, rotY = 0) {
     w.position.set(o[0], 0.45, o[1]);
     g.add(w); wheels.push(w);
   });
-  // 車載機銃
   const turret = new THREE.Group();
   const mgBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.4, 8), matVDark); mgBase.position.y = 0.1;
   const mgBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.7), matVDark); mgBody.position.set(0, 0.36, -0.15);
@@ -867,7 +1475,7 @@ function createJeep(x, z, rotY = 0) {
   turret.position.set(0, 2.0, 0.4);
   g.add(turret);
   g.traverse(m => { if (m.isMesh) m.castShadow = !isMobile; });
-  g.position.set(x, 0, z);
+  g.position.set(x, terrainH(x, z), z);
   g.rotation.y = rotY;
   scene.add(g);
   const v = {
@@ -889,7 +1497,6 @@ function createTank(x, z, rotY = 0) {
   const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.4, 5.0), matTank2); skirtL.position.set(-1.45, 1.1, 0);
   const skirtR = skirtL.clone(); skirtR.position.x = 1.45;
   g.add(hull, hullTop, trackL, trackR, skirtL, skirtR);
-  // 砲塔
   const turret = new THREE.Group();
   const dome = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2.3), matTank); dome.position.y = 0.35;
   const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 8), matTank2); hatch.position.set(-0.4, 0.78, 0.4);
@@ -901,7 +1508,7 @@ function createTank(x, z, rotY = 0) {
   turret.position.set(0, 1.85, -0.3);
   g.add(turret);
   g.traverse(m => { if (m.isMesh) m.castShadow = !isMobile; });
-  g.position.set(x, 0, z);
+  g.position.set(x, terrainH(x, z), z);
   g.rotation.y = rotY;
   scene.add(g);
   const v = {
@@ -917,9 +1524,12 @@ function createTank(x, z, rotY = 0) {
 function spawnVehicles() {
   for (const v of vehicles) scene.remove(v.obj);
   vehicles.length = 0;
-  createJeep(6, 14, Math.PI);
-  createJeep(-10, -6, Math.PI / 2);
-  createTank(14, -8, Math.PI);
+  // 青HQ付近
+  createJeep(HQ_BLUE.x + 12, HQ_BLUE.z - 14, -Math.PI / 4);
+  createTank(HQ_BLUE.x - 4, HQ_BLUE.z - 20, -Math.PI / 4);
+  // 中立 (拠点C付近と道路沿い)
+  createJeep(12, 36, Math.PI / 2);
+  createJeep(-40, -20, 0);
 }
 
 function destroyVehicle(v) {
@@ -933,11 +1543,13 @@ function destroyVehicle(v) {
   flashExplosionLight(p);
   shake = 0.6;
   v.obj.traverse(m => { if (m.isMesh) m.material = matWreck; });
-  // 周囲の敵にダメージ
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    const d = e.obj.position.distanceTo(v.obj.position);
-    if (d < 7) damageEnemy(e, 200, e.obj.position.clone().setY(1.2));
+  for (const s of soldiers) {
+    if (!s.alive) continue;
+    const d = s.obj.position.distanceTo(v.obj.position);
+    if (d < 7) {
+      if (s.team === -1) damageSoldierByPlayer(s, 200, s.obj.position.clone().setY(s.obj.position.y + 1.2));
+      else damageSoldier(s, 200, s.obj.position.clone().setY(s.obj.position.y + 1.2));
+    }
   }
   if (curVehicle === v) {
     exitVehicle(true);
@@ -945,7 +1557,6 @@ function destroyVehicle(v) {
   }
 }
 
-// 乗降
 function nearestVehicle() {
   let best = null, bd = 4.5;
   for (const v of vehicles) {
@@ -972,13 +1583,12 @@ function enterVehicle(v) {
 function exitVehicle(forced = false) {
   if (!curVehicle) return;
   const v = curVehicle;
-  // 横に降車 (障害物チェック)
   const side = new THREE.Vector3(Math.cos(v.yaw), 0, -Math.sin(v.yaw));
   for (const s of [1, -1, 1.6, -1.6]) {
     const px = v.obj.position.x + side.x * (v.radius + 0.8) * s;
     const pz = v.obj.position.z + side.z * (v.radius + 0.8) * s;
-    if (!collides(px, pz, player.radius, v)) {
-      player.pos.set(px, player.eyeHeight, pz);
+    if (!collidesAt(px, pz, player.radius, terrainH(px, pz) + 1)) {
+      player.pos.set(px, terrainH(px, pz) + player.eyeHeight, pz);
       break;
     }
   }
@@ -1021,14 +1631,15 @@ function explodeAt(pos, radius = 6.5, dmg = 140) {
   spawnParticles(pos, 0x554433, 12, 5, 2.5);
   spawnParticles(pos, 0x333333, 10, 3.5, 3.5);
   flashExplosionLight(pos);
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    const d = e.obj.position.distanceTo(pos);
+  for (const s of soldiers) {
+    if (!s.alive) continue;
+    const d = s.obj.position.distanceTo(pos);
     if (d < radius) {
-      damageEnemy(e, dmg * (1 - d / radius) + 25, e.obj.position.clone().setY(1.2));
+      const dd = dmg * (1 - d / radius) + 25;
+      if (s.team === -1) damageSoldierByPlayer(s, dd, s.obj.position.clone().setY(s.obj.position.y + 1.2));
+      else damageSoldier(s, dd, s.obj.position.clone().setY(s.obj.position.y + 1.2));
     }
   }
-  // 自分へのスプラッシュ
   const pd = player.pos.distanceTo(pos);
   if (!curVehicle && pd < radius * 0.8) damagePlayer(Math.round(35 * (1 - pd / (radius * 0.8))));
   const camD = camera.position.distanceTo(pos);
@@ -1039,19 +1650,19 @@ function updateShells(dt) {
     if (s.ttl <= 0) continue;
     s.ttl -= dt;
     s.vel.y -= 6 * dt;
-    const steps = 2; // トンネリング防止
+    const steps = 2;
     for (let i = 0; i < steps; i++) {
       s.m.position.addScaledVector(s.vel, dt / steps);
       const p = s.m.position;
-      let boom = p.y <= 0.1 || collides(p.x, p.z, 0.2, curVehicle) && heightBlocked(p);
+      let boom = p.y <= terrainH(p.x, p.z) + 0.1 || heightBlocked(p);
       if (!boom) {
-        for (const e of enemies) {
-          if (e.alive && e.obj.position.distanceTo(p) < 1.4) { boom = true; break; }
+        for (const sl of soldiers) {
+          if (sl.alive && sl.obj.position.distanceTo(p) < 1.4) { boom = true; break; }
         }
       }
       if (boom || s.ttl <= 0) {
         s.ttl = 0; s.m.visible = false;
-        explodeAt(p.clone().setY(Math.max(p.y, 0.4)));
+        explodeAt(p.clone().setY(Math.max(p.y, terrainH(p.x, p.z) + 0.4)));
         break;
       }
     }
@@ -1059,15 +1670,14 @@ function updateShells(dt) {
 }
 function heightBlocked(p) {
   for (const o of obstacles) {
-    if (p.x > o.minX - 0.2 && p.x < o.maxX + 0.2 && p.z > o.minZ - 0.2 && p.z < o.maxZ + 0.2 && p.y < o.h) return true;
+    if (p.x > o.minX - 0.2 && p.x < o.maxX + 0.2 && p.z > o.minZ - 0.2 && p.z < o.maxZ + 0.2 && p.y > o.y0 - 0.5 && p.y < o.h) return true;
   }
   return false;
 }
 
-// 車両運転
+// 車両運転 (地形の高さ・傾斜に追従)
 function updateVehicle(dt) {
   const v = curVehicle;
-  // 入力
   let throttle = 0, steer = 0;
   if (isMobile) {
     throttle = -joy.y;
@@ -1078,73 +1688,80 @@ function updateVehicle(dt) {
     if (keys['KeyA']) steer -= 1;
     if (keys['KeyD']) steer += 1;
   }
-  // 加減速
   if (throttle !== 0) {
     v.speed += throttle * v.accel * dt;
   } else {
-    v.speed *= Math.pow(0.4, dt); // 摩擦
+    v.speed *= Math.pow(0.4, dt);
     if (Math.abs(v.speed) < 0.15) v.speed = 0;
   }
+  // 坂の影響: 上りで減速
+  const aheadH = terrainH(v.obj.position.x - Math.sin(v.yaw) * 3, v.obj.position.z - Math.cos(v.yaw) * 3);
+  const slope = (aheadH - terrainH(v.obj.position.x, v.obj.position.z)) / 3;
+  v.speed -= slope * Math.sign(v.speed) * (v.type === 'tank' ? 2.5 : 5) * dt * Math.abs(v.speed) * 0.4;
   v.speed = Math.max(-v.maxSpeed * 0.45, Math.min(v.maxSpeed, v.speed));
-  // 旋回 (速度に応じて)
   if (Math.abs(v.speed) > 0.3) {
     v.yaw -= steer * v.turnRate * dt * Math.sign(v.speed) * Math.min(1, Math.abs(v.speed) / 4);
   }
-  // 移動 + 衝突
   const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
   const nx = v.obj.position.x + fx * v.speed * dt;
   const nz = v.obj.position.z + fz * v.speed * dt;
-  if (!collides(nx, nz, v.radius, v)) {
+  if (!collidesAt(nx, nz, v.radius, terrainH(nx, nz) + 1, v)) {
     v.obj.position.x = nx;
     v.obj.position.z = nz;
   } else {
     if (Math.abs(v.speed) > 6) {
-      spawnParticles(v.obj.position.clone().setY(1), 0x999999, 5, 3);
+      spawnParticles(v.obj.position.clone().setY(v.obj.position.y + 1), 0x999999, 5, 3);
       playBeep(90, 0.15, 0.15, 'sawtooth');
     }
     v.speed *= -0.25;
   }
+  // 地形追従 (高さ + ピッチ/ロール)
+  const px = v.obj.position.x, pz = v.obj.position.z;
+  v.obj.position.y = terrainH(px, pz);
+  const hF = terrainH(px + fx * 2, pz + fz * 2);
+  const hB = terrainH(px - fx * 2, pz - fz * 2);
+  const sx = Math.cos(v.yaw), sz = -Math.sin(v.yaw);
+  const hL = terrainH(px - sx * 1.5, pz - sz * 1.5);
+  const hR = terrainH(px + sx * 1.5, pz + sz * 1.5);
+  v.obj.rotation.order = 'YXZ';
   v.obj.rotation.y = v.yaw;
-  // タイヤ回転
+  v.obj.rotation.x = Math.atan2(hB - hF, 4) * 0.7;
+  v.obj.rotation.z = Math.atan2(hL - hR, 3) * 0.7;
   for (const w of v.wheels) w.rotation.x += v.speed * dt * 2.2;
   // 轢殺
   if (Math.abs(v.speed) > 4) {
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const d = Math.hypot(e.obj.position.x - v.obj.position.x, e.obj.position.z - v.obj.position.z);
+    for (const s of soldiers) {
+      if (!s.alive) continue;
+      const d = Math.hypot(s.obj.position.x - v.obj.position.x, s.obj.position.z - v.obj.position.z);
       if (d < v.radius + 0.6) {
-        damageEnemy(e, 999, e.obj.position.clone().setY(1));
-        if (!e.alive) addFeed('轢殺!! +100');
+        if (s.team === -1) { damageSoldierByPlayer(s, 999, s.obj.position.clone().setY(s.obj.position.y + 1)); if (!s.alive) addFeed('轢殺!! +100'); }
+        else damageSoldier(s, 999, s.obj.position.clone().setY(s.obj.position.y + 1));
         v.speed *= 0.85;
       }
     }
   }
   updateEngine(v.speed);
 
-  // 三人称カメラ (プレイヤーのyaw/pitchでオービット)
+  // 三人称カメラ
   const cp = Math.max(-0.5, Math.min(1.1, player.pitch));
   const cd = v.camDist;
   const cx = v.obj.position.x + Math.sin(player.yaw) * cd * Math.cos(cp);
   const cz = v.obj.position.z + Math.cos(player.yaw) * cd * Math.cos(cp);
-  const cy = v.camH + cd * Math.sin(cp) * 0.9 + 1;
-  camera.position.set(cx, Math.max(0.8, cy), cz);
+  const cy = v.obj.position.y + v.camH + cd * Math.sin(cp) * 0.9 + 1;
+  const groundY = terrainH(cx, cz) + 0.8;
+  camera.position.set(cx, Math.max(groundY, cy), cz);
   camera.lookAt(v.obj.position.x, v.obj.position.y + 1.6, v.obj.position.z);
-  // カメラシェイク
   if (shake > 0.01) {
     camera.position.x += (Math.random() - .5) * shake;
     camera.position.y += (Math.random() - .5) * shake;
   }
-  // プレイヤー位置は車両に同期
-  player.pos.set(v.obj.position.x, player.eyeHeight, v.obj.position.z);
+  player.pos.set(v.obj.position.x, v.obj.position.y + player.eyeHeight, v.obj.position.z);
 
-  // 照準方向
   const camDir = new THREE.Vector3();
   camera.getWorldDirection(camDir);
-  // 砲塔をエイム方向へ (v0.1.1: +Math.PI で180°反転していたのを修正)
   const aimYaw = Math.atan2(-camDir.x, -camDir.z);
   v.turret.rotation.y = aimYaw - v.yaw;
 
-  // 射撃
   v.cd -= dt;
   if (firing && v.cd <= 0) {
     v.cd = v.fireInterval;
@@ -1161,7 +1778,6 @@ function updateVehicle(dt) {
       v.speed *= 0.9;
     } else {
       sfx.mg();
-      // MG raycast
       const spread = 0.015;
       dir.x += (Math.random() - .5) * spread;
       dir.y += (Math.random() - .5) * spread;
@@ -1169,14 +1785,14 @@ function updateVehicle(dt) {
       dir.normalize();
       shootRay.set(muzzleWorld, dir);
       shootRay.far = 250;
-      const hitsE = shootRay.intersectObjects(enemyHitMeshes, false).filter(h => h.object.userData.enemy && h.object.userData.enemy.alive);
+      const hitsE = shootRay.intersectObjects(soldierHitMeshes, false).filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
       const hitsW = shootRay.intersectObjects(solidMeshes, false);
       let end = muzzleWorld.clone().addScaledVector(dir, 250);
       const eDist = hitsE.length ? hitsE[0].distance : Infinity;
       const wDist = hitsW.length ? hitsW[0].distance : Infinity;
       if (eDist < wDist) {
         end = hitsE[0].point;
-        damageEnemy(hitsE[0].object.userData.enemy, v.dmg, hitsE[0].point);
+        damageSoldierByPlayer(hitsE[0].object.userData.soldier, v.dmg, hitsE[0].point);
         showHitmarker();
       } else if (wDist < Infinity) {
         end = hitsW[0].point;
@@ -1195,11 +1811,16 @@ function updateVehicleUI() {
   ui.vehicleSpeed.textContent = Math.abs(Math.round(v.speed * 3.6)) + ' km/h';
 }
 
-// ---------- Collision helpers ----------
-function collides(x, z, r, skipVehicle = null) {
+// ---------- Collision helpers (地形の高さ考慮) ----------
+// yRef: 判定する足元の高さ。obstacle の上面より十分高ければ通れる(=段の上に乗れる)
+function collidesAt(x, z, r, yRef, skipVehicle = null) {
   if (x < -WORLD || x > WORLD || z < -WORLD || z > WORLD) return true;
   for (const o of obstacles) {
-    if (x + r > o.minX && x - r < o.maxX && z + r > o.minZ && z - r < o.maxZ) return true;
+    if (x + r > o.minX && x - r < o.maxX && z + r > o.minZ && z - r < o.maxZ) {
+      // 足元がオブジェクト上面近く以上なら乗り越え可能
+      if (yRef !== undefined && yRef > o.h - 0.4) continue;
+      return true;
+    }
   }
   for (const v of vehicles) {
     if (v === skipVehicle) continue;
@@ -1214,7 +1835,17 @@ function hasLineOfSight(from, to) {
   const dist = dir.length();
   raycaster.set(from, dir.normalize());
   raycaster.far = dist - 0.5;
-  return raycaster.intersectObjects(solidMeshes, false).length === 0;
+  if (raycaster.intersectObjects(solidMeshes, false).length > 0) return false;
+  // 地形による遮蔽 (数点サンプリング)
+  const steps = Math.min(10, Math.max(3, dist / 8 | 0));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = from.x + (to.x - from.x) * t;
+    const y = from.y + (to.y - from.y) * t;
+    const z = from.z + (to.z - from.z) * t;
+    if (terrainH(x, z) > y + 0.2) return false;
+  }
+  return true;
 }
 
 // ---------- Shooting ----------
@@ -1230,14 +1861,13 @@ function playerShoot() {
   muzzleLight.intensity = 2.5;
   player.pitch = Math.min(player.pitch + 0.009, Math.PI / 2);
 
-  // spread
   const spread = 0.004 + weapon.spreadHeat * 0.02 + (moveMag() > 0.1 ? 0.012 : 0);
   const dir = new THREE.Vector3(0, 0, -1)
     .applyEuler(new THREE.Euler(player.pitch + (Math.random() - .5) * spread, player.yaw + (Math.random() - .5) * spread, 0, 'YXZ'));
   shootRay.set(camera.position.clone(), dir);
   shootRay.far = 300;
 
-  const hitsE = shootRay.intersectObjects(enemyHitMeshes, false).filter(h => h.object.userData.enemy && h.object.userData.enemy.alive);
+  const hitsE = shootRay.intersectObjects(soldierHitMeshes, false).filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
   const hitsW = shootRay.intersectObjects(solidMeshes, false);
   let end = camera.position.clone().addScaledVector(dir, 300);
   const eDist = hitsE.length ? hitsE[0].distance : Infinity;
@@ -1247,7 +1877,7 @@ function playerShoot() {
     const h = hitsE[0];
     end = h.point;
     const isHead = !!h.object.userData.isHead;
-    damageEnemy(h.object.userData.enemy, isHead ? 68 : 28, h.point);
+    damageSoldierByPlayer(h.object.userData.soldier, isHead ? 68 : 28, h.point);
     showHitmarker();
   } else if (wDist < Infinity) {
     end = hitsW[0].point;
@@ -1259,20 +1889,6 @@ function playerShoot() {
   updateAmmoUI();
 }
 
-function damageEnemy(e, dmg, point) {
-  if (!e.alive) return;
-  e.hp -= dmg;
-  spawnParticles(point, 0xbb2222, 6, 3);
-  sfx.hit();
-  if (e.hp <= 0) {
-    e.alive = false; e.deathT = 0;
-    game.kills++; game.score += 100;
-    sfx.kill();
-    addFeed('敵兵を倒した +100');
-    updateScoreUI();
-  }
-}
-
 function reload() {
   if (curVehicle || weapon.reloading || weapon.mag === weapon.magSize || !player.alive) return;
   weapon.reloading = true; weapon.reloadTimer = weapon.reloadTime;
@@ -1280,7 +1896,7 @@ function reload() {
   ui.reloadHint.textContent = 'リロード中...';
 }
 
-// ---------- Player damage ----------
+// ---------- Player damage / respawn ----------
 function damagePlayer(dmg) {
   if (!player.alive) return;
   player.hp -= dmg;
@@ -1292,148 +1908,30 @@ function damagePlayer(dmg) {
   updateHpUI();
 }
 function playerDie() {
-  player.alive = false; game.running = false;
-  stopEngine();
-  document.exitPointerLock && document.exitPointerLock();
-  document.getElementById('final-stats').innerHTML =
-    `SCORE: ${game.score}<br>KILLS: ${game.kills} / WAVE ${game.wave} 到達`;
-  document.getElementById('gameover-screen').style.display = 'flex';
+  player.alive = false;
+  player.respawnT = 5;
+  firing = false;
+  game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
+  updateTicketsUI();
+  if (curVehicle) exitVehicle(true);
+  document.getElementById('respawn-screen').style.display = 'flex';
+  checkMatchEnd();
 }
-
-// ---------- Enemy AI ----------
-const tmpV = new THREE.Vector3();
-function updateEnemies(dt) {
-  let aliveCount = 0;
-  // ターゲット: 乗車中は車両、徒歩ならプレイヤー
-  const targetPos = curVehicle
-    ? tmpV.set(curVehicle.obj.position.x, 1.4, curVehicle.obj.position.z).clone()
-    : player.pos.clone();
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const e = enemies[i];
-    if (!e.alive) {
-      e.deathT += dt;
-      e.obj.rotation.x = Math.min(e.deathT * 4, Math.PI / 2); // fall over
-      e.obj.position.y = -Math.min(e.deathT * 0.15, 0.3);
-      if (e.deathT > 3) {
-        scene.remove(e.obj);
-        e.obj.traverse(m => { if (m.isMesh) { const k = enemyHitMeshes.indexOf(m); if (k >= 0) enemyHitMeshes.splice(k, 1); } });
-        enemies.splice(i, 1);
-      }
-      continue;
-    }
-    aliveCount++;
-    const ep = e.obj.position;
-    const dx = targetPos.x - ep.x, dz = targetPos.z - ep.z;
-    const dist = Math.hypot(dx, dz);
-
-    // face target
-    e.obj.rotation.y = Math.atan2(dx, dz);
-
-    // --- v0.1.1: 視線チェックを間引きしつつキャッシュ (AI判断に利用) ---
-    e.losT -= dt;
-    if (e.losT <= 0) {
-      e.losT = 0.25 + Math.random() * 0.15;
-      const eyeE = new THREE.Vector3(ep.x, 1.6, ep.z);
-      e.hasLos = dist < 80 && hasLineOfSight(eyeE, targetPos.clone());
-    }
-
-    // movement: approach until ~14m, then strafe (対車両はもう少し離れる)
-    const keepDist = curVehicle ? 20 : 14;
-    e.strafeT -= dt;
-    if (e.strafeT <= 0) { e.strafeT = 1.5 + Math.random() * 2; e.strafeDir = Math.random() < .5 ? -1 : 1; }
-    let mvx = 0, mvz = 0;
-    if (!e.hasLos && dist < 70) {
-      // v0.1.1: 視線が通らない時は距離に関係なく接近して回り込む
-      mvx = dx / dist; mvz = dz / dist;
-    } else if (dist > keepDist) { mvx = dx / dist; mvz = dz / dist; }
-    else if (dist < 7) { mvx = -dx / dist * .6; mvz = -dz / dist * .6; }
-    else { mvx = -dz / dist * e.strafeDir * .7; mvz = dx / dist * e.strafeDir * .7; }
-
-    // v0.1.1: 障害物回避 — 進行方向が塞がっていたら左右にスライドして壁沿いに進む
-    if (e.avoidT > 0) {
-      e.avoidT -= dt;
-      const ax = -mvz * e.avoidDir, az = mvx * e.avoidDir;
-      mvx = ax; mvz = az;
-    } else {
-      const px = ep.x + mvx * e.speed * dt * 8, pz = ep.z + mvz * e.speed * dt * 8; // 少し先を確認
-      if (collides(px, pz, 0.4)) {
-        e.avoidDir = Math.random() < .5 ? -1 : 1;
-        // 回避方向が塞がっていれば反対へ
-        if (collides(ep.x - mvz * e.avoidDir * 1.5, ep.z + mvx * e.avoidDir * 1.5, 0.4)) e.avoidDir *= -1;
-        e.avoidT = 0.5 + Math.random() * 0.5;
-      }
-    }
-
-    const nx = ep.x + mvx * e.speed * dt, nz = ep.z + mvz * e.speed * dt;
-    if (!collides(nx, ep.z, 0.4)) ep.x = nx;
-    if (!collides(ep.x, nz, 0.4)) ep.z = nz;
-
-    // v0.1.1: スタック検知 — 1.2秒間ほぼ動けていなければ回避モードに入る
-    e.stuckT += dt;
-    if (e.stuckT > 1.2) {
-      const moved = Math.hypot(ep.x - e.prevX, ep.z - e.prevZ);
-      if (moved < 0.6 && dist > keepDist) {
-        e.avoidDir = Math.random() < .5 ? -1 : 1;
-        e.avoidT = 0.8 + Math.random() * 0.6;
-        e.strafeT = 0;
-      }
-      e.prevX = ep.x; e.prevZ = ep.z; e.stuckT = 0;
-    }
-
-    // walk animation
-    if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
-      e.walkPhase += dt * 9;
-      e.legL.rotation.x = Math.sin(e.walkPhase) * 0.7;
-      e.legR.rotation.x = -Math.sin(e.walkPhase) * 0.7;
-    } else { e.legL.rotation.x = e.legR.rotation.x = 0; }
-
-    // shooting — v0.1.1: 視線が通ってから少しエイムしてから撃つ (即撃ち理不尽さを緩和)
-    e.shootCd -= dt;
-    if (e.hasLos && dist < 65) e.aimT += dt; else e.aimT = 0;
-    if (e.shootCd <= 0 && e.aimT > 0.35 && dist < 65) {
-      e.shootCd = 1.1 + Math.random() * 1.6;
-      const eyeE = new THREE.Vector3(ep.x, 1.6, ep.z);
-      {
-        sfx.enemyShoot(dist);
-        if (curVehicle) {
-          // 対車両: 命中しやすいがダメージは車両へ
-          const hit = Math.random() < Math.max(0.15, 0.75 - dist * 0.007);
-          const target = targetPos.clone();
-          if (!hit) { target.x += (Math.random() - .5) * 4; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 4; }
-          spawnTracer(eyeE, target, 0xff8866);
-          if (hit) {
-            const raw = 6 + Math.random() * 8;
-            const vdmg = curVehicle.type === 'tank' ? raw * 0.35 : raw * 1.6;
-            curVehicle.hp -= vdmg;
-            spawnParticles(target, 0xffee88, 3, 3);
-            if (curVehicle.hp <= 0) destroyVehicle(curVehicle);
-            else updateVehicleUI();
-          }
-        } else {
-          const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
-          const hitChance = Math.max(0.06, 0.55 - dist * 0.007 - playerMoving);
-          const hit = Math.random() < hitChance;
-          const target = player.pos.clone();
-          if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
-          spawnTracer(eyeE, target, 0xff8866);
-          if (hit) damagePlayer(6 + Math.random() * 8 | 0);
-        }
-      }
-    }
-  }
-  ui.enemyCount.textContent = '敵 残り ' + aliveCount;
-
-  // wave clear
-  if (game.running && aliveCount === 0 && enemies.length === 0) {
-    game.waveClearTimer += dt;
-    if (game.waveClearTimer > 2.5) {
-      game.waveClearTimer = 0;
-      game.score += 250;
-      addFeed('WAVE クリア +250');
-      updateScoreUI();
-      startWave(game.wave + 1);
-    }
-  } else game.waveClearTimer = 0;
+function respawnPlayer() {
+  // 保持拠点 or HQ からリスポーン (最後尾の安全な保持拠点を優先)
+  let sp = HQ_BLUE;
+  const owned = flags.filter(f => f.own === 1);
+  if (owned.length) sp = owned[Math.floor(Math.random() * owned.length)];
+  const rx = sp.x + (Math.random() - .5) * 10, rz = sp.z + (Math.random() - .5) * 10;
+  player.pos.set(rx, terrainH(rx, rz) + player.eyeHeight, rz);
+  player.vel.set(0, 0, 0);
+  player.hp = player.maxHp; player.alive = true;
+  player.lastDamageTime = -99;
+  Object.assign(weapon, { mag: weapon.magSize, reloading: false, cooldown: 0, recoil: 0, spreadHeat: 0 });
+  ui.vignette.style.opacity = 0;
+  ui.reloadHint.textContent = '';
+  updateHpUI(); updateAmmoUI();
+  document.getElementById('respawn-screen').style.display = 'none';
 }
 
 // ---------- Input: keyboard / mouse ----------
@@ -1461,7 +1959,7 @@ if (!isMobile) {
 const touchLayer = document.getElementById('touch-layer');
 const joyBase = document.getElementById('joystick-base');
 const joyStick = document.getElementById('joystick-stick');
-const joy = { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }; // x,y in -1..1
+const joy = { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const look = { id: null, lx: 0, ly: 0 };
 let jumpQueued = false;
 
@@ -1534,14 +2032,13 @@ if (isMobile) {
   bindBtn('btn-vehicle', () => toggleVehicle());
 }
 
-// ---------- Player movement ----------
+// ---------- Player movement (地形追従) ----------
 function updatePlayer(dt) {
   if (!player.alive) return;
-  // input vector (local)
   let ix = 0, iz = 0, sprint = false;
   if (isMobile) {
     ix = joy.x; iz = joy.y;
-    sprint = joy.y < -0.92;                    // push fully forward = sprint (BF style)
+    sprint = joy.y < -0.92;
   } else {
     if (keys['KeyW']) iz -= 1;
     if (keys['KeyS']) iz += 1;
@@ -1553,24 +2050,26 @@ function updatePlayer(dt) {
   }
   const speed = sprint ? 9.5 : 5.5;
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
-  // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1: 横向き時に前後が反転するバグを修正)
+  // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1 修正済み)
   const wx = (ix * cos + iz * sin) * speed;
   const wz = (iz * cos - ix * sin) * speed;
 
-  // gravity & jump
   if (jumpQueued && player.onGround) { player.vel.y = 6.5; player.onGround = false; }
   jumpQueued = false;
   player.vel.y -= 18 * dt;
 
-  // move with per-axis collision
+  const footY = player.pos.y - player.eyeHeight;
   const nx = player.pos.x + wx * dt;
-  if (!collides(nx, player.pos.z, player.radius)) player.pos.x = nx;
+  if (!collidesAt(nx, player.pos.z, player.radius, footY)) player.pos.x = nx;
   const nz = player.pos.z + wz * dt;
-  if (!collides(player.pos.x, nz, player.radius)) player.pos.z = nz;
+  if (!collidesAt(player.pos.x, nz, player.radius, footY)) player.pos.z = nz;
   player.pos.y += player.vel.y * dt;
-  if (player.pos.y <= player.eyeHeight) { player.pos.y = player.eyeHeight; player.vel.y = 0; player.onGround = true; }
+  // 地形との接地
+  const groundY = terrainH(player.pos.x, player.pos.z) + player.eyeHeight;
+  if (player.pos.y <= groundY) {
+    player.pos.y = groundY; player.vel.y = 0; player.onGround = true;
+  }
 
-  // camera
   camera.position.copy(player.pos);
   const moving = Math.hypot(wx, wz) > 0.5;
   if (moving && player.onGround) {
@@ -1583,7 +2082,6 @@ function updatePlayer(dt) {
     camera.position.y += (Math.random() - .5) * shake;
   }
 
-  // gun animation
   weapon.recoil = Math.max(0, weapon.recoil - dt * 8);
   weapon.spreadHeat = Math.max(0, weapon.spreadHeat - dt * 1.2);
   gunGroup.position.z = -0.55 + weapon.recoil * 0.06;
@@ -1591,7 +2089,6 @@ function updatePlayer(dt) {
   gunGroup.position.y = -0.26 + (moving ? Math.sin(bobT) * 0.012 : 0);
   if (weapon.reloading) gunGroup.rotation.x = -0.5 + Math.sin(weapon.reloadTimer * 3) * 0.1;
 
-  // weapon logic
   weapon.cooldown -= dt;
   if (weapon.reloading) {
     weapon.reloadTimer -= dt;
@@ -1602,7 +2099,7 @@ function updatePlayer(dt) {
     }
   }
   if (firing) playerShoot();
-  if (weapon.mag === 0 && !weapon.reloading) reload(); // auto reload
+  if (weapon.mag === 0 && !weapon.reloading) reload();
 }
 
 // ---------- UI ----------
@@ -1611,8 +2108,7 @@ const ui = {
   ammoMag: document.getElementById('ammo-mag'), reloadHint: document.getElementById('reload-hint'),
   weaponName: document.getElementById('weapon-name'),
   scoreVal: document.getElementById('score-val'), killsVal: document.getElementById('kills-val'),
-  waveLabel: document.getElementById('wave-label'), enemyCount: document.getElementById('enemy-count'),
-  waveBanner: document.getElementById('wave-banner'), vignette: document.getElementById('damage-vignette'),
+  vignette: document.getElementById('damage-vignette'),
   hitmarker: document.getElementById('hitmarker'), killfeed: document.getElementById('killfeed'),
   radar: document.getElementById('radar').getContext('2d'),
   vehicleBox: document.getElementById('vehicle-box'),
@@ -1620,8 +2116,24 @@ const ui = {
   vehicleFill: document.getElementById('vehicle-fill'),
   vehicleSpeed: document.getElementById('vehicle-speed'),
   interactHint: document.getElementById('interact-hint'),
-  btnVehicle: document.getElementById('btn-vehicle')
+  btnVehicle: document.getElementById('btn-vehicle'),
+  tBlue: document.getElementById('t-blue'), tRed: document.getElementById('t-red'),
+  capBox: document.getElementById('cap-box'), capLabel: document.getElementById('cap-label'),
+  capFill: document.getElementById('cap-fill'),
+  waveBanner: document.getElementById('wave-banner'),
+  respawnTimer: document.getElementById('respawn-timer')
 };
+// 拠点アイコンを生成
+{
+  const strip = document.getElementById('flags-strip');
+  for (const f of flags) {
+    const d = document.createElement('div');
+    d.className = 'flag-ic';
+    d.id = 'flag-' + f.id;
+    d.textContent = f.id;
+    strip.appendChild(d);
+  }
+}
 function updateHpUI() {
   ui.hpFill.style.width = (player.hp / player.maxHp * 100) + '%';
   ui.hpFill.style.background = player.hp > 40 ? 'linear-gradient(90deg,#3ddc84,#a7f3c8)' : 'linear-gradient(90deg,#e0483d,#f3a7a0)';
@@ -1636,19 +2148,23 @@ function updateScoreUI() {
   ui.scoreVal.textContent = game.score;
   ui.killsVal.textContent = game.kills + ' KILLS';
 }
+function updateTicketsUI() {
+  ui.tBlue.textContent = game.ticketsBlue;
+  ui.tRed.textContent = game.ticketsRed;
+}
 let hitmarkerTO = null;
 function showHitmarker() {
   ui.hitmarker.style.opacity = 1;
   clearTimeout(hitmarkerTO);
   hitmarkerTO = setTimeout(() => ui.hitmarker.style.opacity = 0, 90);
 }
-function addFeed(text) {
+function addFeed(text, cls = '') {
   const d = document.createElement('div');
-  d.className = 'feed-item'; d.textContent = text;
+  d.className = 'feed-item' + (cls ? ' ' + cls : '');
+  d.textContent = text;
   ui.killfeed.appendChild(d);
-  setTimeout(() => d.remove(), 1250);
+  setTimeout(() => d.remove(), 1450);
 }
-// 乗車ヒント表示 (0.2秒ごと)
 let interactT = 0;
 function updateInteractHint(dt) {
   interactT += dt;
@@ -1674,18 +2190,33 @@ function updateInteractHint(dt) {
   }
 }
 function drawRadar() {
-  const g = ui.radar, S = 104, C = S / 2, RANGE = 70;
+  const g = ui.radar, S = 112, C = S / 2, RANGE = 95;
   g.clearRect(0, 0, S, S);
   g.strokeStyle = 'rgba(120,200,255,.25)';
-  g.beginPath(); g.arc(C, C, 34, 0, 7); g.stroke();
-  g.beginPath(); g.arc(C, C, 17, 0, 7); g.stroke();
+  g.beginPath(); g.arc(C, C, 37, 0, 7); g.stroke();
+  g.beginPath(); g.arc(C, C, 19, 0, 7); g.stroke();
   const toRadar = (wx, wz) => {
     const dx = wx - player.pos.x, dz = wz - player.pos.z;
     const rx = dx * Math.cos(-player.yaw) - dz * Math.sin(-player.yaw);
     const rz = dx * Math.sin(-player.yaw) + dz * Math.cos(-player.yaw);
     return [C + rx / RANGE * C, C + rz / RANGE * C];
   };
-  // 車両 (緑の四角)
+  // 拠点 (色つき文字)
+  g.font = 'bold 10px sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const f of flags) {
+    let [px, pz] = toRadar(f.x, f.z);
+    const dd = Math.hypot(px - C, pz - C);
+    if (dd > C - 8) { // 端にクランプ
+      px = C + (px - C) / dd * (C - 8);
+      pz = C + (pz - C) / dd * (C - 8);
+    }
+    g.fillStyle = f.own === 1 ? '#6db4ff' : f.own === -1 ? '#ff6b5e' : '#cccccc';
+    g.beginPath(); g.arc(px, pz, 6, 0, 7); g.fill();
+    g.fillStyle = '#06131f';
+    g.fillText(f.id, px, pz + 0.5);
+  }
+  // 車両
   for (const v of vehicles) {
     if (!v.alive || v === curVehicle) continue;
     const [px, pz] = toRadar(v.obj.position.x, v.obj.position.z);
@@ -1694,38 +2225,57 @@ function drawRadar() {
       g.fillRect(px - 3, pz - 3, 6, 6);
     }
   }
-  // 敵
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    const [px, pz] = toRadar(e.obj.position.x, e.obj.position.z);
+  // 兵士 (敵=赤 / 味方=青)
+  for (const s of soldiers) {
+    if (!s.alive) continue;
+    const [px, pz] = toRadar(s.obj.position.x, s.obj.position.z);
     if (Math.hypot(px - C, pz - C) < C - 4) {
-      g.fillStyle = '#ff4438';
-      g.beginPath(); g.arc(px, pz, 3, 0, 7); g.fill();
+      g.fillStyle = s.team === 1 ? '#6db4ff' : '#ff4438';
+      g.beginPath(); g.arc(px, pz, 2.6, 0, 7); g.fill();
     }
   }
   // player arrow
-  g.fillStyle = '#9fd4ff';
+  g.fillStyle = '#ffffff';
   g.beginPath(); g.moveTo(C, C - 6); g.lineTo(C - 4, C + 4); g.lineTo(C + 4, C + 4); g.closePath(); g.fill();
 }
 
 // ---------- Game flow ----------
 function resetGame() {
-  for (const e of enemies) scene.remove(e.obj);
-  enemies.length = 0; enemyHitMeshes.length = 0;
+  // 兵士全削除
+  for (const s of soldiers) scene.remove(s.obj);
+  soldiers.length = 0; soldierHitMeshes.length = 0;
   clearEffects();
   for (const s of shells) { s.ttl = 0; s.m.visible = false; }
   if (curVehicle) { curVehicle = null; gunGroup.visible = true; stopEngine(); }
   ui.vehicleBox.style.display = 'none';
   ui.weaponName.textContent = 'M4A1 CARBINE';
   spawnVehicles();
-  Object.assign(player, { hp: 100, alive: true, yaw: 0, pitch: 0, lastDamageTime: -99, onGround: true });
-  player.pos.set(0, 1.7, 8); player.vel.set(0, 0, 0);
+  // 拠点リセット
+  for (const f of flags) { f.own = 0; f.cap = 0; updateFlagVisual(f); }
+  // プレイヤー
+  Object.assign(player, { hp: 100, alive: true, yaw: Math.PI * 0.75, pitch: 0, lastDamageTime: -99, onGround: true, respawnT: 0 });
+  player.pos.set(HQ_BLUE.x, terrainH(HQ_BLUE.x, HQ_BLUE.z) + player.eyeHeight, HQ_BLUE.z);
+  player.vel.set(0, 0, 0);
   Object.assign(weapon, { mag: 30, reloading: false, cooldown: 0, recoil: 0, spreadHeat: 0 });
-  game.score = 0; game.kills = 0; game.waveClearTimer = 0; firing = false;
+  game.score = 0; game.kills = 0; firing = false;
+  game.ticketsBlue = 150; game.ticketsRed = 150; game.bleedT = 0;
   shake = 0;
   ui.vignette.style.opacity = 0; ui.reloadHint.textContent = '';
-  updateHpUI(); updateAmmoUI(); updateScoreUI();
-  startWave(1);
+  document.getElementById('respawn-screen').style.display = 'none';
+  // 味方AI 9体 (青HQ周辺)
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    createSoldier(1, HQ_BLUE.x + Math.cos(a) * (6 + Math.random() * 8), HQ_BLUE.z + Math.sin(a) * (6 + Math.random() * 8));
+  }
+  // 敵AI 10体 (赤HQ周辺)
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    createSoldier(-1, HQ_RED.x + Math.cos(a) * (6 + Math.random() * 8), HQ_RED.z + Math.sin(a) * (6 + Math.random() * 8));
+  }
+  updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
+  ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
+  ui.waveBanner.style.opacity = 1;
+  setTimeout(() => ui.waveBanner.style.opacity = 0, 2200);
   game.running = true;
 }
 
@@ -1751,9 +2301,13 @@ function loop(now) {
   if (game.running) {
     elapsed += dt;
     shake = Math.max(0, shake - dt * 1.6);
-    if (curVehicle) {
+    if (!player.alive) {
+      // リスポーン待機
+      player.respawnT -= dt;
+      ui.respawnTimer.textContent = '再出撃まで ' + Math.max(1, Math.ceil(player.respawnT));
+      if (player.respawnT <= 0 && game.ticketsBlue > 0) respawnPlayer();
+    } else if (curVehicle) {
       updateVehicle(dt);
-      // HP regen は乗車中も有効
       if (player.hp < player.maxHp && elapsed - player.lastDamageTime > 4) {
         player.hp = Math.min(player.maxHp, player.hp + 12 * dt);
         if (player.hp > 30) ui.vignette.style.opacity = 0;
@@ -1763,7 +2317,6 @@ function loop(now) {
       muzzleLight.intensity = 0;
     } else {
       updatePlayer(dt);
-      // HP regen (Battlefield style)
       if (player.hp < player.maxHp && elapsed - player.lastDamageTime > 4) {
         player.hp = Math.min(player.maxHp, player.hp + 12 * dt);
         if (player.hp > 30) ui.vignette.style.opacity = 0;
@@ -1772,7 +2325,9 @@ function loop(now) {
       muzzleFlash.material.opacity = Math.max(0, muzzleFlash.material.opacity - dt * 18);
       muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 25);
     }
-    updateEnemies(dt);
+    updateSoldiers(dt);
+    updateFlags(dt);
+    updateTickets(dt);
     updateShells(dt);
     updateEffects(dt);
     updateInteractHint(dt);
@@ -1780,11 +2335,14 @@ function loop(now) {
     if (radarT > 0.12) { radarT = 0; drawRadar(); }
   }
   if (!ctxLost) {
-    try { renderer.render(scene, camera); } catch (err) { /* コンテキスト消失中は無視 */ }
+    try { renderer.render(scene, camera); } catch (err) { /* ignore */ }
   }
 }
-updateHpUI(); updateAmmoUI(); updateScoreUI();
+updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
+
+// デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
+window.__dbg = { soldiers, flags, game, player, terrainH };
 </script>
 </body>
 </html>
