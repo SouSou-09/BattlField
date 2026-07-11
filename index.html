@@ -104,6 +104,33 @@
   #btn-aim { width:62px; height:62px; right:calc(190px + env(safe-area-inset-right)); bottom:calc(120px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); }
   #btn-aim.aiming { background:rgba(255,210,87,.5); border-color:#ffd257; }
   #btn-vehicle { width:64px; height:64px; right:calc(38px + env(safe-area-inset-right)); bottom:calc(300px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(120,255,180,.6); background:rgba(20,90,50,.45); display:none; }
+  /* v0.2.2 buttons */
+  #btn-nade { width:56px; height:56px; right:calc(118px + env(safe-area-inset-right)); bottom:calc(258px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(180,255,120,.5); background:rgba(60,90,20,.4); }
+  #btn-weapon { width:56px; height:56px; right:calc(196px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(200,180,255,.5); background:rgba(60,40,90,.4); }
+  #btn-map { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:calc(130px + env(safe-area-inset-top)); width:48px; height:34px; border-radius:8px; border:2px solid rgba(120,200,255,.45); background:rgba(0,30,50,.55); color:#9fd4ff; font-size:10px; font-weight:700; }
+
+  /* v0.2.2: 全体マップ */
+  #fullmap-wrap { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(0,8,16,.6); }
+  #fullmap { border:2px solid rgba(120,200,255,.55); background:#0a1a28; border-radius:10px; box-shadow:0 0 40px rgba(0,0,0,.7); }
+  #fullmap-hint { position:absolute; bottom:8%; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.7); font-size:12px; letter-spacing:2px; }
+
+  /* v0.2.2: スナイパースコープ */
+  #scope-overlay { position:fixed; inset:0; z-index:12; display:none; pointer-events:none; background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 24%, rgba(0,0,0,.55) 33%, rgba(0,0,0,.97) 40%); }
+  #scope-overlay .sc-h, #scope-overlay .sc-v { position:absolute; left:50%; top:50%; background:rgba(0,0,0,.85); }
+  #scope-overlay .sc-h { width:56vmin; height:1.5px; transform:translate(-50%,-50%); }
+  #scope-overlay .sc-v { width:1.5px; height:56vmin; transform:translate(-50%,-50%); }
+
+  /* v0.2.2: ヘッドショット演出 */
+  #hs-banner { position:fixed; left:50%; top:36%; transform:translate(-50%,-50%) scale(.7); z-index:15; font-weight:900; font-size:26px; letter-spacing:5px; color:#ffd257; text-shadow:0 0 14px rgba(255,110,30,.95), 0 2px 3px #000; opacity:0; pointer-events:none; transition:opacity .12s, transform .25s; }
+  #hs-banner.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #hitmarker.hs span { background:#ff5030 !important; box-shadow:0 0 8px rgba(255,80,40,.9); }
+
+  /* v0.2.2: 武器選択 */
+  .wsel-row { display:flex; gap:10px; margin-bottom:24px; pointer-events:auto; flex-wrap:wrap; justify-content:center; }
+  .wsel { padding:10px 14px; border:2px solid rgba(120,200,255,.35); background:rgba(15,35,55,.7); color:#cfe9ff; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; letter-spacing:1px; }
+  .wsel .wd { display:block; font-size:9px; font-weight:400; color:rgba(255,255,255,.55); margin-top:3px; letter-spacing:0; }
+  .wsel.sel { background:rgba(80,160,230,.45); border-color:#9fd4ff; box-shadow:0 0 12px rgba(80,180,255,.4); }
+  #nade-row { font-size:12px; color:#cfe9a0; margin-top:2px; }
 
   /* ===== Screens ===== */
   .screen { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(160deg,#06131f 0%,#0b2438 55%,#123c55 100%); color:#fff; text-align:center; padding:20px; }
@@ -149,13 +176,24 @@
   </div>
   <div id="ammo-box">
     <div id="weapon-name">M4A1 CARBINE</div>
-    <div><span id="ammo-mag">30</span><span id="ammo-reserve"> / ∞</span></div>
+    <div><span id="ammo-mag">30</span><span id="ammo-reserve"> / 120</span></div>
+    <div id="nade-row">💣 <span id="nade-count">3</span></div>
     <div id="reload-hint"></div>
   </div>
   <div id="interact-hint"></div>
   <div id="killfeed"></div>
   <div id="wave-banner">CONQUEST</div>
+  <div id="hs-banner">HEADSHOT!</div>
 </section>
+
+<!-- v0.2.2: スナイパースコープ -->
+<div id="scope-overlay"><span class="sc-h"></span><span class="sc-v"></span></div>
+
+<!-- v0.2.2: 全体マップ -->
+<div id="fullmap-wrap">
+  <canvas id="fullmap" width="340" height="340"></canvas>
+  <div id="fullmap-hint">M キー / MAP ボタンで閉じる</div>
+</div>
 
 <!-- リスポーン待機 -->
 <div id="respawn-screen">
@@ -173,13 +211,22 @@
   <button class="tbtn" id="btn-jump">JUMP</button>
   <button class="tbtn" id="btn-reload">RELOAD</button>
   <button class="tbtn" id="btn-aim">AIM</button>
+  <button class="tbtn" id="btn-nade">GRND</button>
+  <button class="tbtn" id="btn-weapon">WPN</button>
   <button class="tbtn" id="btn-vehicle">乗る</button>
+  <button id="btn-map">MAP</button>
 </div>
 
 <!-- ===== Start screen ===== -->
 <section class="screen" id="start-screen">
   <h1>STEEL FRONT</h1>
   <div class="sub">CONQUEST — 10 vs 10 拠点占領戦</div>
+  <div class="wsel-row" id="wsel-row">
+    <button class="wsel sel" data-w="ar">M4A1<span class="wd">アサルトライフル</span></button>
+    <button class="wsel" data-w="smg">MP5<span class="wd">サブマシンガン</span></button>
+    <button class="wsel" data-w="sr">M24<span class="wd">スナイパー</span></button>
+    <button class="wsel" data-w="sg">M870<span class="wd">ショットガン</span></button>
+  </div>
   <button class="big-btn" id="start-btn">出撃する</button>
   <div class="howto" id="howto-text"></div>
 </section>
@@ -210,8 +257,8 @@ const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
                  (navigator.maxTouchPoints > 1 && 'ontouchstart' in window);
 
 document.getElementById('howto-text').innerHTML = isMobile
-  ? 'A〜Eの拠点を占領してチケットで勝利せよ!<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / 乗り物ボタンで搭乗'
-  : 'A〜Eの拠点を占領してチケットで勝利せよ!<br>WASD:移動 / マウス:視点 / 左クリック:射撃<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物';
+  ? 'A〜Eの拠点を占領してチケットで勝利せよ!<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / AIM:エイム<br>GRND:グレネード / WPN:武器切替 / MAP:全体マップ'
+  : 'A〜Eの拠点を占領してチケットで勝利せよ!<br>WASD:移動 / マウス:視点 / 左クリック:射撃 / 右クリック:エイム<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物<br>G:グレネード / M:全体マップ / 1〜4:武器切替';
 
 // ---------- Core three.js setup ----------
 const canvas = document.getElementById('game-canvas');
@@ -820,18 +867,48 @@ const game = {
   bleedT: 0
 };
 
-// ---------- Weapon ----------
+// ---------- Weapons (v0.2.2: 選択制) ----------
+const WEAPONS = {
+  ar:  { name: 'M4A1 CARBINE', magSize: 30, reserve: 120, fireInterval: 0.095, reloadTime: 2.1,
+         dmg: 28, hsDmg: 68, baseSpread: 0.004, heatSpread: 0.02, auto: true,
+         adsFov: 48, pellets: 1, range: 300, kick: 0.009 },
+  smg: { name: 'MP5 SMG', magSize: 35, reserve: 175, fireInterval: 0.062, reloadTime: 1.7,
+         dmg: 19, hsDmg: 46, baseSpread: 0.007, heatSpread: 0.028, auto: true,
+         adsFov: 55, pellets: 1, range: 180, kick: 0.006 },
+  sr:  { name: 'M24 SNIPER', magSize: 5, reserve: 30, fireInterval: 1.4, reloadTime: 3.0,
+         dmg: 95, hsDmg: 200, baseSpread: 0.03, heatSpread: 0, auto: false, hipPenalty: true,
+         adsFov: 16, scope: true, pellets: 1, range: 500, kick: 0.03 },
+  sg:  { name: 'M870 SHOTGUN', magSize: 6, reserve: 36, fireInterval: 0.85, reloadTime: 2.8,
+         dmg: 11, hsDmg: 22, baseSpread: 0.035, heatSpread: 0, auto: false,
+         adsFov: 60, pellets: 8, range: 45, kick: 0.022 }
+};
+let curWeaponId = 'ar';
 const weapon = {
-  mag: 30, magSize: 30,
+  mag: 30, magSize: 30, reserve: 120,
   fireInterval: 0.095, cooldown: 0,
   reloading: false, reloadTime: 2.1, reloadTimer: 0,
   recoil: 0, spreadHeat: 0
 };
+function weaponDef() { return WEAPONS[curWeaponId]; }
+function applyWeapon(id) {
+  curWeaponId = id;
+  const w = WEAPONS[id];
+  Object.assign(weapon, {
+    mag: w.magSize, magSize: w.magSize, reserve: w.reserve,
+    fireInterval: w.fireInterval, reloadTime: w.reloadTime,
+    cooldown: 0, reloading: false, reloadTimer: 0, recoil: 0, spreadHeat: 0
+  });
+  if (typeof ui !== 'undefined' && ui.weaponName) {
+    ui.weaponName.textContent = w.name;
+    updateAmmoUI();
+  }
+}
 let firing = false;
+let fireLatch = false;   // 単発武器のトリガー制御
 
 // ---------- ADS (スコープ) v0.2.1 ----------
 const ads = { active: false, t: 0 };   // t: 0=腰だめ 1=ADS (補間用)
-const FOV_HIP = 75, FOV_ADS = 48;
+const FOV_HIP = 75;
 function setAds(on) {
   if (curVehicle || !player.alive) on = false;
   if (ads.active === on) return;
@@ -845,13 +922,19 @@ function updateAds(dt) {
   const target = ads.active && !curVehicle && player.alive ? 1 : 0;
   const prev = ads.t;
   ads.t += (target - ads.t) * Math.min(1, dt * 12);
+  const w = weaponDef();
   if (Math.abs(ads.t - prev) > 0.001) {
-    camera.fov = FOV_HIP + (FOV_ADS - FOV_HIP) * ads.t;
+    camera.fov = FOV_HIP + (w.adsFov - FOV_HIP) * ads.t;
     camera.updateProjectionMatrix();
   }
+  // スナイパー: スコープオーバーレイ (v0.2.2)
+  const scopeOn = w.scope && ads.t > 0.75;
+  const sc = document.getElementById('scope-overlay');
+  if ((sc.style.display === 'block') !== scopeOn) sc.style.display = scopeOn ? 'block' : 'none';
+  gunGroup.visible = !scopeOn && !curVehicle;
   // クロスヘア縮小
   const ch = document.getElementById('crosshair');
-  ch.style.opacity = 1 - ads.t * 0.6;
+  ch.style.opacity = (1 - ads.t * 0.6) * (scopeOn ? 0 : 1);
   ch.style.transform = `translate(-50%,-50%) scale(${1 - ads.t * 0.45})`;
 }
 
@@ -1040,7 +1123,13 @@ const sfx = {
   explosion: () => playExplosionSfx(0.5),
   enter: () => { playBeep(500, 0.06, 0.12, 'square'); setTimeout(() => playBeep(700, 0.08, 0.12, 'square'), 90); },
   capture: () => { playBeep(660, 0.1, 0.14); setTimeout(() => playBeep(880, 0.1, 0.14), 120); setTimeout(() => playBeep(1100, 0.16, 0.14), 240); },
-  lost: () => { playBeep(440, 0.12, 0.14); setTimeout(() => playBeep(300, 0.18, 0.14), 140); }
+  lost: () => { playBeep(440, 0.12, 0.14); setTimeout(() => playBeep(300, 0.18, 0.14), 140); },
+  // v0.2.2
+  snipe: () => { playShot(0.4, 380); playShot(0.15, 1500); },
+  shotgun: () => { playShot(0.35, 500); playShot(0.2, 240); },
+  headshot: () => { playBeep(1750, 0.07, 0.16, 'square'); setTimeout(() => playBeep(2300, 0.1, 0.13, 'square'), 55); },
+  pin: () => playBeep(900, 0.05, 0.1, 'square'),
+  pickup: () => { playBeep(760, 0.07, 0.13); setTimeout(() => playBeep(1150, 0.09, 0.13), 80); }
 };
 let engine = null;
 function startEngine(type) {
@@ -1445,23 +1534,45 @@ function damageSoldier(s, dmg, point, byPlayerTeam) {
   }
 }
 // プレイヤーの攻撃による撃破
-function playerKillSoldier(s, point) {
+function playerKillSoldier(s, point, isHead = false) {
   if (!s.alive) return;
   s.alive = false; s.deathT = 0;
-  game.kills++; game.score += 100;
+  game.kills++;
+  game.score += isHead ? 150 : 100;
   game.ticketsRed = Math.max(0, game.ticketsRed - 1);
   sfx.kill();
-  addFeed('敵兵を倒した +100');
+  if (isHead) {
+    // v0.2.2: HEADSHOT バナー + スローヒット風の画面揺れ
+    showHeadshotBanner();
+    shake = Math.max(shake, 0.12);
+    addFeed('💀 HEADSHOT! +150', 'blue');
+  } else {
+    addFeed('敵兵を倒した +100');
+  }
   updateScoreUI(); updateTicketsUI();
   checkMatchEnd();
 }
-function damageSoldierByPlayer(s, dmg, point) {
+let hsBannerTO = null;
+function showHeadshotBanner() {
+  const b = document.getElementById('hs-banner');
+  b.classList.add('show');
+  clearTimeout(hsBannerTO);
+  hsBannerTO = setTimeout(() => b.classList.remove('show'), 800);
+}
+function damageSoldierByPlayer(s, dmg, point, isHead = false) {
   if (!s.alive) return;
   if (s.team === 1) return; // 味方は撃てない (FFなし)
   s.hp -= dmg;
-  spawnParticles(point, 0xbb2222, 6, 3);
-  sfx.hit();
-  if (s.hp <= 0) playerKillSoldier(s, point);
+  if (isHead) {
+    // v0.2.2: ヘッドショット演出強化
+    spawnParticles(point, 0xff2200, 12, 5, 1.6);
+    spawnParticles(point, 0xffcc44, 6, 4, 1.2);
+    sfx.headshot();
+  } else {
+    spawnParticles(point, 0xbb2222, 6, 3);
+    sfx.hit();
+  }
+  if (s.hp <= 0) playerKillSoldier(s, point, isHead);
 }
 
 /* =========================================================
@@ -1711,6 +1822,7 @@ function enterVehicle(v) {
   ui.weaponName.textContent = v.type === 'tank' ? '125mm 主砲' : 'M2 重機関銃';
   ui.ammoMag.textContent = '∞';
   ui.ammoMag.style.color = '#fff';
+  ui.ammoReserve.textContent = '';
   ui.reloadHint.textContent = '';
   updateVehicleUI();
 }
@@ -1732,7 +1844,7 @@ function exitVehicle(forced = false) {
   stopEngine();
   if (!forced) sfx.enter();
   ui.vehicleBox.style.display = 'none';
-  ui.weaponName.textContent = 'M4A1 CARBINE';
+  ui.weaponName.textContent = weaponDef().name;
   updateAmmoUI();
 }
 function toggleVehicle() {
@@ -1986,50 +2098,196 @@ function hasLineOfSight(from, to) {
 const shootRay = new THREE.Raycaster();
 function playerShoot() {
   if (weapon.reloading || weapon.cooldown > 0 || !player.alive) return;
-  if (weapon.mag <= 0) { sfx.empty(); weapon.cooldown = 0.25; return; }
+  const w = weaponDef();
+  if (!w.auto && fireLatch) return;   // 単発武器はトリガーを引き直す必要あり
+  if (weapon.mag <= 0) { sfx.empty(); weapon.cooldown = 0.25; fireLatch = true; return; }
+  fireLatch = true;
   weapon.mag--; weapon.cooldown = weapon.fireInterval;
   weapon.recoil = 1; weapon.spreadHeat = Math.min(weapon.spreadHeat + 0.15, 1);
-  sfx.shoot();
+  if (curWeaponId === 'sr') sfx.snipe();
+  else if (curWeaponId === 'sg') sfx.shotgun();
+  else sfx.shoot();
   muzzleFlash.material.opacity = 1;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
   muzzleLight.intensity = 2.5;
-  player.pitch = Math.min(player.pitch + 0.009, Math.PI / 2);
+  player.pitch = Math.min(player.pitch + w.kick, Math.PI / 2);
 
-  // ADS中は拡散が大幅減少 (v0.2.1)
-  let spread = 0.004 + weapon.spreadHeat * 0.02 + (moveMag() > 0.1 ? 0.012 : 0);
-  spread *= (1 - ads.t * 0.8);
-  const dir = new THREE.Vector3(0, 0, -1)
-    .applyEuler(new THREE.Euler(player.pitch + (Math.random() - .5) * spread, player.yaw + (Math.random() - .5) * spread, 0, 'YXZ'));
-  shootRay.set(camera.position.clone(), dir);
-  shootRay.far = 300;
+  // 拡散: 武器定義 + ヒート + 移動ペナルティ / ADSで大幅減少
+  let spread = w.baseSpread + weapon.spreadHeat * w.heatSpread + (moveMag() > 0.1 ? 0.012 : 0);
+  if (w.hipPenalty && ads.t < 0.6) spread += 0.05;   // スナイパー腰だめは大きく散る
+  spread *= (1 - ads.t * 0.85);
 
-  const hitsE = shootRay.intersectObjects(soldierHitMeshes, false).filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
-  const hitsW = shootRay.intersectObjects(solidMeshes, false);
-  let end = camera.position.clone().addScaledVector(dir, 300);
-  const eDist = hitsE.length ? hitsE[0].distance : Infinity;
-  const wDist = hitsW.length ? hitsW[0].distance : Infinity;
-
-  if (eDist < wDist) {
-    const h = hitsE[0];
-    end = h.point;
-    const isHead = !!h.object.userData.isHead;
-    damageSoldierByPlayer(h.object.userData.soldier, isHead ? 68 : 28, h.point);
-    showHitmarker();
-  } else if (wDist < Infinity) {
-    end = hitsW[0].point;
-    spawnParticles(end, 0xb0a890, 4, 2);
-  }
   const muzzleWorld = new THREE.Vector3();
   muzzleFlash.getWorldPosition(muzzleWorld);
-  spawnTracer(muzzleWorld, end);
+  let anyHit = false, anyHead = false;
+
+  for (let p = 0; p < w.pellets; p++) {
+    const dir = new THREE.Vector3(0, 0, -1)
+      .applyEuler(new THREE.Euler(player.pitch + (Math.random() - .5) * spread, player.yaw + (Math.random() - .5) * spread, 0, 'YXZ'));
+    shootRay.set(camera.position.clone(), dir);
+    shootRay.far = w.range;
+
+    const hitsE = shootRay.intersectObjects(soldierHitMeshes, false).filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
+    const hitsW = shootRay.intersectObjects(solidMeshes, false);
+    let end = camera.position.clone().addScaledVector(dir, w.range);
+    const eDist = hitsE.length ? hitsE[0].distance : Infinity;
+    const wDist = hitsW.length ? hitsW[0].distance : Infinity;
+
+    if (eDist < wDist) {
+      const h = hitsE[0];
+      end = h.point;
+      const isHead = !!h.object.userData.isHead;
+      damageSoldierByPlayer(h.object.userData.soldier, isHead ? w.hsDmg : w.dmg, h.point, isHead);
+      anyHit = true; if (isHead) anyHead = true;
+    } else if (wDist < Infinity) {
+      end = hitsW[0].point;
+      spawnParticles(end, 0xb0a890, 3, 2);
+    }
+    spawnTracer(muzzleWorld, end);
+  }
+  if (anyHit) showHitmarker(anyHead);
   updateAmmoUI();
 }
 
 function reload() {
   if (curVehicle || weapon.reloading || weapon.mag === weapon.magSize || !player.alive) return;
+  if (weapon.reserve <= 0) { ui.reloadHint.textContent = '弾薬切れ! 弾薬箱を探せ'; return; }
   weapon.reloading = true; weapon.reloadTimer = weapon.reloadTime;
   sfx.reload();
   ui.reloadHint.textContent = 'リロード中...';
+}
+
+/* =========================================================
+   v0.2.2: グレネード (物理投擲・プール)
+   ========================================================= */
+const grenades = { count: 3, max: 3 };
+const NADE_MAX = 4;
+const nadePool = [];
+{
+  const nGeo = new THREE.SphereGeometry(0.13, 8, 6);
+  const nMat = new THREE.MeshLambertMaterial({ color: 0x3a5a2a });
+  for (let i = 0; i < NADE_MAX; i++) {
+    const m = new THREE.Mesh(nGeo, nMat);
+    m.visible = false;
+    scene.add(m);
+    nadePool.push({ m, vel: new THREE.Vector3(), fuse: 0, active: false });
+  }
+}
+function throwGrenade() {
+  if (!player.alive || curVehicle || grenades.count <= 0) return;
+  const g = nadePool.find(n => !n.active);
+  if (!g) return;
+  grenades.count--;
+  sfx.pin();
+  const dir = new THREE.Vector3(0, 0, -1)
+    .applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+  g.m.position.copy(camera.position).addScaledVector(dir, 0.6);
+  g.vel.copy(dir).multiplyScalar(16);
+  g.vel.y += 4.5;   // 山なり弾道
+  g.fuse = 2.2;
+  g.active = true;
+  g.m.visible = true;
+  updateAmmoUI();
+}
+function updateGrenades(dt) {
+  for (const g of nadePool) {
+    if (!g.active) continue;
+    g.fuse -= dt;
+    g.vel.y -= 16 * dt;
+    const p = g.m.position;
+    p.addScaledVector(g.vel, dt);
+    // 地形バウンド
+    const gy = terrainH(p.x, p.z) + 0.13;
+    if (p.y < gy) {
+      p.y = gy;
+      g.vel.y = Math.abs(g.vel.y) * 0.35;
+      g.vel.x *= 0.6; g.vel.z *= 0.6;
+      if (Math.abs(g.vel.y) < 0.8) g.vel.y = 0;
+    }
+    // 建物にぶつかったら反射 (簡易)
+    if (collidesAt(p.x, p.z, 0.15, p.y - 0.13)) {
+      g.vel.x *= -0.4; g.vel.z *= -0.4;
+      p.addScaledVector(g.vel, dt * 2);
+    }
+    if (g.fuse <= 0) {
+      g.active = false; g.m.visible = false;
+      explodeAt(p.clone().setY(Math.max(p.y, terrainH(p.x, p.z) + 0.4)), 7, 120);
+    }
+  }
+}
+
+/* =========================================================
+   v0.2.2: 弾薬・回復パック (拠点周辺 + マップ各所)
+   ========================================================= */
+const pickups = [];
+{
+  const ammoGeo = new THREE.BoxGeometry(0.7, 0.45, 0.5);
+  const ammoMat = new THREE.MeshLambertMaterial({ color: 0x3f6d2f });
+  const hpGeo = new THREE.BoxGeometry(0.62, 0.45, 0.62);
+  const hpMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
+  const crossMat = new THREE.MeshBasicMaterial({ color: 0xe03428 });
+  function makePickup(type, x, z) {
+    const grp = new THREE.Group();
+    if (type === 'ammo') {
+      grp.add(new THREE.Mesh(ammoGeo, ammoMat));
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, 0.52), new THREE.MeshBasicMaterial({ color: 0xd8c26a }));
+      grp.add(stripe);
+    } else {
+      grp.add(new THREE.Mesh(hpGeo, hpMat));
+      const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.1), crossMat); c1.position.set(0, 0.24, 0);
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.36), crossMat); c2.position.set(0, 0.24, 0);
+      grp.add(c1, c2);
+    }
+    const gy = terrainH(x, z);
+    grp.position.set(x, gy + 0.35, z);
+    scene.add(grp);
+    pickups.push({ type, x, z, y: gy, obj: grp, active: true, respawnT: 0, bobT: Math.random() * 6 });
+  }
+  // 各拠点そば + 中間地点に配置
+  for (const f of flags) {
+    makePickup('ammo', f.x + 6, f.z + 5);
+    makePickup('health', f.x - 6, f.z - 5);
+  }
+  makePickup('ammo', -45, 100);  makePickup('health', -50, -20);
+  makePickup('ammo', 45, -100);  makePickup('health', 50, 20);
+  makePickup('health', HQ_BLUE.x + 8, HQ_BLUE.z + 6);
+  makePickup('ammo', HQ_BLUE.x - 8, HQ_BLUE.z + 6);
+  makePickup('health', HQ_RED.x - 8, HQ_RED.z - 6);
+  makePickup('ammo', HQ_RED.x + 8, HQ_RED.z - 6);
+}
+const PICKUP_RESPAWN = 25;
+function updatePickups(dt) {
+  for (const pk of pickups) {
+    if (!pk.active) {
+      pk.respawnT -= dt;
+      if (pk.respawnT <= 0) { pk.active = true; pk.obj.visible = true; }
+      continue;
+    }
+    // ふわふわ回転で目立たせる
+    pk.bobT += dt * 2;
+    pk.obj.position.y = pk.y + 0.42 + Math.sin(pk.bobT) * 0.09;
+    pk.obj.rotation.y += dt * 1.4;
+    if (!player.alive || curVehicle) continue;
+    const d = Math.hypot(player.pos.x - pk.x, player.pos.z - pk.z);
+    if (d < 1.6) {
+      if (pk.type === 'ammo') {
+        const w = weaponDef();
+        if (weapon.reserve >= w.reserve && grenades.count >= grenades.max) continue; // 満タンなら取らない
+        weapon.reserve = Math.min(w.reserve, weapon.reserve + Math.ceil(w.reserve * 0.5));
+        grenades.count = Math.min(grenades.max, grenades.count + 1);
+        addFeed('弾薬を補給した', 'blue');
+      } else {
+        if (player.hp >= player.maxHp) continue;
+        player.hp = Math.min(player.maxHp, player.hp + 50);
+        ui.vignette.style.opacity = 0;
+        addFeed('回復パックを使用 +50', 'blue');
+        updateHpUI();
+      }
+      sfx.pickup();
+      updateAmmoUI();
+      pk.active = false; pk.obj.visible = false; pk.respawnT = PICKUP_RESPAWN;
+    }
+  }
 }
 
 // ---------- ダメージ方向インジケーター (v0.2.1) ----------
@@ -2097,7 +2355,10 @@ function respawnPlayer() {
   player.vel.set(0, 0, 0);
   player.hp = player.maxHp; player.alive = true;
   player.lastDamageTime = -99;
-  Object.assign(weapon, { mag: weapon.magSize, reloading: false, cooldown: 0, recoil: 0, spreadHeat: 0 });
+  // v0.2.2: リスポーン時はフル装備で復帰
+  applyWeapon(curWeaponId);
+  grenades.count = grenades.max;
+  fireLatch = false;
   ui.vignette.style.opacity = 0;
   ui.reloadHint.textContent = '';
   updateHpUI(); updateAmmoUI();
@@ -2110,6 +2371,8 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyR') reload();
   if (e.code === 'KeyE' || e.code === 'KeyF') toggleVehicle();
+  if (e.code === 'KeyG') throwGrenade();          // v0.2.2
+  if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -2128,7 +2391,7 @@ if (!isMobile) {
     if (e.button === 2) setAds(true);          // 右クリック長押しでADS
   });
   window.addEventListener('mouseup', e => {
-    if (e.button === 0) firing = false;
+    if (e.button === 0) { firing = false; fireLatch = false; }
     if (e.button === 2) setAds(false);
   });
 }
@@ -2204,13 +2467,43 @@ if (isMobile) {
     el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); down(); }, { passive: false });
     el.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); up && up(); }, { passive: false });
   };
-  bindBtn('btn-fire', () => firing = true, () => firing = false);
-  bindBtn('btn-fire-alt', () => firing = true, () => firing = false);
+  bindBtn('btn-fire', () => firing = true, () => { firing = false; fireLatch = false; });
+  bindBtn('btn-fire-alt', () => firing = true, () => { firing = false; fireLatch = false; });
   bindBtn('btn-jump', () => jumpQueued = true);
   bindBtn('btn-reload', () => reload());
   bindBtn('btn-aim', () => setAds(!ads.active));   // タップで切替
+  bindBtn('btn-nade', () => throwGrenade());        // v0.2.2
+  bindBtn('btn-weapon', () => cycleWeapon());       // v0.2.2: 次の武器に切替
   bindBtn('btn-vehicle', () => toggleVehicle());
+  document.getElementById('btn-map').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleFullmap(); }, { passive: false });
+} else {
+  document.getElementById('btn-map').style.display = 'none';
 }
+
+// v0.2.2: 武器選択 (スタート画面) & サイクル切替 (1-4キー/WPNボタン)
+const WEAPON_ORDER = ['ar', 'smg', 'sr', 'sg'];
+function selectWeaponUI(id) {
+  document.querySelectorAll('.wsel').forEach(b => b.classList.toggle('sel', b.dataset.w === id));
+}
+document.querySelectorAll('.wsel').forEach(b => {
+  b.addEventListener('click', () => { curWeaponId = b.dataset.w; selectWeaponUI(curWeaponId); });
+});
+function cycleWeapon() {
+  if (!player.alive || curVehicle) return;
+  const i = WEAPON_ORDER.indexOf(curWeaponId);
+  applyWeapon(WEAPON_ORDER[(i + 1) % WEAPON_ORDER.length]);
+  setAds(false);
+  addFeed(weaponDef().name + ' に切替', 'blue');
+}
+window.addEventListener('keydown', e => {
+  if (!game.running || curVehicle || !player.alive) return;
+  const map = { Digit1: 'ar', Digit2: 'smg', Digit3: 'sr', Digit4: 'sg' };
+  if (map[e.code] && map[e.code] !== curWeaponId) {
+    applyWeapon(map[e.code]);
+    setAds(false);
+    addFeed(weaponDef().name + ' に切替', 'blue');
+  }
+});
 
 // ---------- Player movement (地形追従) ----------
 function updatePlayer(dt) {
@@ -2278,19 +2571,24 @@ function updatePlayer(dt) {
   if (weapon.reloading) {
     weapon.reloadTimer -= dt;
     if (weapon.reloadTimer <= 0) {
-      weapon.reloading = false; weapon.mag = weapon.magSize;
+      weapon.reloading = false;
+      const need = weapon.magSize - weapon.mag;
+      const take = Math.min(need, weapon.reserve);
+      weapon.mag += take; weapon.reserve -= take;   // v0.2.2: 予備弾消費
       ui.reloadHint.textContent = '';
       updateAmmoUI();
     }
   }
   if (firing) playerShoot();
-  if (weapon.mag === 0 && !weapon.reloading) reload();
+  if (weapon.mag === 0 && !weapon.reloading && weapon.reserve > 0) reload();
 }
 
 // ---------- UI ----------
 const ui = {
   hpFill: document.getElementById('hp-fill'), hpText: document.getElementById('hp-text'),
   ammoMag: document.getElementById('ammo-mag'), reloadHint: document.getElementById('reload-hint'),
+  ammoReserve: document.getElementById('ammo-reserve'),
+  nadeCount: document.getElementById('nade-count'),
   weaponName: document.getElementById('weapon-name'),
   scoreVal: document.getElementById('score-val'), killsVal: document.getElementById('kills-val'),
   vignette: document.getElementById('damage-vignette'),
@@ -2327,7 +2625,9 @@ function updateHpUI() {
 function updateAmmoUI() {
   if (curVehicle) return;
   ui.ammoMag.textContent = weapon.mag;
-  ui.ammoMag.style.color = weapon.mag <= 5 ? '#ff6b5e' : '#fff';
+  ui.ammoMag.style.color = weapon.mag <= Math.max(3, weapon.magSize * 0.18) ? '#ff6b5e' : '#fff';
+  ui.ammoReserve.textContent = ' / ' + weapon.reserve;
+  ui.nadeCount.textContent = grenades.count;
 }
 function updateScoreUI() {
   ui.scoreVal.textContent = game.score;
@@ -2338,10 +2638,11 @@ function updateTicketsUI() {
   ui.tRed.textContent = game.ticketsRed;
 }
 let hitmarkerTO = null;
-function showHitmarker() {
+function showHitmarker(hs = false) {
   ui.hitmarker.style.opacity = 1;
+  ui.hitmarker.classList.toggle('hs', hs);
   clearTimeout(hitmarkerTO);
-  hitmarkerTO = setTimeout(() => ui.hitmarker.style.opacity = 0, 90);
+  hitmarkerTO = setTimeout(() => { ui.hitmarker.style.opacity = 0; ui.hitmarker.classList.remove('hs'); }, hs ? 160 : 90);
 }
 function addFeed(text, cls = '') {
   const d = document.createElement('div');
@@ -2374,6 +2675,82 @@ function updateInteractHint(dt) {
     if (isMobile) ui.btnVehicle.style.display = 'none';
   }
 }
+/* =========================================================
+   v0.2.2: 全体マップ (Mキー / MAPボタン)
+   ========================================================= */
+let fullmapOpen = false;
+const fmWrap = document.getElementById('fullmap-wrap');
+const fmCanvas = document.getElementById('fullmap');
+const fmCtx = fmCanvas.getContext('2d');
+function toggleFullmap() {
+  if (!game.running) return;
+  fullmapOpen = !fullmapOpen;
+  fmWrap.style.display = fullmapOpen ? 'flex' : 'none';
+  if (fullmapOpen) drawFullmap();
+}
+fmWrap.addEventListener('click', () => toggleFullmap());
+function drawFullmap() {
+  const S = fmCanvas.width, HALF = 160;   // ワールド ±160m → キャンバス
+  const g = fmCtx;
+  const toMap = (wx, wz) => [(wx + HALF) / (HALF * 2) * S, (wz + HALF) / (HALF * 2) * S];
+  g.clearRect(0, 0, S, S);
+  // 背景
+  g.fillStyle = '#12222f';
+  g.fillRect(0, 0, S, S);
+  // 道路
+  g.strokeStyle = 'rgba(160,150,120,.5)';
+  g.lineWidth = 4;
+  for (const r of ROADS) {
+    const [x1, y1] = toMap(r[0], r[1]);
+    const [x2, y2] = toMap(r[2], r[3]);
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  }
+  // HQ
+  g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const [bx, by] = toMap(HQ_BLUE.x, HQ_BLUE.z);
+  g.fillStyle = '#3d7fe0'; g.fillRect(bx - 8, by - 8, 16, 16);
+  g.fillStyle = '#fff'; g.fillText('HQ', bx, by);
+  const [rx2, ry2] = toMap(HQ_RED.x, HQ_RED.z);
+  g.fillStyle = '#d03428'; g.fillRect(rx2 - 8, ry2 - 8, 16, 16);
+  g.fillStyle = '#fff'; g.fillText('HQ', rx2, ry2);
+  // 拠点
+  for (const f of flags) {
+    const [px, py] = toMap(f.x, f.z);
+    g.fillStyle = f.own === 1 ? '#6db4ff' : f.own === -1 ? '#ff6b5e' : '#cccccc';
+    g.beginPath(); g.arc(px, py, 11, 0, 7); g.fill();
+    g.fillStyle = '#06131f'; g.fillText(f.id, px, py + 0.5);
+  }
+  // ピックアップ
+  for (const pk of pickups) {
+    if (!pk.active) continue;
+    const [px, py] = toMap(pk.x, pk.z);
+    g.fillStyle = pk.type === 'ammo' ? '#a0c060' : '#ff8080';
+    g.fillRect(px - 2.5, py - 2.5, 5, 5);
+  }
+  // 兵士
+  for (const s of soldiers) {
+    if (!s.alive) continue;
+    const [px, py] = toMap(s.obj.position.x, s.obj.position.z);
+    g.fillStyle = s.team === 1 ? '#6db4ff' : '#ff4438';
+    g.beginPath(); g.arc(px, py, 3, 0, 7); g.fill();
+  }
+  // 車両
+  for (const v of vehicles) {
+    if (!v.alive) continue;
+    const [px, py] = toMap(v.obj.position.x, v.obj.position.z);
+    g.fillStyle = '#5aff9c';
+    g.fillRect(px - 3.5, py - 3.5, 7, 7);
+  }
+  // プレイヤー (向き付き矢印)
+  const [ppx, ppy] = toMap(player.pos.x, player.pos.z);
+  g.save();
+  g.translate(ppx, ppy);
+  g.rotate(-player.yaw + Math.PI);
+  g.fillStyle = '#ffffff';
+  g.beginPath(); g.moveTo(0, -8); g.lineTo(-5.5, 6); g.lineTo(5.5, 6); g.closePath(); g.fill();
+  g.restore();
+}
+
 function drawRadar() {
   const g = ui.radar, S = 112, C = S / 2, RANGE = 95;
   g.clearRect(0, 0, S, S);
@@ -2433,7 +2810,6 @@ function resetGame() {
   for (const s of shells) { s.ttl = 0; s.m.visible = false; }
   if (curVehicle) { curVehicle = null; gunGroup.visible = true; stopEngine(); }
   ui.vehicleBox.style.display = 'none';
-  ui.weaponName.textContent = 'M4A1 CARBINE';
   spawnVehicles();
   // 拠点リセット
   for (const f of flags) { f.own = 0; f.cap = 0; updateFlagVisual(f); }
@@ -2441,8 +2817,12 @@ function resetGame() {
   Object.assign(player, { hp: 100, alive: true, yaw: Math.PI * 0.75, pitch: 0, lastDamageTime: -99, onGround: true, respawnT: 0 });
   player.pos.set(HQ_BLUE.x, terrainH(HQ_BLUE.x, HQ_BLUE.z) + player.eyeHeight, HQ_BLUE.z);
   player.vel.set(0, 0, 0);
-  Object.assign(weapon, { mag: 30, reloading: false, cooldown: 0, recoil: 0, spreadHeat: 0 });
-  game.score = 0; game.kills = 0; firing = false;
+  applyWeapon(curWeaponId);   // v0.2.2: 選択した武器を適用
+  grenades.count = grenades.max;
+  for (const g of nadePool) { g.active = false; g.m.visible = false; }
+  for (const pk of pickups) { pk.active = true; pk.obj.visible = true; pk.respawnT = 0; }
+  fullmapOpen = false; fmWrap.style.display = 'none';
+  game.score = 0; game.kills = 0; firing = false; fireLatch = false;
   game.ticketsBlue = 150; game.ticketsRed = 150; game.bleedT = 0;
   shake = 0;
   ui.vignette.style.opacity = 0; ui.reloadHint.textContent = '';
@@ -2518,8 +2898,10 @@ function loop(now) {
     updateInteractHint(dt);
     updateAds(dt);
     updateDamageArcs(dt);
+    updateGrenades(dt);
+    updatePickups(dt);
     radarT += dt;
-    if (radarT > 0.12) { radarT = 0; drawRadar(); }
+    if (radarT > 0.12) { radarT = 0; drawRadar(); if (fullmapOpen) drawFullmap(); }
   }
   if (!ctxLost) {
     try { renderer.render(scene, camera); } catch (err) { /* ignore */ }
