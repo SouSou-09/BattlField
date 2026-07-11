@@ -17,6 +17,13 @@ const matHeli = new THREE.MeshLambertMaterial({ color: 0x3e4a3a });
 const matHeli2 = new THREE.MeshLambertMaterial({ color: 0x333d31 });
 const matBoat = new THREE.MeshLambertMaterial({ color: 0x5c6668 });
 const matWreck = new THREE.MeshLambertMaterial({ color: 0x1d1d1d });
+// v0.3.2: ディテール用マテリアル
+const matLight = new THREE.MeshBasicMaterial({ color: 0xffe9b0 });
+const matTailLight = new THREE.MeshBasicMaterial({ color: 0xb02020 });
+const matRust = new THREE.MeshLambertMaterial({ color: 0x6b5540 });
+const matTire = new THREE.MeshLambertMaterial({ color: 0x181a1c });
+const matHub = new THREE.MeshLambertMaterial({ color: 0x555b52 });
+const matCanvas = new THREE.MeshLambertMaterial({ color: 0x4d5a3c });
 
 /* 座席: { role:'driver'|'gunner'|'passenger', pos:Vector3(ローカル), occ:null|'player'|soldier } */
 function mkSeat(role, x, y, z) { return { role, pos: new THREE.Vector3(x, y, z), occ: null }; }
@@ -41,12 +48,34 @@ function createJeep(x, z, rotY = 0) {
   const barR = barL.clone(); barR.position.x = 0.85;
   const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.25, 0.25), matVDark); bumper.position.set(0, 0.62, -1.85);
   g.add(body, hood, seatBack, windshield, rollbar, barL, barR, bumper);
-  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.32, 10);
+  // v0.3.2: ディテール — ヘッドライト/テールランプ/グリル/ジェリ缶/スペアタイヤ/アンテナ/ミラー
+  const hlL = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 8), matLight);
+  hlL.rotation.x = Math.PI / 2; hlL.position.set(-0.6, 1.0, -2.08); g.add(hlL);
+  const hlR = hlL.clone(); hlR.position.x = 0.6; g.add(hlR);
+  const tlL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.04), matTailLight); tlL.position.set(-0.75, 0.95, 1.82); g.add(tlL);
+  const tlR = tlL.clone(); tlR.position.x = 0.75; g.add(tlR);
+  for (let i = 0; i < 5; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.03), matVDark);
+    slat.position.set(-0.44 + i * 0.22, 1.02, -2.06); g.add(slat);
+  }
+  const jerry = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, 0.18), matRust); jerry.position.set(-0.85, 1.45, 1.72); g.add(jerry);
+  const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.24, 12), matTire);
+  spare.rotation.x = Math.PI / 2; spare.position.set(0.3, 1.5, 1.82); g.add(spare);
+  const spareHub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.26, 8), matHub);
+  spareHub.rotation.x = Math.PI / 2; spareHub.position.copy(spare.position); g.add(spareHub);
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.6, 4), matVDark);
+  antenna.position.set(-0.9, 2.0, 1.5); antenna.rotation.z = 0.12; g.add(antenna);
+  const mirrorL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.12), matVDark); mirrorL.position.set(-1.05, 1.55, -0.9); g.add(mirrorL);
+  const mirrorR = mirrorL.clone(); mirrorR.position.x = 1.05; g.add(mirrorR);
+  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.32, 12);
+  const hubGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.34, 8);
   const wheels = [];
   [[-0.95, -1.2], [0.95, -1.2], [-0.95, 1.2], [0.95, 1.2]].forEach(o => {
-    const w = new THREE.Mesh(wheelGeo, matVDark);
+    const w = new THREE.Mesh(wheelGeo, matTire);
     w.rotation.z = Math.PI / 2;
     w.position.set(o[0], 0.45, o[1]);
+    const hub = new THREE.Mesh(hubGeo, matHub);
+    w.add(hub);
     g.add(w); wheels.push(w);
   });
   const turret = new THREE.Group();
@@ -82,14 +111,47 @@ function createTank(x, z, rotY = 0) {
   const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.4, 5.0), matTank2); skirtL.position.set(-1.45, 1.1, 0);
   const skirtR = skirtL.clone(); skirtR.position.x = 1.45;
   g.add(hull, hullTop, trackL, trackR, skirtL, skirtR);
+  // v0.3.2: ディテール — 転輪/エンジンデッキ/排気管/前傾斜装甲/フェンダー
+  const rwGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.2, 10);
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 5; i++) {
+      const rw = new THREE.Mesh(rwGeo, matHub);
+      rw.rotation.z = Math.PI / 2;
+      rw.position.set(side * 1.45, 0.45, -1.8 + i * 0.9);
+      g.add(rw);
+    }
+  }
+  const glacis = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.55, 1.0), matTank);
+  glacis.position.set(0, 1.15, -2.5); glacis.rotation.x = 0.55; g.add(glacis);
+  const engineDeck = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 1.5), matTank2); engineDeck.position.set(0, 1.9, 1.6); g.add(engineDeck);
+  for (let i = 0; i < 3; i++) {
+    const grill = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.03, 0.16), matVDark);
+    grill.position.set(0, 1.99, 1.2 + i * 0.4); g.add(grill);
+  }
+  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 6), matRust);
+  exhaust.rotation.x = Math.PI / 2; exhaust.position.set(-1.15, 1.75, 2.4); g.add(exhaust);
+  const fenderL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 1.0), matTank2); fenderL.position.set(-1.45, 1.32, -2.4); g.add(fenderL);
+  const fenderR = fenderL.clone(); fenderR.position.x = 1.45; g.add(fenderR);
+  const towCable = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 3.2), matVDark); towCable.position.set(1.2, 1.52, 0.2); g.add(towCable);
   const turret = new THREE.Group();
   const dome = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2.3), matTank); dome.position.y = 0.35;
   const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 8), matTank2); hatch.position.set(-0.4, 0.78, 0.4);
   const gunMantlet = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), matTank2); gunMantlet.position.set(0, 0.35, -1.2);
   const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 3.0, 8), matVDark);
   cannon.rotation.x = Math.PI / 2; cannon.position.set(0, 0.35, -2.7);
+  // v0.3.2: 砲口制退器 / スモークディスチャージャー / アンテナ / 予備燃料缶
+  const muzzleBrake = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.42, 8), matVDark);
+  muzzleBrake.rotation.x = Math.PI / 2; muzzleBrake.position.set(0, 0.35, -4.0);
+  const smokeL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 5), matTank2);
+  smokeL.rotation.x = Math.PI / 2 - 0.5; smokeL.position.set(-0.75, 0.5, -1.0);
+  const smokeR = smokeL.clone(); smokeR.position.x = 0.75;
+  const tAntenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 4), matVDark);
+  tAntenna.position.set(0.8, 1.4, 0.9); tAntenna.rotation.z = -0.1;
+  const drumL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 8), matRust);
+  drumL.rotation.x = Math.PI / 2; drumL.position.set(-0.6, 0.4, 1.3);
+  const drumR = drumL.clone(); drumR.position.x = 0.6;
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.35, -4.2);
-  turret.add(dome, hatch, gunMantlet, cannon, muzzle);
+  turret.add(dome, hatch, gunMantlet, cannon, muzzleBrake, smokeL, smokeR, tAntenna, drumL, drumR, muzzle);
   turret.position.set(0, 1.85, -0.3);
   g.add(turret);
   g.traverse(m => { if (m.isMesh) m.castShadow = !isMobile; });
@@ -125,6 +187,21 @@ function createHeli(x, z, rotY = 0) {
   podL.rotation.x = Math.PI / 2; podL.position.set(-1.15, 1.2, -0.6);
   const podR = podL.clone(); podR.position.x = 1.15;
   g.add(body, nose, tail, tailFin, skidL, skidR, strutFL, strutFR, strutBL, strutBR, podL, podR);
+  // v0.3.2: ディテール — エンジンナセル/排気口/スタブウィング/機首ガン/尾翼/警告灯
+  const nacelle = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 1.8), matHeli2); nacelle.position.set(0, 2.45, 0.3); g.add(nacelle);
+  const intakeL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.4, 8), matVDark);
+  intakeL.rotation.x = Math.PI / 2; intakeL.position.set(-0.55, 2.45, -0.7); g.add(intakeL);
+  const intakeR = intakeL.clone(); intakeR.position.x = 0.55; g.add(intakeR);
+  const exhaustH = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8), matRust);
+  exhaustH.rotation.x = Math.PI / 2; exhaustH.position.set(0, 2.4, 1.4); g.add(exhaustH);
+  const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.55), matHeli); wingL.position.set(-1.0, 1.55, -0.5); g.add(wingL);
+  const wingR = wingL.clone(); wingR.position.x = 1.0; g.add(wingR);
+  const chinGun = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6), matVDark);
+  chinGun.rotation.x = Math.PI / 2; chinGun.position.set(0, 0.95, -2.9); g.add(chinGun);
+  const chinMount = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.5), matVDark); chinMount.position.set(0, 1.0, -2.4); g.add(chinMount);
+  const hStab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.5), matHeli); hStab.position.set(0, 2.1, 4.4); g.add(hStab);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), matTailLight); beacon.position.set(0, 2.35, 5.55); g.add(beacon);
+  const canopyFrame = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.08, 1.24), matHeli2); canopyFrame.position.set(0, 2.12, -2.6); g.add(canopyFrame);
   // ローター
   const rotor = new THREE.Group();
   const bladeGeo = new THREE.BoxGeometry(9.4, 0.06, 0.36);
@@ -163,6 +240,18 @@ function createBoat(x, z, rotY = 0) {
   const wind = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.06), matVGlass); wind.position.set(0, 1.55, 0.15);
   const motor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.4), matVDark); motor.position.set(0, 0.75, 2.6);
   g.add(hull, bow, console_, wind, motor);
+  // v0.3.2: ディテール — ガンネル(舵縁)/座席/フェンダー/航海灯/アンテナ
+  const gwL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.3, 4.6), matBoat); gwL.position.set(-1.05, 0.95, -0.1); g.add(gwL);
+  const gwR = gwL.clone(); gwR.position.x = 1.05; g.add(gwR);
+  const seat1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.5), matVDark); seat1.position.set(0, 0.9, 1.0); g.add(seat1);
+  const seat2 = seat1.clone(); seat2.position.z = 1.9; g.add(seat2);
+  const fenderGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.4, 6);
+  [[-1.14, -0.8], [-1.14, 0.8], [1.14, -0.8], [1.14, 0.8]].forEach(o => {
+    const f = new THREE.Mesh(fenderGeo, matRust); f.position.set(o[0], 0.75, o[1]); g.add(f);
+  });
+  const navG = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), matLight); navG.position.set(0.6, 1.0, -2.9); g.add(navG);
+  const navR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), matTailLight); navR.position.set(-0.6, 1.0, -2.9); g.add(navR);
+  const bAntenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.1, 4), matVDark); bAntenna.position.set(0.5, 2.0, 0.5); g.add(bAntenna);
   const turret = new THREE.Group();
   const mgBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.6), matVDark); mgBody.position.y = 0.3;
   const mgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), matVDark);

@@ -247,58 +247,124 @@ const crateTex = makeCanvasTexture(128, (g, s) => {
   g.beginPath(); g.moveTo(4, 4); g.lineTo(s - 4, s - 4); g.moveTo(s - 4, 4); g.lineTo(4, s - 4); g.stroke();
 });
 
-// ---------- Sky / 遠景 ----------
+// ---------- Sky / 遠景 (v0.3.2: リアルな空 — 大気散乱風グラデ + 太陽方向の輝き + 多層雲 + 霞) ----------
 {
+  // 空: 512pxグラデ + 太陽方向のグロー + 地平線の暖色帯 (大気散乱の近似)
   const skyTexC = document.createElement('canvas');
-  skyTexC.width = 32; skyTexC.height = 256;
+  skyTexC.width = 256; skyTexC.height = 512;
   const sg = skyTexC.getContext('2d');
-  const grad = sg.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#3e6da0');
-  grad.addColorStop(0.45, '#7fa8c9');
-  grad.addColorStop(0.72, '#c3d2de');
-  grad.addColorStop(1, '#d9e2e6');
-  sg.fillStyle = grad; sg.fillRect(0, 0, 32, 256);
+  const grad = sg.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, '#2a5490');       // 天頂: 深い青
+  grad.addColorStop(0.3, '#4a7cb5');
+  grad.addColorStop(0.55, '#8db4d4');
+  grad.addColorStop(0.75, '#c8dbe8');    // 地平線付近: 明るく白む
+  grad.addColorStop(0.87, '#e6ded2');    // 地平線: 暖色の霞
+  grad.addColorStop(1, '#d9d5ca');
+  sg.fillStyle = grad; sg.fillRect(0, 0, 256, 512);
+  // 太陽方向 (テクスチャU≒太陽方位) の輝き
+  const sunU = 256 * (0.5 + Math.atan2(150, 290) / (Math.PI * 2));
+  const glowG = sg.createRadialGradient(sunU, 160, 0, sunU, 160, 240);
+  glowG.addColorStop(0, 'rgba(255,244,214,.5)');
+  glowG.addColorStop(0.4, 'rgba(255,236,190,.18)');
+  glowG.addColorStop(1, 'rgba(255,236,190,0)');
+  sg.fillStyle = glowG; sg.fillRect(0, 0, 256, 512);
   const skyTex = new THREE.CanvasTexture(skyTexC);
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(600, 20, 14),
+    new THREE.SphereGeometry(600, 24, 18),
     new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false })
   );
   sky.renderOrder = -10;
   scene.add(sky);
 
-  const cloudC = document.createElement('canvas');
-  cloudC.width = 128; cloudC.height = 64;
-  const cg = cloudC.getContext('2d');
-  for (let i = 0; i < 10; i++) {
-    const x = 20 + Math.random() * 88, y = 22 + Math.random() * 22, r = 10 + Math.random() * 16;
-    const rg = cg.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, 'rgba(255,255,255,.85)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-    cg.fillStyle = rg; cg.beginPath(); cg.arc(x, y, r, 0, 7); cg.fill();
+  // 雲テクスチャ: 複数の重なった塊 + 底面に影 (立体感)
+  function makeCloudTex(puffs, flat) {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const g = c.getContext('2d');
+    for (let i = 0; i < puffs; i++) {
+      const x = 30 + Math.random() * 196;
+      const y = flat ? 60 + Math.random() * 20 : 34 + Math.random() * 46;
+      const r = (flat ? 26 : 14) + Math.random() * (flat ? 36 : 26);
+      // 影 (下側にグレー)
+      const sh = g.createRadialGradient(x, y + r * 0.35, 0, x, y + r * 0.35, r);
+      sh.addColorStop(0, 'rgba(150,160,175,.35)'); sh.addColorStop(1, 'rgba(150,160,175,0)');
+      g.fillStyle = sh; g.beginPath(); g.arc(x, y + r * 0.35, r, 0, 7); g.fill();
+      // ハイライト (上側に白)
+      const rg = g.createRadialGradient(x, y - r * 0.2, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(255,255,255,.95)');
+      rg.addColorStop(0.55, 'rgba(250,250,252,.55)');
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+    return new THREE.CanvasTexture(c);
   }
-  const cloudTex = new THREE.CanvasTexture(cloudC);
-  for (let i = 0; i < 11; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.55 + Math.random() * 0.3, fog: false, depthWrite: false }));
-    const a = Math.random() * Math.PI * 2, r = 230 + Math.random() * 260;
-    sp.position.set(Math.cos(a) * r, 130 + Math.random() * 90, Math.sin(a) * r);
-    sp.scale.set(110 + Math.random() * 100, 50 + Math.random() * 36, 1);
+  const cumulusTex = makeCloudTex(16, false);   // 積雲 (もこもこ)
+  const stratusTex = makeCloudTex(10, true);    // 層雲 (横に平たい)
+
+  // 低層の積雲 (大きめ・はっきり)
+  for (let i = 0; i < 14; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: cumulusTex, transparent: true,
+      opacity: 0.6 + Math.random() * 0.3, fog: false, depthWrite: false
+    }));
+    const a = Math.random() * Math.PI * 2, r = 220 + Math.random() * 250;
+    sp.position.set(Math.cos(a) * r, 115 + Math.random() * 75, Math.sin(a) * r);
+    sp.scale.set(130 + Math.random() * 120, 58 + Math.random() * 42, 1);
+    scene.add(sp);
+  }
+  // 高層の巻層雲 (薄く・大きく・高い)
+  for (let i = 0; i < 8; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: stratusTex, transparent: true,
+      opacity: 0.18 + Math.random() * 0.16, fog: false, depthWrite: false
+    }));
+    const a = Math.random() * Math.PI * 2, r = 180 + Math.random() * 300;
+    sp.position.set(Math.cos(a) * r, 240 + Math.random() * 120, Math.sin(a) * r);
+    sp.scale.set(260 + Math.random() * 200, 90 + Math.random() * 50, 1);
     scene.add(sp);
   }
 
+  // 太陽: コア + 広いハロー (2枚重ね)
   const sunC = document.createElement('canvas');
-  sunC.width = sunC.height = 64;
+  sunC.width = sunC.height = 128;
   const sc = sunC.getContext('2d');
-  const srg = sc.createRadialGradient(32, 32, 0, 32, 32, 32);
-  srg.addColorStop(0, 'rgba(255,250,220,1)'); srg.addColorStop(0.3, 'rgba(255,235,170,.8)'); srg.addColorStop(1, 'rgba(255,220,140,0)');
-  sc.fillStyle = srg; sc.fillRect(0, 0, 64, 64);
+  const srg = sc.createRadialGradient(64, 64, 0, 64, 64, 64);
+  srg.addColorStop(0, 'rgba(255,253,240,1)');
+  srg.addColorStop(0.12, 'rgba(255,248,215,.95)');
+  srg.addColorStop(0.3, 'rgba(255,235,170,.5)');
+  srg.addColorStop(1, 'rgba(255,220,140,0)');
+  sc.fillStyle = srg; sc.fillRect(0, 0, 128, 128);
   const sunSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(sunC), transparent: true, fog: false, depthWrite: false }));
   sunSp.position.set(290, 400, 150);
-  sunSp.scale.set(150, 150, 1);
+  sunSp.scale.set(130, 130, 1);
   scene.add(sunSp);
+  const haloC = document.createElement('canvas');
+  haloC.width = haloC.height = 128;
+  const hc = haloC.getContext('2d');
+  const hrg = hc.createRadialGradient(64, 64, 0, 64, 64, 64);
+  hrg.addColorStop(0, 'rgba(255,240,200,.35)');
+  hrg.addColorStop(0.5, 'rgba(255,235,190,.12)');
+  hrg.addColorStop(1, 'rgba(255,235,190,0)');
+  hc.fillStyle = hrg; hc.fillRect(0, 0, 128, 128);
+  const haloSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(haloC), transparent: true, fog: false, depthWrite: false }));
+  haloSp.position.set(290, 400, 150);
+  haloSp.scale.set(420, 420, 1);
+  scene.add(haloSp);
 
-  // 遠景の山並み
+  // 遠景の山並み: 2層 (奥=霞んだ色 / 手前=濃い色) で空気遠近感
+  const mtnFar = new THREE.MeshBasicMaterial({ color: 0x93a6b8, fog: false });
   const mtnMat = new THREE.MeshBasicMaterial({ color: 0x5f7488 });
   const mtnMat2 = new THREE.MeshBasicMaterial({ color: 0x6d8296 });
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 20; i++) {   // 奥の山脈 (大きく淡い)
+    const a = (i / 20) * Math.PI * 2 + Math.random() * 0.25;
+    const r = 430 + Math.random() * 60;
+    const h = 90 + Math.random() * 110;
+    const m = new THREE.Mesh(new THREE.ConeGeometry(90 + Math.random() * 70, h, 5), mtnFar);
+    m.position.set(Math.cos(a) * r, h / 2 - 10, Math.sin(a) * r);
+    m.rotation.y = Math.random() * 3;
+    scene.add(m);
+  }
+  for (let i = 0; i < 26; i++) {   // 手前の山並み
     const a = (i / 26) * Math.PI * 2 + Math.random() * 0.2;
     const r = 340 + Math.random() * 70;
     const h = 55 + Math.random() * 85;
@@ -307,4 +373,20 @@ const crateTex = makeCanvasTexture(128, (g, s) => {
     m.rotation.y = Math.random() * 3;
     scene.add(m);
   }
+  // 地平線の霞リング (地面と山の境界を柔らかく)
+  const hazeC = document.createElement('canvas');
+  hazeC.width = 32; hazeC.height = 64;
+  const hzg = hazeC.getContext('2d');
+  const hgrad = hzg.createLinearGradient(0, 0, 0, 64);
+  hgrad.addColorStop(0, 'rgba(216,222,226,0)');
+  hgrad.addColorStop(0.55, 'rgba(216,222,226,.55)');
+  hgrad.addColorStop(1, 'rgba(210,214,216,.8)');
+  hzg.fillStyle = hgrad; hzg.fillRect(0, 0, 32, 64);
+  const hazeTex = new THREE.CanvasTexture(hazeC);
+  const haze = new THREE.Mesh(
+    new THREE.CylinderGeometry(330, 330, 90, 32, 1, true),
+    new THREE.MeshBasicMaterial({ map: hazeTex, transparent: true, side: THREE.DoubleSide, fog: false, depthWrite: false })
+  );
+  haze.position.y = 28;
+  scene.add(haze);
 }

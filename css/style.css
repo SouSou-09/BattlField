@@ -89,16 +89,17 @@
   #joystick-stick { position:absolute; left:50%; top:50%; width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.45); transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(0,0,0,.4); }
   .tbtn { position:absolute; border-radius:50%; border:2px solid rgba(255,255,255,.4); background:rgba(20,30,40,.45); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; text-shadow:0 1px 2px #000; backdrop-filter:blur(2px); }
   .tbtn:active { background:rgba(120,200,255,.35); }
-  #btn-fire { width:88px; height:88px; right:calc(26px + env(safe-area-inset-right)); bottom:calc(110px + env(safe-area-inset-bottom)); font-size:13px; border-color:rgba(255,120,100,.6); background:rgba(120,30,20,.4); }
-  #btn-fire-alt { width:58px; height:58px; right:calc(140px + env(safe-area-inset-right)); bottom:calc(70px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,120,100,.5); background:rgba(120,30,20,.35); }
-  #btn-jump { width:56px; height:56px; right:calc(30px + env(safe-area-inset-right)); bottom:calc(220px + env(safe-area-inset-bottom)); font-size:11px; }
-  #btn-reload { width:56px; height:56px; right:calc(120px + env(safe-area-inset-right)); bottom:calc(190px + env(safe-area-inset-bottom)); font-size:11px; }
-  #btn-aim { width:62px; height:62px; right:calc(190px + env(safe-area-inset-right)); bottom:calc(120px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); }
+  /* v0.3.2: DFM風レイアウト — 右親指のエイム周りに主要操作を集約 */
+  #btn-fire { width:92px; height:92px; right:calc(28px + env(safe-area-inset-right)); bottom:calc(140px + env(safe-area-inset-bottom)); font-size:14px; border-color:rgba(255,120,100,.65); background:rgba(120,30,20,.45); }
+  #btn-fire-alt { width:66px; height:66px; left:calc(34px + env(safe-area-inset-left)); bottom:calc(285px + env(safe-area-inset-bottom)); font-size:12px; border-color:rgba(255,120,100,.5); background:rgba(120,30,20,.35); }
+  #btn-jump { width:60px; height:60px; right:calc(30px + env(safe-area-inset-right)); bottom:calc(252px + env(safe-area-inset-bottom)); font-size:11px; }
+  #btn-reload { width:54px; height:54px; right:calc(136px + env(safe-area-inset-right)); bottom:calc(36px + env(safe-area-inset-bottom)); font-size:10px; }
+  #btn-aim { width:62px; height:62px; right:calc(142px + env(safe-area-inset-right)); bottom:calc(112px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); }
   #btn-aim.aiming { background:rgba(255,210,87,.5); border-color:#ffd257; }
-  #btn-vehicle { width:64px; height:64px; right:calc(38px + env(safe-area-inset-right)); bottom:calc(300px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(120,255,180,.6); background:rgba(20,90,50,.45); display:none; }
+  #btn-vehicle { width:62px; height:62px; right:calc(32px + env(safe-area-inset-right)); bottom:calc(340px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(120,255,180,.6); background:rgba(20,90,50,.45); display:none; }
   /* v0.2.2 buttons */
-  #btn-nade { width:56px; height:56px; right:calc(118px + env(safe-area-inset-right)); bottom:calc(258px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(180,255,120,.5); background:rgba(60,90,20,.4); }
-  #btn-weapon { width:56px; height:56px; right:calc(196px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(200,180,255,.5); background:rgba(60,40,90,.4); }
+  #btn-nade { width:54px; height:54px; right:calc(210px + env(safe-area-inset-right)); bottom:calc(76px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(180,255,120,.5); background:rgba(60,90,20,.4); }
+  #btn-weapon { width:50px; height:50px; right:calc(214px + env(safe-area-inset-right)); bottom:calc(152px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(200,180,255,.5); background:rgba(60,40,90,.4); }
   #btn-map { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:calc(130px + env(safe-area-inset-top)); width:48px; height:34px; border-radius:8px; border:2px solid rgba(120,200,255,.45); background:rgba(0,30,50,.55); color:#9fd4ff; font-size:10px; font-weight:700; }
 
   /* v0.2.2: 全体マップ */
@@ -184,13 +185,13 @@
   #deploy-hint { font-size:12px; color:rgba(255,255,255,.7); margin:8px 0 12px; letter-spacing:1px; }
   #deploy-btn { padding:12px 70px; }
 
-  /* v0.3 モバイルボタン */
-  #btn-seat { width:52px; height:52px; right:calc(116px + env(safe-area-inset-right)); bottom:calc(320px + env(safe-area-inset-bottom)); font-size:12px; border-color:rgba(160,220,255,.5); background:rgba(20,60,90,.45); display:none; }
-  #btn-drone { width:52px; height:52px; right:calc(260px + env(safe-area-inset-right)); bottom:calc(80px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(140,255,190,.5); background:rgba(20,80,50,.4); display:none; }
-  #btn-repair { width:52px; height:52px; right:calc(260px + env(safe-area-inset-right)); bottom:calc(150px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); display:none; }
-  #btn-up { width:58px; height:58px; right:calc(196px + env(safe-area-inset-right)); bottom:calc(266px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(160,220,255,.55); background:rgba(20,60,110,.45); display:none; }
-  #btn-down { width:58px; height:58px; right:calc(260px + env(safe-area-inset-right)); bottom:calc(216px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(160,220,255,.55); background:rgba(20,60,110,.45); display:none; }
-  #btn-rocket { width:58px; height:58px; right:calc(140px + env(safe-area-inset-right)); bottom:calc(150px + env(safe-area-inset-bottom)); font-size:16px; border-color:rgba(255,170,100,.6); background:rgba(120,60,20,.45); display:none; }
-  #btn-horn { width:48px; height:48px; right:calc(120px + env(safe-area-inset-right)); bottom:calc(260px + env(safe-area-inset-bottom)); font-size:14px; border-color:rgba(255,220,120,.5); background:rgba(90,70,20,.4); display:none; }
+  /* v0.3 モバイルボタン (v0.3.2: 再配置) */
+  #btn-seat { width:50px; height:50px; right:calc(112px + env(safe-area-inset-right)); bottom:calc(330px + env(safe-area-inset-bottom)); font-size:12px; border-color:rgba(160,220,255,.5); background:rgba(20,60,90,.45); display:none; }
+  #btn-drone { width:50px; height:50px; right:calc(282px + env(safe-area-inset-right)); bottom:calc(40px + env(safe-area-inset-bottom)); font-size:10px; border-color:rgba(140,255,190,.5); background:rgba(20,80,50,.4); display:none; }
+  #btn-repair { width:50px; height:50px; right:calc(284px + env(safe-area-inset-right)); bottom:calc(104px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); display:none; }
+  #btn-up { width:60px; height:60px; right:calc(140px + env(safe-area-inset-right)); bottom:calc(252px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(160,220,255,.55); background:rgba(20,60,110,.45); display:none; }
+  #btn-down { width:60px; height:60px; right:calc(214px + env(safe-area-inset-right)); bottom:calc(214px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(160,220,255,.55); background:rgba(20,60,110,.45); display:none; }
+  #btn-rocket { width:58px; height:58px; right:calc(142px + env(safe-area-inset-right)); bottom:calc(180px + env(safe-area-inset-bottom)); font-size:16px; border-color:rgba(255,170,100,.6); background:rgba(120,60,20,.45); display:none; }
+  #btn-horn { width:46px; height:46px; right:calc(216px + env(safe-area-inset-right)); bottom:calc(288px + env(safe-area-inset-bottom)); font-size:14px; border-color:rgba(255,220,120,.5); background:rgba(90,70,20,.4); display:none; }
   #gameover-title { }
   #final-stats { font-size:16px; margin-bottom:26px; color:#ffd257; line-height:1.8; }

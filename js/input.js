@@ -124,8 +124,50 @@ if (isMobile) {
     el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); down(); }, { passive: false });
     el.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); up && up(); }, { passive: false });
   };
-  bindBtn('btn-fire', () => firing = true, () => { firing = false; fireLatch = false; });
-  bindBtn('btn-fire-alt', () => firing = true, () => { firing = false; fireLatch = false; });
+  // v0.3.2: FIREボタンを押しながら指をドラッグすると視点も動く (既存FPS風)
+  const fireLook = { ids: new Set(), last: new Map() };
+  function applyLookDelta(dx, dy) {
+    const sens = 0.0045 * settings.sens * (1 - ads.t * 0.5);
+    if (drone.active) {
+      drone.yaw -= dx * sens;
+      drone.pitch = Math.max(-1.45, Math.min(1.0, drone.pitch - dy * sens));
+    } else {
+      player.yaw -= dx * sens;
+      player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - dy * sens));
+    }
+  }
+  const bindFireBtn = id => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => {
+      e.preventDefault(); e.stopPropagation();
+      firing = true;
+      for (const t of e.changedTouches) {
+        fireLook.ids.add(t.identifier);
+        fireLook.last.set(t.identifier, { x: t.clientX, y: t.clientY });
+      }
+    }, { passive: false });
+    el.addEventListener('touchmove', e => {
+      e.preventDefault(); e.stopPropagation();
+      for (const t of e.changedTouches) {
+        if (!fireLook.ids.has(t.identifier)) continue;
+        const p = fireLook.last.get(t.identifier);
+        applyLookDelta(t.clientX - p.x, t.clientY - p.y);
+        p.x = t.clientX; p.y = t.clientY;
+      }
+    }, { passive: false });
+    const end = e => {
+      e.preventDefault(); e.stopPropagation();
+      for (const t of e.changedTouches) {
+        fireLook.ids.delete(t.identifier);
+        fireLook.last.delete(t.identifier);
+      }
+      if (fireLook.ids.size === 0) { firing = false; fireLatch = false; }
+    };
+    el.addEventListener('touchend', end, { passive: false });
+    el.addEventListener('touchcancel', end, { passive: false });
+  };
+  bindFireBtn('btn-fire');
+  bindFireBtn('btn-fire-alt');
   bindBtn('btn-jump', () => jumpQueued = true);
   bindBtn('btn-reload', () => reload());
   bindBtn('btn-aim', () => setAds(!ads.active));   // タップで切替

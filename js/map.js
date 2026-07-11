@@ -207,7 +207,16 @@ function resetDestructibles() {
   }
 }
 
-// 建物 (パラペット・屋上設備つき)
+// v0.3.2: 建物ディテール用マテリアル
+const matWinFrame = new THREE.MeshLambertMaterial({ color: 0x2c3236 });
+const matWinGlass = new THREE.MeshLambertMaterial({ color: 0x6f93a8 });
+const matAC = new THREE.MeshLambertMaterial({ color: 0x9aa0a3 });
+const matDoor = new THREE.MeshLambertMaterial({ color: 0x3a3129 });
+const matAwning = new THREE.MeshLambertMaterial({ color: 0x5a4a38 });
+const matChimney = new THREE.MeshLambertMaterial({ color: 0x6b5548 });
+const matLedge = new THREE.MeshLambertMaterial({ color: 0x84888c });
+
+// 建物 (パラペット・屋上設備つき / v0.3.2: 窓枚・入口・屋上設備を追加してリアルに)
 function addBuilding(x, z, w, h, d, mat, roofMat = matRoof) {
   const gy = terrainH(x, z);
   addBox(x, z, w, h, d, mat);
@@ -215,10 +224,51 @@ function addBuilding(x, z, w, h, d, mat, roofMat = matRoof) {
   p.position.set(x, gy + h + 0.35, z);
   p.castShadow = false; p.receiveShadow = !isMobile;
   scene.add(p);
-  if (w > 13) {
+  // v0.3.2: 出窓 (前面・背面に凸窓フレーム — テクスチャの窓と重なって立体感)
+  const floors = Math.max(1, Math.floor(h / 3.4));
+  const cols = Math.max(2, Math.floor(w / 4.5));
+  const winGeo = new THREE.BoxGeometry(1.5, 1.7, 0.12);
+  const glassGeo = new THREE.BoxGeometry(1.2, 1.4, 0.06);
+  for (let f = 0; f < Math.min(floors, 4); f++) {
+    const wy = gy + 2.0 + f * (h - 2.6) / Math.max(1, floors - 0.5);
+    if (wy > gy + h - 1.2) break;
+    for (let c = 0; c < Math.min(cols, 5); c++) {
+      const wx = x - w / 2 + (c + 0.5) * w / Math.min(cols, 5);
+      for (const dz of [-d / 2 - 0.02, d / 2 + 0.02]) {
+        const fr = new THREE.Mesh(winGeo, matWinFrame);
+        fr.position.set(wx, wy, z + dz);
+        scene.add(fr);
+        const gl = new THREE.Mesh(glassGeo, matWinGlass);
+        gl.position.set(wx, wy, z + dz * 1.02);
+        scene.add(gl);
+      }
+    }
+  }
+  // v0.3.2: 入口ドア + 庇 (南側)
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.5, 0.14), matDoor);
+  door.position.set(x, gy + 1.25, z + d / 2 + 0.05); scene.add(door);
+  const awn = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.14, 1.0), matAwning);
+  awn.position.set(x, gy + 2.75, z + d / 2 + 0.45); scene.add(awn);
+  // v0.3.2: 階層帯 (レッジ)
+  for (let f = 1; f < Math.min(floors, 4); f++) {
+    const ly = gy + f * h / floors;
+    const ledge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.18, d + 0.3), matLedge);
+    ledge.position.set(x, ly, z); scene.add(ledge);
+  }
+  // 屋上設備: AC室外機×2 + アンテナ + 給水タンク
+  if (w > 10) {
     const u = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 1.6), matRoof);
-    u.position.set(x + (Math.random() - .5) * (w * 0.4), gy + h + 1.4, z + (Math.random() - .5) * (d * 0.4));
+    u.position.set(x - w * 0.22, gy + h + 1.4, z - d * 0.15);
     scene.add(u);
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.9), matAC);
+    ac.position.set(x + w * 0.24, gy + h + 1.1, z + d * 0.2);
+    scene.add(ac);
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.0, 4), matWinFrame);
+    ant.position.set(x + w * 0.3, gy + h + 2.2, z - d * 0.25);
+    scene.add(ant);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.6, 10), matAC);
+    tank.position.set(x - w * 0.3, gy + h + 1.5, z + d * 0.25);
+    scene.add(tank);
   }
 }
 // v0.2.3: 進入可能な建物 (ドア開口付き、4壁+屋根)
@@ -261,7 +311,7 @@ function addEnterableBuilding(x, z, w, h, d, mat, doorDir = 0) {
   scene.add(p);
 }
 
-// 三角屋根の家 (村用)
+// 三角屋根の家 (村用 / v0.3.2: 煙突・ドア・窓を追加)
 function addHouse(x, z, w, h, d, rotY = 0) {
   const gy = terrainH(x, z);
   addBox(x, z, w, h, d, matBrick, rotY);
@@ -270,6 +320,25 @@ function addHouse(x, z, w, h, d, rotY = 0) {
   roof.rotation.y = rotY + Math.PI / 4;
   roof.castShadow = !isMobile;
   scene.add(roof);
+  const cos = Math.cos(rotY), sin = Math.sin(rotY);
+  const lp = (lx, ly, lz) => new THREE.Vector3(x + lx * cos + lz * sin, gy + ly, z - lx * sin + lz * cos);
+  // 煙突
+  const ch = new THREE.Mesh(new THREE.BoxGeometry(0.7, h * 0.8, 0.7), matChimney);
+  ch.position.copy(lp(w * 0.28, h + h * 0.3, -d * 0.2)); ch.rotation.y = rotY;
+  scene.add(ch);
+  // ドア (前面 +z)
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.1, 0.12), matDoor);
+  door.position.copy(lp(0, 1.05, d / 2 + 0.05)); door.rotation.y = rotY;
+  scene.add(door);
+  // 窓×2 (前面左右)
+  for (const sx of [-w * 0.28, w * 0.28]) {
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.1), matWinFrame);
+    fr.position.copy(lp(sx, h * 0.55, d / 2 + 0.04)); fr.rotation.y = rotY;
+    scene.add(fr);
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.78, 0.06), matWinGlass);
+    gl.position.copy(lp(sx, h * 0.55, d / 2 + 0.09)); gl.rotation.y = rotY;
+    scene.add(gl);
+  }
 }
 
 /* ---------- 地区の構築 ---------- */
