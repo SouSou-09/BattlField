@@ -64,7 +64,7 @@ let fireLatch = false;   // 単発武器のトリガー制御
 const ads = { active: false, t: 0 };   // t: 0=腰だめ 1=ADS (補間用)
 const FOV_HIP = 75;
 function setAds(on) {
-  if (curVehicle || !player.alive) on = false;
+  if (!player.alive) on = false;   // v0.3.3: 乗り物中もAIM可能 (ズーム)
   if (ads.active === on) return;
   ads.active = on;
   if (isMobile) {
@@ -73,16 +73,18 @@ function setAds(on) {
   }
 }
 function updateAds(dt) {
-  const target = ads.active && !curVehicle && player.alive ? 1 : 0;
+  const target = ads.active && player.alive ? 1 : 0;   // v0.3.3: 乗り物中も有効
   const prev = ads.t;
   ads.t += (target - ads.t) * Math.min(1, dt * 12);
   const w = weaponDef();
   if (Math.abs(ads.t - prev) > 0.001) {
-    camera.fov = FOV_HIP + (w.adsFov - FOV_HIP) * ads.t;
+    // v0.3.3: 乗り物中はFOVズーム (砲手照準)
+    const adsFov = curVehicle ? 42 : w.adsFov;
+    camera.fov = FOV_HIP + (adsFov - FOV_HIP) * ads.t;
     camera.updateProjectionMatrix();
   }
   // スナイパー: スコープオーバーレイ (v0.2.2)
-  const scopeOn = w.scope && ads.t > 0.75;
+  const scopeOn = w.scope && ads.t > 0.75 && !curVehicle;
   const sc = document.getElementById('scope-overlay');
   if ((sc.style.display === 'block') !== scopeOn) sc.style.display = scopeOn ? 'block' : 'none';
   gunGroup.visible = !scopeOn && !curVehicle;

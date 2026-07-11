@@ -330,17 +330,19 @@ function spawnVehicles() {
   // 赤HQ (対空砲は自動迎撃 / 車両は奪取可能)
   createJeep(HQ_RED.x - 12, HQ_RED.z + 14, Math.PI * 0.75);
   createEmplacement('aa', HQ_RED.x + 14, HQ_RED.z + 8, Math.PI * 0.75, -1);
-  // 中立 (拠点C付近と道路沿い)
+  // 中立 (拠点C付近と道路沿い / v0.3.3: マップ2倍化に合わせ再配置+増量)
   createJeep(12, 36, Math.PI / 2);
-  createJeep(-52, -28, 0);
+  createJeep(-104, -56, 0);
+  createJeep(-200, 138, Math.PI / 2);   // 拠点B
+  createTank(210, -172, Math.PI);       // 拠点D
   // 拠点E ヘリパッド
-  createHeli(132, 139, Math.PI);
+  createHeli(262, 264, Math.PI);
   // 湖のボート (岸辺)
-  createBoat(28, 78, Math.PI / 2);
-  createBoat(95, 42, -Math.PI / 2);
+  createBoat(56, 156, Math.PI / 2);
+  createBoat(190, 84, -Math.PI / 2);
   // 固定機銃: 砦A / 島F
-  createEmplacement('mg', -119, -104, Math.PI / 4, 0);
-  createEmplacement('mg', 57, 52, Math.PI, 0);
+  createEmplacement('mg', -244, -214, Math.PI / 4, 0);
+  createEmplacement('mg', 117, 112, Math.PI, 0);
 }
 
 /* ---------- v0.3: ダメージ / 部位破損 / 炎上 ---------- */
@@ -969,15 +971,16 @@ function updateVehicle(dt) {
   }
   updateEngine(v.speed);
 
-  // 三人称カメラ
-  const cp = Math.max(-0.5, Math.min(1.1, player.pitch));
+  // 三人称カメラ (v0.3.3: ピッチ反転修正 — 上を向くとカメラが下がり視線が上を向く)
+  const cp = Math.max(-1.1, Math.min(1.0, player.pitch));
   const cd = v.camDist;
   const cx = v.obj.position.x + Math.sin(player.yaw) * cd * Math.cos(cp);
   const cz = v.obj.position.z + Math.cos(player.yaw) * cd * Math.cos(cp);
-  const cy = v.obj.position.y + v.camH + cd * Math.sin(cp) * 0.9 + 1;
+  const cy = v.obj.position.y + v.camH + 1 - cd * Math.sin(cp) * 0.9;
   const groundY = terrainH(cx, cz) + 0.8;
   camera.position.set(cx, Math.max(groundY, cy), cz);
-  camera.lookAt(v.obj.position.x, v.obj.position.y + 1.6, v.obj.position.z);
+  // 注視点もピッチに応じて上下 (上を向くと高い点を見る)
+  camera.lookAt(v.obj.position.x, v.obj.position.y + 1.6 + cd * Math.sin(cp) * 0.9, v.obj.position.z);
   if (shake > 0.01) {
     camera.position.x += (Math.random() - .5) * shake;
     camera.position.y += (Math.random() - .5) * shake;
@@ -987,13 +990,14 @@ function updateVehicle(dt) {
   // 砲塔: プレイヤーが砲手席のときのみカメラに追従
   const camDir = new THREE.Vector3();
   camera.getWorldDirection(camDir);
-  if (v.turret && role === 'gunner') {
+  // v0.3.3: 運転手でも砲塔を操作・射撃可能に
+  if (v.turret && (role === 'gunner' || role === 'driver')) {
     const aimYaw = Math.atan2(-camDir.x, -camDir.z);
     v.turret.rotation.y = aimYaw - v.yaw;
   }
 
   v.cd -= dt;
-  if (firing && v.cd <= 0 && role === 'gunner' && v.turret) {
+  if (firing && v.cd <= 0 && (role === 'gunner' || role === 'driver') && v.turret) {
     v.cd = v.fireInterval;
     const muzzleWorld = new THREE.Vector3();
     v.muzzle.getWorldPosition(muzzleWorld);
@@ -1082,15 +1086,16 @@ function updateHeli(dt, v, role) {
   // カメラ (v0.3.1: 見やすさ改善)
   //  ・ピッチ可動域を広げて地上の目標を見下ろせるように
   //  ・注視点を照準方向の先に置き、機体で中央の視界が隔れないようにする
-  const cp = Math.max(-1.15, Math.min(1.25, player.pitch));
+  // v0.3.3: ピッチ反転修正 — 上を向くとカメラが下がり視線が上を向く
+  const cp = Math.max(-1.25, Math.min(1.15, player.pitch));
   const cd = v.camDist;
   const cx = v.obj.position.x + Math.sin(player.yaw) * cd * Math.cos(cp);
   const cz = v.obj.position.z + Math.cos(player.yaw) * cd * Math.cos(cp);
-  const cy = v.obj.position.y + 2.4 + cd * Math.sin(cp);
+  const cy = v.obj.position.y + 2.4 - cd * Math.sin(cp);
   camera.position.set(cx, Math.max(terrainH(cx, cz) + 0.6, cy), cz);
   {
     // 機体→カメラ方向の延長線上 (機体の14m先) を注視 → 機体は画面下寄りに
-    const aimY = v.obj.position.y + 1.2;
+    const aimY = v.obj.position.y + 1.2 + cd * Math.sin(cp) * 0.6;
     const ldx = v.obj.position.x - camera.position.x;
     const ldy = aimY - camera.position.y;
     const ldz = v.obj.position.z - camera.position.z;

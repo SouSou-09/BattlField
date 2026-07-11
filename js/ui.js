@@ -173,9 +173,10 @@ function applyQuality() {
 }
 function applyFogDist() {
   const f = settings.fogDist;
-  if (f === 'near') { scene.fog.near = 60; scene.fog.far = 240; }
-  else if (f === 'mid') { scene.fog.near = 110; scene.fog.far = 420; }
-  else { scene.fog.near = 160; scene.fog.far = 600; }
+  // v0.3.3: マップ2倍化に合わせ視程を延長
+  if (f === 'near') { scene.fog.near = 80; scene.fog.far = 300; }
+  else if (f === 'mid') { scene.fog.near = 140; scene.fog.far = 520; }
+  else { scene.fog.near = 200; scene.fog.far = 760; }
 }
 let settingsOpen = false;
 const setWrap = document.getElementById('settings-wrap');

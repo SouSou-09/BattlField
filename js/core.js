@@ -43,9 +43,9 @@ canvas.addEventListener('webglcontextrestored', () => {
 }, false);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xc3d2de, 110, 420);
+scene.fog = new THREE.Fog(0xc3d2de, 140, 520);   // v0.3.3: マップ2倍化に合わせ視程を延長
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1200);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2400);
 camera.rotation.order = 'YXZ';
 
 window.addEventListener('resize', () => {

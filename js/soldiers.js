@@ -436,6 +436,8 @@ function updateSoldiers(dt) {
     if (s.shootCd <= 0 && s.aimT > 0.35 && tgt && tDist < 65) {
       s.shootCd = 1.0 + Math.random() * 1.5;
       const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
+      // v0.3.3: 発砲直前に視線を再チェック — 壁越しの命中 (弾の壁貫通) を防ぐ
+      if (!hasLineOfSight(eye, tPos)) { s.hasLos = false; s.aimT = 0; continue; }
       sfx.distShoot(camera.position.distanceTo(eye));
       const tracerColor = s.team === 1 ? 0x8ecbff : 0xff8866;
       if (tgt.kind === 'vehicle' && curVehicle) {
