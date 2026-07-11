@@ -28,6 +28,10 @@
 
   #damage-vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(200,0,0,.55) 100%); opacity:0; transition:opacity .15s; }
 
+  /* ダメージ方向インジケーター (v0.2.1) */
+  .dmg-arc { position:absolute; left:50%; top:50%; width:150px; height:150px; margin:-75px 0 0 -75px; pointer-events:none; opacity:0; }
+  .dmg-arc::before { content:''; position:absolute; left:50%; top:-14px; transform:translateX(-50%); width:64px; height:30px; background:radial-gradient(ellipse at 50% 100%, rgba(255,40,20,.95), rgba(255,40,20,0) 70%); clip-path:polygon(15% 100%, 50% 0%, 85% 100%); filter:drop-shadow(0 0 6px rgba(255,0,0,.8)); }
+
   /* コンクエストHUD: チケット + 拠点ストリップ */
   #top-bar { position:absolute; top:calc(8px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; color:#fff; }
   #tickets-row { display:flex; align-items:center; gap:10px; justify-content:center; }
@@ -97,6 +101,8 @@
   #btn-fire-alt { width:58px; height:58px; right:calc(140px + env(safe-area-inset-right)); bottom:calc(70px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,120,100,.5); background:rgba(120,30,20,.35); }
   #btn-jump { width:56px; height:56px; right:calc(30px + env(safe-area-inset-right)); bottom:calc(220px + env(safe-area-inset-bottom)); font-size:11px; }
   #btn-reload { width:56px; height:56px; right:calc(120px + env(safe-area-inset-right)); bottom:calc(190px + env(safe-area-inset-bottom)); font-size:11px; }
+  #btn-aim { width:62px; height:62px; right:calc(190px + env(safe-area-inset-right)); bottom:calc(120px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(255,220,120,.55); background:rgba(90,70,20,.4); }
+  #btn-aim.aiming { background:rgba(255,210,87,.5); border-color:#ffd257; }
   #btn-vehicle { width:64px; height:64px; right:calc(38px + env(safe-area-inset-right)); bottom:calc(300px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(120,255,180,.6); background:rgba(20,90,50,.45); display:none; }
 
   /* ===== Screens ===== */
@@ -118,6 +124,7 @@
 <!-- ===== HUD ===== -->
 <section id="hud" aria-hidden="true">
   <div id="damage-vignette"></div>
+  <div id="dmg-indicators"></div>
   <div id="crosshair"><span class="ch-t"></span><span class="ch-b"></span><span class="ch-l"></span><span class="ch-r"></span></div>
   <div id="hitmarker"><span class="hm1"></span><span class="hm2"></span><span class="hm3"></span><span class="hm4"></span></div>
   <div id="top-bar">
@@ -165,6 +172,7 @@
   <button class="tbtn" id="btn-fire-alt">FIRE</button>
   <button class="tbtn" id="btn-jump">JUMP</button>
   <button class="tbtn" id="btn-reload">RELOAD</button>
+  <button class="tbtn" id="btn-aim">AIM</button>
   <button class="tbtn" id="btn-vehicle">乗る</button>
 </div>
 
@@ -821,6 +829,32 @@ const weapon = {
 };
 let firing = false;
 
+// ---------- ADS (スコープ) v0.2.1 ----------
+const ads = { active: false, t: 0 };   // t: 0=腰だめ 1=ADS (補間用)
+const FOV_HIP = 75, FOV_ADS = 48;
+function setAds(on) {
+  if (curVehicle || !player.alive) on = false;
+  if (ads.active === on) return;
+  ads.active = on;
+  if (isMobile) {
+    const b = document.getElementById('btn-aim');
+    if (b) b.classList.toggle('aiming', on);
+  }
+}
+function updateAds(dt) {
+  const target = ads.active && !curVehicle && player.alive ? 1 : 0;
+  const prev = ads.t;
+  ads.t += (target - ads.t) * Math.min(1, dt * 12);
+  if (Math.abs(ads.t - prev) > 0.001) {
+    camera.fov = FOV_HIP + (FOV_ADS - FOV_HIP) * ads.t;
+    camera.updateProjectionMatrix();
+  }
+  // クロスヘア縮小
+  const ch = document.getElementById('crosshair');
+  ch.style.opacity = 1 - ads.t * 0.6;
+  ch.style.transform = `translate(-50%,-50%) scale(${1 - ads.t * 0.45})`;
+}
+
 // Gun viewmodel
 const gunGroup = new THREE.Group();
 {
@@ -1052,6 +1086,26 @@ const SG = {
   gun: new THREE.BoxGeometry(0.08, 0.1, 0.8)
 };
 
+// ---------- チームマーカー (v0.2.1) ----------
+// 味方: 青▼ 常時表示 (壁越しも見える) / 敵: 赤▼ 視認時のみ
+function makeMarkerTexture(color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = color;
+  g.strokeStyle = 'rgba(255,255,255,.9)';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(32, 54); g.lineTo(12, 18); g.lineTo(52, 18);
+  g.closePath();
+  g.fill(); g.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const markerTexBlue = makeMarkerTexture('#3d8fe8');
+const markerTexRed = makeMarkerTexture('#e0392c');
+const markerMatBlue = new THREE.SpriteMaterial({ map: markerTexBlue, transparent: true, depthTest: false, depthWrite: false });
+const markerMatRed = new THREE.SpriteMaterial({ map: markerTexRed, transparent: true, depthWrite: false });
+
 function createSoldier(team, x, z) {
   const matBody = team === 1 ? matBodyBlue : matBodyRed;
   const matGear = team === 1 ? matGearBlue : matGearRed;
@@ -1067,6 +1121,13 @@ function createSoldier(team, x, z) {
   const gun = new THREE.Mesh(SG.gun, matGun); gun.position.set(0.2, 1.25, -0.4);
   head.userData.isHead = true;
   g.add(torso, vest, head, helmet, legL, legR, armL, armR, gun);
+  // チームマーカー (v0.2.1): 味方は depthTest なしで壁越しにも見える
+  const marker = new THREE.Sprite(team === 1 ? markerMatBlue.clone() : markerMatRed.clone());
+  marker.scale.set(0.55, 0.55, 1);
+  marker.position.y = 2.35;
+  marker.renderOrder = team === 1 ? 999 : 0;
+  if (team === -1) marker.visible = false;  // 敵は視認時のみ
+  g.add(marker);
   g.position.set(x, terrainH(x, z), z);
   const s = {
     team, obj: g, head, legL, legR, hp: 100, alive: true,
@@ -1077,7 +1138,7 @@ function createSoldier(team, x, z) {
     prevX: x, prevZ: z, stuckT: 0,
     targetFlag: null, thinkT: Math.random() * 2,
     engageTarget: null, engageT: 0,
-    respawnT: 0
+    respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false
   };
   g.traverse(m => { if (m.isMesh) { m.userData.soldier = s; m.castShadow = !isMobile; soldierHitMeshes.push(m); } });
   scene.add(g);
@@ -1085,7 +1146,18 @@ function createSoldier(team, x, z) {
   return s;
 }
 
-// AI: 目標拠点を選ぶ (未確保 or 争奪中 or 最寄り)
+// AI: 目標拠点を選ぶ (v0.2.1: 防衛判断を追加)
+// 拠点が「奪われかけているか」(敵が円内にいる自軍拠点か)
+function flagUnderThreat(f, team) {
+  if (f.own !== team) return false;
+  for (const o of soldiers) {
+    if (o.alive && o.team !== team &&
+        Math.hypot(o.obj.position.x - f.x, o.obj.position.z - f.z) < FLAG_R + 4) return true;
+  }
+  if (team === -1 && player.alive &&
+      Math.hypot(player.pos.x - f.x, player.pos.z - f.z) < FLAG_R + 4) return true;
+  return false;
+}
 function pickFlagFor(s) {
   let best = null, bestScore = -Infinity;
   for (const f of flags) {
@@ -1093,6 +1165,8 @@ function pickFlagFor(s) {
     let score = -d * 0.02;
     if (f.own !== s.team) score += 4;                // 敵/中立拠点を優先
     if (f.own === 0) score += 1.5;                   // 中立はさらに優先
+    // v0.2.1: 防衛 — 自軍拠点が奪われかけていたら近いAIほど強く優先
+    if (flagUnderThreat(f, s.team)) score += 7 - d * 0.03;
     // 同じ拠点に味方が集中しすぎないように分散
     let allies = 0;
     for (const o of soldiers) {
@@ -1101,6 +1175,20 @@ function pickFlagFor(s) {
     score -= allies * 0.9;
     score += Math.random() * 1.2;
     if (score > bestScore) { bestScore = score; best = f; }
+  }
+  return best;
+}
+// v0.2.1: 拠点円内にいる最寄りの敵を探す (視線が通らなくても位置は分かる=索敵対象)
+function findIntruderAt(f, team) {
+  let best = null, bd = FLAG_R + 6;
+  for (const o of soldiers) {
+    if (!o.alive || o.team === team) continue;
+    const d = Math.hypot(o.obj.position.x - f.x, o.obj.position.z - f.z);
+    if (d < bd) { bd = d; best = { kind: 'soldier', s: o }; }
+  }
+  if (team === -1 && player.alive && !curVehicle) {
+    const d = Math.hypot(player.pos.x - f.x, player.pos.z - f.z);
+    if (d < bd) best = { kind: 'player' };
   }
   return best;
 }
@@ -1144,6 +1232,7 @@ function updateSoldiers(dt) {
   for (let i = soldiers.length - 1; i >= 0; i--) {
     const s = soldiers[i];
     if (!s.alive) {
+      s.marker.visible = false;
       s.deathT += dt;
       s.obj.rotation.x = Math.min(s.deathT * 4, Math.PI / 2);
       if (s.deathT > 2.4) {
@@ -1157,6 +1246,7 @@ function updateSoldiers(dt) {
           s.hp = 100; s.alive = true; s.deathT = 0;
           s.targetFlag = null; s.engageTarget = null; s.aimT = 0;
           s.shootCd = 1 + Math.random();
+          s.marker.visible = s.team === 1;   // 味方マーカー復帰
         } else {
           s.obj.visible = false; // チケット切れは復活しない
         }
@@ -1165,11 +1255,40 @@ function updateSoldiers(dt) {
     }
     const sp = s.obj.position;
 
-    // ---- 思考: 目標拠点の再選定 ----
+    // ---- チームマーカー更新 (v0.2.1) ----
+    // 敵は「プレイヤーから視線が通り70m以内」のときのみ表示 (0.3秒間隔で判定)
+    s.markerT -= dt;
+    if (s.markerT <= 0) {
+      s.markerT = 0.3;
+      if (s.team === -1) {
+        const pd = Math.hypot(sp.x - player.pos.x, sp.z - player.pos.z);
+        s.seenByPlayer = player.alive && pd < 70 &&
+          hasLineOfSight(player.pos.clone(), new THREE.Vector3(sp.x, sp.y + 1.5, sp.z));
+        s.marker.visible = s.seenByPlayer;
+      } else {
+        s.marker.visible = true;
+        // 距離に応じて味方マーカーを少し大きく (遠くでも見える)
+        const pd = Math.hypot(sp.x - player.pos.x, sp.z - player.pos.z);
+        const sc = 0.55 + Math.min(1, pd / 120) * 0.7;
+        s.marker.scale.set(sc, sc, 1);
+      }
+    }
+
+    // ---- 思考: 目標拠点の再選定 (v0.2.1: 防衛を最優先) ----
     s.thinkT -= dt;
     if (s.thinkT <= 0) {
       s.thinkT = 2.5 + Math.random() * 2;
-      if (!s.targetFlag || (s.targetFlag.own === s.team && Math.random() < 0.6)) {
+      // 防衛: 自軍拠点が奪われかけていたら30m以内のAIは即座に切替
+      let defend = null, dd = 55;
+      for (const f of flags) {
+        if (!flagUnderThreat(f, s.team)) continue;
+        const d = Math.hypot(f.x - sp.x, f.z - sp.z);
+        if (d < dd) { dd = d; defend = f; }
+      }
+      if (defend) {
+        s.targetFlag = defend;
+        s.thinkT = 1.2;   // 防衛中は判断を高頻度に
+      } else if (!s.targetFlag || (s.targetFlag.own === s.team && Math.random() < 0.6)) {
         s.targetFlag = pickFlagFor(s);
       }
     }
@@ -1195,12 +1314,22 @@ function updateSoldiers(dt) {
     }
 
     // ---- 移動先の決定 ----
+    const retreating = s.hp < 35 && tgt && s.hasLos; // v0.2.1: 低HP時は後退応戦
     let destX, destZ, wantDist = 0;
     if (tgt && s.hasLos && tDist < 45) {
-      // 交戦: 距離を保ちつつストレイフ
-      destX = tPos.x; destZ = tPos.z; wantDist = 13;
+      // 交戦: 距離を保ちつつストレイフ (撤退中はより遠く)
+      destX = tPos.x; destZ = tPos.z; wantDist = retreating ? 34 : 13;
     } else if (s.targetFlag) {
-      destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+      const fd = Math.hypot(s.targetFlag.x - sp.x, s.targetFlag.z - sp.z);
+      // v0.2.1 索敵: 拠点圈内に視線の通らない敵がいれば位置へ回り込む
+      let intruder = null;
+      if (fd < FLAG_R + 10 && (!tgt || !s.hasLos)) intruder = findIntruderAt(s.targetFlag, s.team);
+      if (intruder) {
+        const ip = targetPosOf(intruder);
+        destX = ip.x; destZ = ip.z; wantDist = 6;
+      } else {
+        destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+      }
     } else { destX = sp.x; destZ = sp.z; }
 
     const dx = destX - sp.x, dz = destZ - sp.z;
@@ -1213,7 +1342,11 @@ function updateSoldiers(dt) {
     s.strafeT -= dt;
     if (s.strafeT <= 0) { s.strafeT = 1.5 + Math.random() * 2; s.strafeDir = Math.random() < .5 ? -1 : 1; }
     let mvx = 0, mvz = 0;
-    if (dist > wantDist + 2) { mvx = dx / dist; mvz = dz / dist; }
+    if (retreating && dist < wantDist) {
+      // 撤退: 敵に背を向けず後退しながら応戦
+      mvx = -dx / dist * .85; mvz = -dz / dist * .85;
+    }
+    else if (dist > wantDist + 2) { mvx = dx / dist; mvz = dz / dist; }
     else if (tgt && s.hasLos && dist < 7) { mvx = -dx / dist * .6; mvz = -dz / dist * .6; }
     else if (tgt && s.hasLos) { mvx = -dz / dist * s.strafeDir * .7; mvz = dx / dist * s.strafeDir * .7; }
     else if (dist > wantDist * 0.5) { mvx = dx / dist * 0.5; mvz = dz / dist * 0.5; }
@@ -1286,7 +1419,7 @@ function updateSoldiers(dt) {
         const target = player.pos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
         spawnTracer(eye, target, tracerColor);
-        if (hit) damagePlayer(6 + Math.random() * 8 | 0);
+        if (hit) damagePlayer(6 + Math.random() * 8 | 0, eye);
       } else if (tgt.kind === 'soldier') {
         const hit = Math.random() < Math.max(0.08, 0.42 - tDist * 0.005);
         const target = tPos.clone();
@@ -1570,6 +1703,7 @@ function enterVehicle(v) {
   curVehicle = v;
   gunGroup.visible = false;
   firing = false;
+  setAds(false);
   sfx.enter();
   startEngine(v.type);
   ui.vehicleBox.style.display = 'block';
@@ -1641,7 +1775,7 @@ function explodeAt(pos, radius = 6.5, dmg = 140) {
     }
   }
   const pd = player.pos.distanceTo(pos);
-  if (!curVehicle && pd < radius * 0.8) damagePlayer(Math.round(35 * (1 - pd / (radius * 0.8))));
+  if (!curVehicle && pd < radius * 0.8) damagePlayer(Math.round(35 * (1 - pd / (radius * 0.8))), pos);
   const camD = camera.position.distanceTo(pos);
   if (camD < 25) shake = Math.max(shake, 0.5 * (1 - camD / 25));
 }
@@ -1861,7 +1995,9 @@ function playerShoot() {
   muzzleLight.intensity = 2.5;
   player.pitch = Math.min(player.pitch + 0.009, Math.PI / 2);
 
-  const spread = 0.004 + weapon.spreadHeat * 0.02 + (moveMag() > 0.1 ? 0.012 : 0);
+  // ADS中は拡散が大幅減少 (v0.2.1)
+  let spread = 0.004 + weapon.spreadHeat * 0.02 + (moveMag() > 0.1 ? 0.012 : 0);
+  spread *= (1 - ads.t * 0.8);
   const dir = new THREE.Vector3(0, 0, -1)
     .applyEuler(new THREE.Euler(player.pitch + (Math.random() - .5) * spread, player.yaw + (Math.random() - .5) * spread, 0, 'YXZ'));
   shootRay.set(camera.position.clone(), dir);
@@ -1896,12 +2032,45 @@ function reload() {
   ui.reloadHint.textContent = 'リロード中...';
 }
 
+// ---------- ダメージ方向インジケーター (v0.2.1) ----------
+const DMG_ARC_MAX = 6;
+const dmgArcs = [];
+{
+  const holder = document.getElementById('dmg-indicators');
+  for (let i = 0; i < DMG_ARC_MAX; i++) {
+    const d = document.createElement('div');
+    d.className = 'dmg-arc';
+    holder.appendChild(d);
+    dmgArcs.push({ el: d, ttl: 0, worldAngle: 0 });
+  }
+}
+let dmgArcIdx = 0;
+// fromPos: 攻撃元のワールド座標
+function showDamageDirection(fromPos) {
+  if (!fromPos) return;
+  const a = dmgArcs[dmgArcIdx++ % DMG_ARC_MAX];
+  // プレイヤーから見た攻撃元の方位角 (ワールド)
+  a.worldAngle = Math.atan2(fromPos.x - player.pos.x, -(fromPos.z - player.pos.z));
+  a.ttl = 1.1;
+}
+function updateDamageArcs(dt) {
+  for (const a of dmgArcs) {
+    if (a.ttl <= 0) { a.el.style.opacity = 0; continue; }
+    a.ttl -= dt;
+    // カメラのyawに応じて画面上の向きを更新 (前方=上)
+    const rel = a.worldAngle + player.yaw;
+    a.el.style.transform = `rotate(${(-rel * 180 / Math.PI)}deg)`;
+    a.el.style.opacity = Math.min(1, a.ttl / 0.35);
+  }
+}
+
 // ---------- Player damage / respawn ----------
-function damagePlayer(dmg) {
+function damagePlayer(dmg, fromPos = null) {
   if (!player.alive) return;
   player.hp -= dmg;
   player.lastDamageTime = elapsed;
   sfx.damage();
+  if (fromPos) showDamageDirection(fromPos);
   ui.vignette.style.opacity = Math.min(1, 0.4 + (1 - player.hp / player.maxHp) * 0.6);
   setTimeout(() => { if (player.hp > 30) ui.vignette.style.opacity = 0; }, 220);
   if (player.hp <= 0) { player.hp = 0; playerDie(); }
@@ -1911,6 +2080,7 @@ function playerDie() {
   player.alive = false;
   player.respawnT = 5;
   firing = false;
+  setAds(false);
   game.ticketsBlue = Math.max(0, game.ticketsBlue - 1);
   updateTicketsUI();
   if (curVehicle) exitVehicle(true);
@@ -1948,11 +2118,19 @@ if (!isMobile) {
   canvas.addEventListener('click', () => { if (game.running) canvas.requestPointerLock(); });
   window.addEventListener('mousemove', e => {
     if (document.pointerLockElement !== canvas) return;
-    player.yaw -= e.movementX * 0.0022;
-    player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * 0.0022));
+    const sens = 0.0022 * (1 - ads.t * 0.5);   // ADS中は感度低下
+    player.yaw -= e.movementX * sens;
+    player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * sens));
   });
-  window.addEventListener('mousedown', e => { if (e.button === 0 && document.pointerLockElement === canvas) firing = true; });
-  window.addEventListener('mouseup', e => { if (e.button === 0) firing = false; });
+  window.addEventListener('mousedown', e => {
+    if (document.pointerLockElement !== canvas) return;
+    if (e.button === 0) firing = true;
+    if (e.button === 2) setAds(true);          // 右クリック長押しでADS
+  });
+  window.addEventListener('mouseup', e => {
+    if (e.button === 0) firing = false;
+    if (e.button === 2) setAds(false);
+  });
 }
 
 // ---------- Input: touch ----------
@@ -2000,8 +2178,9 @@ if (isMobile) {
         joy.x = dx / JOY_R; joy.y = dy / JOY_R;
         joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       } else if (t.identifier === look.id) {
-        player.yaw -= (t.clientX - look.lx) * 0.0045;
-        player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - (t.clientY - look.ly) * 0.0045));
+        const sens = 0.0045 * (1 - ads.t * 0.5);   // ADS中は感度低下
+        player.yaw -= (t.clientX - look.lx) * sens;
+        player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - (t.clientY - look.ly) * sens));
         look.lx = t.clientX; look.ly = t.clientY;
       }
     }
@@ -2029,6 +2208,7 @@ if (isMobile) {
   bindBtn('btn-fire-alt', () => firing = true, () => firing = false);
   bindBtn('btn-jump', () => jumpQueued = true);
   bindBtn('btn-reload', () => reload());
+  bindBtn('btn-aim', () => setAds(!ads.active));   // タップで切替
   bindBtn('btn-vehicle', () => toggleVehicle());
 }
 
@@ -2048,7 +2228,8 @@ function updatePlayer(dt) {
     sprint = !!keys['ShiftLeft'] && iz < 0;
     if (keys['Space']) jumpQueued = true;
   }
-  const speed = sprint ? 9.5 : 5.5;
+  if (ads.t > 0.5) sprint = false;               // ADS中はダッシュ不可
+  const speed = (sprint ? 9.5 : 5.5) * (1 - ads.t * 0.45);  // ADS中は移動速度低下
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1 修正済み)
   const wx = (ix * cos + iz * sin) * speed;
@@ -2084,9 +2265,13 @@ function updatePlayer(dt) {
 
   weapon.recoil = Math.max(0, weapon.recoil - dt * 8);
   weapon.spreadHeat = Math.max(0, weapon.spreadHeat - dt * 1.2);
-  gunGroup.position.z = -0.55 + weapon.recoil * 0.06;
+  // ADS: 銃を画面中央へ構える (v0.2.1)
+  const adsT = ads.t;
+  gunGroup.position.x = 0.28 * (1 - adsT);
+  gunGroup.position.z = -0.55 + weapon.recoil * 0.06 + adsT * 0.18;
   gunGroup.rotation.x = weapon.recoil * 0.05;
-  gunGroup.position.y = -0.26 + (moving ? Math.sin(bobT) * 0.012 : 0);
+  const bobAmp = (moving ? Math.sin(bobT) * 0.012 : 0) * (1 - adsT * 0.7);
+  gunGroup.position.y = (-0.26 + adsT * 0.075) + bobAmp;
   if (weapon.reloading) gunGroup.rotation.x = -0.5 + Math.sin(weapon.reloadTimer * 3) * 0.1;
 
   weapon.cooldown -= dt;
@@ -2331,6 +2516,8 @@ function loop(now) {
     updateShells(dt);
     updateEffects(dt);
     updateInteractHint(dt);
+    updateAds(dt);
+    updateDamageArcs(dt);
     radarT += dt;
     if (radarT > 0.12) { radarT = 0; drawRadar(); }
   }
