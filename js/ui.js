@@ -123,6 +123,38 @@ function updateInteractHint(dt) {
   }
 }
 /* =========================================================
+   v0.3.5: ヘルプ画面 (Hキー)
+   ========================================================= */
+let helpOpen = false;
+const helpWrap = document.getElementById('help-wrap');
+{
+  const PC_HELP = [
+    ['移動', [['W A S D', '移動'], ['Shift', 'ダッシュ'], ['Space', 'ジャンプ / 空中でパラシュート開閉'], ['マウス', '視点']]],
+    ['戦闘', [['左クリック', '射撃'], ['右クリック', 'エイム(ADS)'], ['R', 'リロード'], ['G', 'グレネード'], ['1〜4', '武器切替']]],
+    ['乗り物', [['E', '乗る / 降りる'], ['X', '座席切替'], ['W/S', '前進 / 後退'], ['A/D', '旋回'], ['Space/C', 'ヘリ上昇 / 下降'], ['Q', 'ヘリロケット'], ['H', 'クラクション(車内)'], ['F 長押し', '車両修理']]],
+    ['その他', [['T', '偵察ドローン'], ['M', '全体マップ'], ['Tab', 'スコアボード'], ['H', 'このヘルプ'], ['Esc', '閉じる']]]
+  ];
+  const MOBILE_HELP = [
+    ['移動', [['左ドラッグ', '移動(前いっぱいでダッシュ)'], ['右ドラッグ', '視点'], ['JUMP', 'ジャンプ / パラシュート開閉']]],
+    ['戦闘', [['FIRE', '射撃(ドラッグで視点も動く)'], ['AIM', 'エイム切替'], ['RELOAD', 'リロード'], ['GRND', 'グレネード'], ['WPN', '武器切替']]],
+    ['乗り物', [['乗る/降りる', '乗降'], ['席', '座席切替'], ['▲UP/▼DN', 'ヘリ上昇 / 下降'], ['🚀', 'ヘリロケット'], ['📢', 'クラクション'], ['修理', '車両修理']]],
+    ['その他', [['DRN', '偵察ドローン'], ['MAP', '全体マップ'], ['戦績', 'スコアボード'], ['⚙', '設定']]]
+  ];
+  const data = isMobile ? MOBILE_HELP : PC_HELP;
+  document.getElementById('help-cols').innerHTML = data.map(([sec, rows]) =>
+    `<div><div class="help-sec">${sec}</div>` +
+    rows.map(([k, v]) => `<div class="help-row"><span class="hk">${k}</span><span>${v}</span></div>`).join('') +
+    '</div>'
+  ).join('');
+}
+function toggleHelp(force) {
+  helpOpen = force !== undefined ? force : !helpOpen;
+  helpWrap.style.display = helpOpen ? 'flex' : 'none';
+  if (helpOpen && document.pointerLockElement) document.exitPointerLock();
+}
+helpWrap.addEventListener('click', () => toggleHelp(false));
+
+/* =========================================================
    v0.2.3: スコアボード (Tabキー / 戦績ボタン)
    ========================================================= */
 let scoreboardOpen = false;

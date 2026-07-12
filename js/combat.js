@@ -61,13 +61,27 @@ function playerShoot() {
   fireLatch = true;
   weapon.mag--; weapon.cooldown = weapon.fireInterval;
   weapon.recoil = 1; weapon.spreadHeat = Math.min(weapon.spreadHeat + 0.15, 1);
+  weapon.burst++; weapon.burstResetT = 0.28;   // v0.3.5: 連射カウント
   if (curWeaponId === 'sr') sfx.snipe();
   else if (curWeaponId === 'sg') sfx.shotgun();
   else sfx.shoot();
   muzzleFlash.material.opacity = 1;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
   muzzleLight.intensity = 2.5;
-  player.pitch = Math.min(player.pitch + w.kick, Math.PI / 2);
+  // v0.3.5: 武器固有のリコイルパターン
+  //  ・縦: 連射するほど銃口が上がる (序盤は強く、後半はやや落ち着く)
+  //  ・横: 武器ごとの周期パターン (sin波) + 小さなランダム成分
+  //  ・ADSで軽減 / 射撃をやめると一部が戻る (updatePlayer側)
+  {
+    const b = weapon.burst;
+    const adsMul = 1 - ads.t * 0.3;
+    const climb = b <= 4 ? 1.25 : Math.max(0.65, 1.25 - (b - 4) * 0.06);
+    const vKick = w.recoilV * climb * adsMul;
+    const hKick = (Math.sin(b * w.recoilFreq + w.recoilPhase) * 0.85 + (Math.random() - .5) * 0.3) * w.recoilH * adsMul;
+    player.pitch = Math.min(player.pitch + vKick, Math.PI / 2);
+    player.yaw += hKick;
+    weapon.recoilPitch = Math.min(weapon.recoilPitch + vKick, 0.35);   // リカバリ用に蓄積
+  }
 
   // 拡散: 武器定義 + ヒート + 移動ペナルティ / ADSで大幅減少
   let spread = w.baseSpread + weapon.spreadHeat * w.heatSpread + (moveMag() > 0.1 ? 0.012 : 0);

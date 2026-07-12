@@ -22,26 +22,32 @@ const game = {
 const MATCH_TIME = 15 * 60;
 
 // ---------- Weapons (v0.2.2: 選択制) ----------
+// v0.3.5: 武器ごとの固有リコイル (recoilV=縦跳ね / recoilH=横ブレ / recoilFreq,Phase=横パターン)
 const WEAPONS = {
   ar:  { name: 'M4A1 CARBINE', magSize: 30, reserve: 120, fireInterval: 0.095, reloadTime: 2.1,
          dmg: 28, hsDmg: 68, baseSpread: 0.004, heatSpread: 0.02, auto: true,
-         adsFov: 48, pellets: 1, range: 300, kick: 0.009 },
+         adsFov: 48, pellets: 1, range: 300, kick: 0.009,
+         recoilV: 0.012, recoilH: 0.005, recoilFreq: 0.55, recoilPhase: 0.6 },
   smg: { name: 'MP5 SMG', magSize: 35, reserve: 175, fireInterval: 0.062, reloadTime: 1.7,
          dmg: 19, hsDmg: 46, baseSpread: 0.007, heatSpread: 0.028, auto: true,
-         adsFov: 55, pellets: 1, range: 180, kick: 0.006 },
+         adsFov: 55, pellets: 1, range: 180, kick: 0.006,
+         recoilV: 0.0075, recoilH: 0.0075, recoilFreq: 1.15, recoilPhase: 2.1 },
   sr:  { name: 'M24 SNIPER', magSize: 5, reserve: 30, fireInterval: 1.4, reloadTime: 3.0,
          dmg: 95, hsDmg: 200, baseSpread: 0.03, heatSpread: 0, auto: false, hipPenalty: true,
-         adsFov: 16, scope: true, pellets: 1, range: 500, kick: 0.03 },
+         adsFov: 16, scope: true, pellets: 1, range: 500, kick: 0.03,
+         recoilV: 0.055, recoilH: 0.004, recoilFreq: 0.3, recoilPhase: 0 },
   sg:  { name: 'M870 SHOTGUN', magSize: 6, reserve: 36, fireInterval: 0.85, reloadTime: 2.8,
          dmg: 11, hsDmg: 22, baseSpread: 0.035, heatSpread: 0, auto: false,
-         adsFov: 60, pellets: 8, range: 45, kick: 0.022 }
+         adsFov: 60, pellets: 8, range: 45, kick: 0.022,
+         recoilV: 0.034, recoilH: 0.011, recoilFreq: 0.8, recoilPhase: 1.0 }
 };
 let curWeaponId = 'ar';
 const weapon = {
   mag: 30, magSize: 30, reserve: 120,
   fireInterval: 0.095, cooldown: 0,
   reloading: false, reloadTime: 2.1, reloadTimer: 0,
-  recoil: 0, spreadHeat: 0
+  recoil: 0, spreadHeat: 0,
+  burst: 0, burstResetT: 0, recoilPitch: 0   // v0.3.5: 連射リコイル状態
 };
 function weaponDef() { return WEAPONS[curWeaponId]; }
 function applyWeapon(id) {
@@ -50,7 +56,8 @@ function applyWeapon(id) {
   Object.assign(weapon, {
     mag: w.magSize, magSize: w.magSize, reserve: w.reserve,
     fireInterval: w.fireInterval, reloadTime: w.reloadTime,
-    cooldown: 0, reloading: false, reloadTimer: 0, recoil: 0, spreadHeat: 0
+    cooldown: 0, reloading: false, reloadTimer: 0, recoil: 0, spreadHeat: 0,
+    burst: 0, burstResetT: 0, recoilPitch: 0   // v0.3.5
   });
   if (typeof ui !== 'undefined' && ui.weaponName) {
     ui.weaponName.textContent = w.name;

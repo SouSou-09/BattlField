@@ -12,12 +12,12 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyF') repairKeyHeld = true;     // v0.3: F長押しで修理
   if (e.code === 'KeyX') switchSeat();             // v0.3: 座席切替
   if (e.code === 'KeyT') toggleDrone();            // v0.3: 偵察ドローン
-  if (e.code === 'KeyH') honk();                   // v0.3: クラクション
+  if (e.code === 'KeyH') { if (curVehicle) honk(); else toggleHelp(); }   // v0.3.5: 車内=クラクション / 徒歩=ヘルプ
   if (e.code === 'KeyQ') heliRockets();            // v0.3: ヘリロケット
   if (e.code === 'KeyG') throwGrenade();          // v0.2.2
   if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
   if (e.code === 'Tab') { e.preventDefault(); toggleScoreboard(true); }   // v0.2.3
-  if (e.code === 'Escape') { toggleSettings(false); toggleScoreboard(false); }
+  if (e.code === 'Escape') { toggleSettings(false); toggleScoreboard(false); toggleHelp(false); }   // v0.3.5
 });
 window.addEventListener('keyup', e => {
   if (e.code === 'Tab') toggleScoreboard(false);   // v0.2.3: Tab離しで閉じる
@@ -310,6 +310,14 @@ function updatePlayer(dt) {
 
   weapon.recoil = Math.max(0, weapon.recoil - dt * 8);
   weapon.spreadHeat = Math.max(0, weapon.spreadHeat - dt * 1.2);
+  // v0.3.5: リコイルパターン — 撃ち止めで連射カウントをリセット + 銃口が一部戻る
+  weapon.burstResetT -= dt;
+  if (weapon.burstResetT <= 0 && weapon.burst > 0) weapon.burst = 0;
+  if (!firing && weapon.recoilPitch > 0.0001) {
+    const rec = Math.min(weapon.recoilPitch, dt * 0.55) * 0.55;   // 蓄積の約半分を自動リカバリ
+    player.pitch -= rec;
+    weapon.recoilPitch = Math.max(0, weapon.recoilPitch - dt * 0.55);
+  }
   // ADS: 銃を画面中央へ構える (v0.2.1)
   const adsT = ads.t;
   gunGroup.position.x = 0.28 * (1 - adsT);
