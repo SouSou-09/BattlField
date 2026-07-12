@@ -57,6 +57,7 @@ function resetGame() {
   }
   assignSquads();   // v0.4.1: 4人1組の分隊を編成
   resetV043();      // v0.4.3: 兵科・プレイヤー分隊・報酬
+  resetV045();      // v0.4.5: 排莢・キルカメラ・負傷表現
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -137,6 +138,7 @@ function loop(now) {
     updateSmokes(dt);           // v0.4.1: スモーク
     updateV042(dt);             // v0.4.2: 地下道・隠密・環境音
     updateV043(dt);             // v0.4.3: 分隊・UAV・兵科ガジェット
+    updateV045(dt);             // v0.4.5: 没入感・負傷・キルカメラ
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -153,7 +155,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, v042, v043 };
+window.__dbg = { soldiers, flags, game, player, terrainH, v042, v043, v045 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);

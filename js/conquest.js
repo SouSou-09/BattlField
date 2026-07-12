@@ -129,4 +129,5 @@ function endMatch(win, timeUp = false) {
     `SCORE: ${game.score}<br>KILLS: ${game.kills} / DEATHS: ${player.deaths || 0} (K/D ${kd})<br>チケット BLUE ${game.ticketsBlue} — RED ${game.ticketsRed}`;
   document.getElementById('respawn-screen').style.display = 'none';
   document.getElementById('gameover-screen').style.display = 'flex';
+  if (typeof enhanceResultV045 === 'function') enhanceResultV045();
 }

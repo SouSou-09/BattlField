@@ -317,7 +317,8 @@ function updatePlayer(dt) {
   // v0.4.0: 移動速度 — 姿勢/スタミナで変化
   const stanceMul = player.stance === 2 ? 0.32 : player.stance === 1 ? 0.55 : 1;
   const tired = player.exhausted ? 0.85 : 1;
-  const speed = (sprint ? 9.5 : 5.5) * stanceMul * tired * (1 - ads.t * 0.45) * (swimming ? 0.45 : 1);
+  const injuredMul = typeof injurySpeedMultiplier === 'function' ? injurySpeedMultiplier() : 1;
+  const speed = (sprint ? 9.5 : 5.5) * stanceMul * tired * injuredMul * (1 - ads.t * 0.45) * (swimming ? 0.45 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1 修正済み)
   let wx = (ix * cos + iz * sin) * speed;

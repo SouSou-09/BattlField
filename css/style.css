@@ -216,3 +216,16 @@
   #btn-horn { width:46px; height:46px; right:calc(216px + env(safe-area-inset-right)); bottom:calc(288px + env(safe-area-inset-bottom)); font-size:14px; border-color:rgba(255,220,120,.5); background:rgba(90,70,20,.4); display:none; }
   #gameover-title { }
   #final-stats { font-size:16px; margin-bottom:26px; color:#ffd257; line-height:1.8; }
+
+  /* v0.4.5: キルカメラ / 負傷 / リザルトハイライト */
+  #killcam-overlay { position:fixed; inset:0; z-index:42; display:none; pointer-events:none; border:10px solid rgba(255,70,50,.55); background:linear-gradient(180deg,rgba(80,0,0,.2),transparent 35%); color:#fff; }
+  #killcam-overlay.show { display:block; animation:killcamIn .18s ease-out; }
+  .killcam-label { position:absolute; top:7%; left:50%; transform:translateX(-50%); font-weight:900; font-size:20px; letter-spacing:6px; text-shadow:0 2px 8px #000; }
+  .killcam-info { position:absolute; bottom:12%; left:50%; transform:translateX(-50%); padding:8px 18px; background:rgba(0,0,0,.65); letter-spacing:2px; }
+  .critically-injured #damage-vignette { opacity:.75!important; animation:injuryPulse 1.2s infinite; }
+  .result-highlights { display:grid; gap:4px; min-width:300px; margin:18px auto 0; padding:15px 22px; border:1px solid rgba(255,210,87,.6); background:rgba(15,24,35,.78); transform:skewX(-4deg); animation:highlightIn .6s ease-out; }
+  .result-highlights b { color:#fff; letter-spacing:4px; }
+  .result-highlights span { color:#ffd257; }
+  @keyframes killcamIn { from { opacity:0; transform:scale(1.08); } to { opacity:1; transform:none; } }
+  @keyframes injuryPulse { 50% { opacity:.45; } }
+  @keyframes highlightIn { from { opacity:0; transform:translateY(30px) skewX(-4deg); } }

@@ -150,7 +150,8 @@ function playerShoot() {
   else sfx.shoot();
   muzzleFlash.material.opacity = 1;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
-  muzzleLight.intensity = 2.5;
+  muzzleLight.intensity = 4.8;                       // v0.4.5: 夜間も周囲を照らす発砲光
+  if (typeof ejectCasing === 'function') ejectCasing();
   // v0.3.5: 武器固有のリコイルパターン
   //  ・縦: 連射するほど銃口が上がる (序盤は強く、後半はやや落ち着く)
   //  ・横: 武器ごとの周期パターン (sin波) + 小さなランダム成分
@@ -579,7 +580,11 @@ function damagePlayer(dmg, fromPos = null) {
   if (fromPos) showDamageDirection(fromPos);
   ui.vignette.style.opacity = Math.min(1, 0.4 + (1 - player.hp / player.maxHp) * 0.6);
   setTimeout(() => { if (player.hp > 30) ui.vignette.style.opacity = 0; }, 220);
-  if (player.hp <= 0) { player.hp = 0; playerDie(); }
+  if (player.hp <= 0) {
+    player.hp = 0;
+    if (typeof startKillcam === 'function') startKillcam(fromPos);
+    playerDie();
+  }
   updateHpUI();
 }
 function playerDie() {
