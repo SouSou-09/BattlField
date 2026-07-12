@@ -69,6 +69,7 @@ function resetGame() {
   resetV055();      // v0.5.5: 車両燃料・給油・カモネット
   resetV056();      // v0.5.6: APC・大人数輸送車
   resetV057();      // v0.5.7: 環境破壊・森林火災
+  resetV058();      // v0.5.8: 防御施設・占領バフ
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -158,6 +159,7 @@ function loop(now) {
     updateV055(dt);             // v0.5.5: 車両燃料・給油・カモネット
     updateV056(dt);             // v0.5.6: APC・大人数輸送車
     updateV057(dt);             // v0.5.7: 環境破壊・森林火災
+    updateV058(dt);             // v0.5.8: 防御施設・占領バフ
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -174,7 +176,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);

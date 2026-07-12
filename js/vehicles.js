@@ -691,6 +691,7 @@ function fireShell(from, dir, owner = null, speed = 70, radius = 6.5, dmg = 140)
 }
 function explodeAt(pos, radius = 6.5, dmg = 140, skipVehicle = null) {
   if (typeof damageStrategicWorld === 'function') damageStrategicWorld(pos, radius, dmg);
+  if (typeof damageDefensiveWorldV058 === 'function') damageDefensiveWorldV058(pos, radius, dmg);
   sfx.explosion();
   spawnParticles(pos, 0xff8830, 18, 8, 3);
   spawnParticles(pos, 0x554433, 12, 5, 2.5);
@@ -788,11 +789,13 @@ function fireMG(v, muzzleWorld, dir, dmg, range) {
     const vehiclePart = hitsW[0].object.userData.vehiclePart;   // v0.4.8
     const vehicleSystem = hitsW[0].object.userData.vehicleSystemV054;
     const strategicV057 = hitsW[0].object.userData.strategicV057;
+    const defensiveV058 = hitsW[0].object.userData.defensiveV058;
     if (dd) damageDestructible(dd, dmg);
     else if (wp) breakWindow(wp);
     else if (vehicleSystem) damageVehicleSystemDirectV054(vehicleSystem, dmg, end);
     else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, dmg, end);
     else if (strategicV057) damageStrategicV057(strategicV057, dmg);
+    else if (defensiveV058) damageDefensiveV058(defensiveV058, dmg);
     else spawnParticles(end, 0xb0a890, 3, 2);
   }
   spawnTracer(muzzleWorld, end, 0xffe9a0);
