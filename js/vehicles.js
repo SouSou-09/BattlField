@@ -101,6 +101,7 @@ function createJeep(x, z, rotY = 0) {
     seats: [mkSeat('driver', -0.5, 1.5, -0.3), mkSeat('gunner', 0, 2.4, 0.4), mkSeat('passenger', 0.5, 1.5, -0.3)]
   });
   if (typeof initVehiclePartsV048 === 'function') initVehiclePartsV048(v);
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -139,6 +140,7 @@ function createBike(x, z, rotY = 0) {
     seats: [mkSeat('driver', 0, 1.5, -0.1), mkSeat('passenger', 0, 1.5, 0.7)]
   });
   if (typeof initVehiclePartsV048 === 'function') initVehiclePartsV048(v);
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -200,12 +202,13 @@ function createTank(x, z, rotY = 0) {
   g.rotation.y = rotY;
   scene.add(g);
   const v = baseVehicleState({
-    type: 'tank', name: 'T-70 戦車', obj: g, turret, muzzle, wheels: [],
+    type: 'tank', name: 'T-70 戦車', obj: g, turret, muzzle, wheels: [], trackMeshesV054: [trackL, trackR],
     yaw: rotY, hp: 900, maxHp: 900,
     radius: 2.6, maxSpeed: 8.5, accel: 4.5, turnRate: 1.1,
     fireInterval: 1.8, camDist: 10.5, camH: 3.6,
     seats: [mkSeat('driver', -0.4, 1.9, 0.6), mkSeat('gunner', 0, 2.6, -0.3)]
   });
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -262,13 +265,14 @@ function createHeli(x, z, rotY = 0) {
   scene.add(g);
   const v = baseVehicleState({
     type: 'heli', name: 'AH-1 攻撃ヘリ', obj: g, turret: null, muzzle, wheels: [], glass: nose,
-    rotor, tailRotor, yaw: rotY, hp: 420, maxHp: 420,
+    rotor, tailRotor, rotorBladesV054: [b1, b2], yaw: rotY, hp: 420, maxHp: 420,
     radius: 2.4, maxSpeed: 26, accel: 9, turnRate: 1.5,
     fireInterval: 0.11, camDist: 13, camH: 4.5, dmg: 30, gunRange: 300,
     alt: 0, vy: 0, rocketCd: 0, rockets: 24,
     seats: [mkSeat('driver', 0, 1.6, -1.6), mkSeat('gunner', -0.8, 1.5, 0.6)]
   });
   if (typeof initVehiclePartsV048 === 'function') initVehiclePartsV048(v);
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -307,7 +311,7 @@ function createBoat(x, z, rotY = 0) {
   g.rotation.y = rotY;
   scene.add(g);
   const v = baseVehicleState({
-    type: 'boat', name: 'RB-12 ボート', obj: g, turret, muzzle, wheels: [], glass: wind,
+    type: 'boat', name: 'RB-12 ボート', obj: g, turret, muzzle, wheels: [], glass: wind, boatEngineMeshV054: motor,
     yaw: rotY, hp: 250, maxHp: 250,
     radius: 1.9, maxSpeed: 15, accel: 7, turnRate: 1.6,
     fireInterval: 0.1, camDist: 8.5, camH: 2.8, dmg: 30, gunRange: 220,
@@ -315,6 +319,7 @@ function createBoat(x, z, rotY = 0) {
     seats: [mkSeat('driver', 0, 1.4, 0.8), mkSeat('gunner', 0, 1.4, -2.0), mkSeat('passenger', 0, 1.2, 1.9)]
   });
   if (typeof initVehiclePartsV048 === 'function') initVehiclePartsV048(v);
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -358,6 +363,7 @@ function createEmplacement(kind, x, z, rotY = 0, team = 0) {
     team, aaCd: 0,
     seats: [mkSeat('gunner', 0, 1.3, 0.6)]
   });
+  if (typeof initVehicleDamageV054 === 'function') initVehicleDamageV054(v);
   vehicles.push(v);
   return v;
 }
@@ -365,6 +371,7 @@ function createEmplacement(kind, x, z, rotY = 0, team = 0) {
 function spawnVehicles() {
   for (const v of vehicles) {
     if (typeof unregisterVehiclePartsV048 === 'function') unregisterVehiclePartsV048(v);
+    if (typeof unregisterVehicleDamageV054 === 'function') unregisterVehicleDamageV054(v);
     scene.remove(v.obj);
   }
   vehicles.length = 0;
@@ -401,22 +408,12 @@ function damageVehicle(v, dmg, cause = '', hitPos = null) {
   if (!v.alive) return;
   v.hp -= dmg;
   if (typeof damageVehiclePartsV048 === 'function') damageVehiclePartsV048(v, dmg, cause, hitPos);
-  // 部位ダメージ: 大ダメージで走行系破損
-  if (v.maxSpeed > 0 && dmg >= 40 && Math.random() < 0.45) {
-    if (v.type === 'tank' && v.mobility > 0) {
-      v.mobility = 0;
-      v.partHint = '履帯破損!';
-      if (curVehicle === v) addFeed('履帯破損! 走行不能 — 修理が必要', 'red');
-    } else if ((!v.tireParts || !v.tireParts.length) && v.mobility > 0.5) {
-      v.mobility = 0.5;
-      v.partHint = '走行系損傷';
-      if (curVehicle === v) addFeed('走行系にダメージ! 速度低下', 'red');
-    }
-  }
-  // 炎上: HP30%未満
-  if (!v.burning && v.hp > 0 && v.hp < v.maxHp * 0.3) {
-    v.burning = true;
-    if (curVehicle === v) addFeed('エンジン炎上! 修理か脱出を!', 'red');
+  if (typeof damageVehicleSystemsV054 === 'function') {
+    damageVehicleSystemsV054(v, dmg, cause, hitPos);
+  } else {
+    // v0.5.4未読込時の後方互換
+    if (v.maxSpeed > 0 && dmg >= 40 && Math.random() < .45) v.mobility = Math.min(v.mobility, .5);
+    if (!v.burning && v.hp > 0 && v.hp < v.maxHp * .3) v.burning = true;
   }
   if (v.hp <= 0) destroyVehicle(v);
   else if (curVehicle === v) updateVehicleUI();
@@ -637,7 +634,13 @@ function updateRepair(dt) {
   v.hp = Math.min(v.maxHp, v.hp + 45 * dt);
   if (typeof repairVehiclePartsV048 === 'function') repairVehiclePartsV048(v, dt);
   if (v.hp > v.maxHp * 0.35 && v.burning) { v.burning = false; addFeed('鎮火した', 'blue'); }
-  if (v.hp > v.maxHp * 0.6 && v.mobility < 1 && (!v.tireParts || !v.tireParts.some(t => t.broken))) { v.mobility = 1; v.partHint = ''; addFeed('走行系を修理した', 'blue'); }
+  if (v.hp > v.maxHp * 0.6 && v.mobility < 1 && (!v.tireParts || !v.tireParts.some(t => t.broken)) &&
+      !(typeof tankTranslationBlockedV054 === 'function' && tankTranslationBlockedV054(v)) &&
+      !(v.type === 'heli' && typeof heliAutorotationAvailableV054 === 'function' && !heliAutorotationAvailableV054(v)) &&
+      !(v.type === 'boat' && typeof boatCanPropelV054 === 'function' && !boatCanPropelV054(v))) {
+    v.mobility = 1; v.partHint = ''; addFeed('走行系を修理した', 'blue');
+  }
+  if (typeof repairVehicleDamageV054 === 'function') repairVehicleDamageV054(v, dt);
   if (Math.random() < dt * 9) {
     spawnParticles(v.obj.position.clone().setY(v.obj.position.y + 1.2), 0xffd257, 2, 2.5, 0.7);
     sfx.repair();
@@ -781,8 +784,10 @@ function fireMG(v, muzzleWorld, dir, dmg, range) {
     const dd = hitsW[0].object.userData.destructible;
     const wp = hitsW[0].object.userData.windowPane;   // v0.3.4: 窓ガラス
     const vehiclePart = hitsW[0].object.userData.vehiclePart;   // v0.4.8
+    const vehicleSystem = hitsW[0].object.userData.vehicleSystemV054;
     if (dd) damageDestructible(dd, dmg);
     else if (wp) breakWindow(wp);
+    else if (vehicleSystem) damageVehicleSystemDirectV054(vehicleSystem, dmg, end);
     else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, dmg, end);
     else spawnParticles(end, 0xb0a890, 3, 2);
   }
@@ -957,12 +962,19 @@ function updateVehicle(dt) {
       if (keys['KeyD']) steer += 1;
     }
   }
-  const effMax = v.maxSpeed * v.mobility;
-  if (throttle !== 0 && v.mobility > 0) {
+  const trackBlockedV054 = typeof tankTranslationBlockedV054 === 'function' && tankTranslationBlockedV054(v);
+  const boatPropelsV054 = typeof boatCanPropelV054 !== 'function' || boatCanPropelV054(v);
+  const effMax = v.type === 'boat' && !boatPropelsV054
+    ? Math.max(Math.abs(v.speed), v.maxSpeed * .12)
+    : v.maxSpeed * v.mobility;
+  if (trackBlockedV054) {
+    v.speed = 0;
+    if (role === 'driver' && steer !== 0) v.yaw -= steer * v.turnRate * dt;
+  } else if (throttle !== 0 && v.mobility > 0 && boatPropelsV054) {
     v.speed += throttle * v.accel * dt;
   } else {
-    v.speed *= Math.pow(0.4, dt);
-    if (Math.abs(v.speed) < 0.15) v.speed = 0;
+    v.speed *= Math.pow(v.type === 'boat' && !boatPropelsV054 ? .965 : .4, dt);
+    if (Math.abs(v.speed) < (v.type === 'boat' && !boatPropelsV054 ? .03 : .15)) v.speed = 0;
   }
   if (v.type !== 'boat') {
     // v0.4.1: 坂の影響強化 — 上りで減速 + 急斜面では横方向に滑る
@@ -981,9 +993,10 @@ function updateVehicle(dt) {
     }
   }
   v.speed = Math.max(-effMax * 0.45, Math.min(effMax, v.speed));
-  if (Math.abs(v.speed) > 0.3) {
+  if (Math.abs(v.speed) > 0.3 && !trackBlockedV054) {
     const partSteer = v.tireParts && v.tireParts.some(t => t.broken) ? 0.45 + v.mobility * 0.45 : 1;
-    v.yaw -= steer * v.turnRate * partSteer * dt * Math.sign(v.speed) * Math.min(1, Math.abs(v.speed) / 4);
+    const driftSteer = v.type === 'boat' && !boatPropelsV054 ? .18 : 1;
+    v.yaw -= steer * v.turnRate * partSteer * driftSteer * dt * Math.sign(v.speed) * Math.min(1, Math.abs(v.speed) / 4);
   }
   // v0.4.1: バイクのリーン (旋回方向へ車体を傾ける)
   if (v.type === 'bike') {
@@ -1145,11 +1158,12 @@ function updateHeli(dt, v, role) {
       if (keys['KeyC']) lift -= 1;
     }
   }
+  const autorotationV054 = typeof heliAutorotationAvailableV054 !== 'function' || heliAutorotationAvailableV054(v);
   if (v.mobility <= 0) lift = Math.min(lift, 0);   // ローター損傷では上昇不可
-  // 高度
+  // 高度。ローター重大損傷時は揚力を失い、通常の緩降下へ移れない
   v.vy += lift * 14 * dt;
-  v.vy *= Math.pow(0.25, dt);
-  if (lift === 0 && v.alt > 0) v.vy -= 2.2 * dt;   // ゆっくり降下
+  v.vy *= Math.pow(autorotationV054 ? .25 : .72, dt);
+  if (v.alt > 0) v.vy -= (autorotationV054 ? 2.2 : 11.5) * dt;
   v.alt = Math.max(0, v.alt + v.vy * dt);
   if (v.alt <= 0 && v.vy < -6) {
     damageVehicle(v, Math.abs(v.vy) * 6, 'crash');   // ハードランディング
@@ -1185,8 +1199,8 @@ function updateHeli(dt, v, role) {
   v.obj.rotation.x = THREE.MathUtils.lerp(v.obj.rotation.x, v.speed * 0.016, dt * 4);
   v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, -steer * 0.25, dt * 4);
   // ローター回転
-  v.rotor.rotation.y += dt * (10 + Math.min(30, 14 + v.alt * 2));
-  v.tailRotor.rotation.x += dt * 40;
+  v.rotor.rotation.y += dt * (autorotationV054 ? (10 + Math.min(30, 14 + v.alt * 2)) : 4);
+  v.tailRotor.rotation.x += dt * (autorotationV054 ? 40 : 9);
   v.rocketCd = Math.max(0, v.rocketCd - dt);
   updateEngine(v.speed + v.alt * 0.4);
 
@@ -1244,20 +1258,17 @@ function updateVehiclesGlobal(dt) {
       if (v.falling) updateFallingHeli(v, dt);   // v0.3.1: 撃墤ヘリの墤落
       continue;
     }
-    // 炎上ダメージ + 煙
-    if (v.burning) {
+    // v0.5.4: エンジン損傷に応じた灰煙→黒煙→発火
+    if (typeof updateVehicleDamageV054 === 'function') {
+      updateVehicleDamageV054(v, dt);
+      if (!v.alive) continue;
+    } else if (v.burning) {
       v.hp -= 4 * dt;
-      v.smokeT -= dt;
-      if (v.smokeT <= 0) {
-        v.smokeT = 0.15;
-        const p = v.obj.position.clone(); p.y += 1.6;
-        spawnParticles(p, 0x333333, 2, 1.6, 1.8);
-        if (Math.random() < 0.4) spawnParticles(p, 0xff7722, 1, 2, 1);
-      }
       if (v.hp <= 0) { destroyVehicle(v); continue; }
     }
-    // ボートの浮遊 (無人時)
+    // ボートの浮遊。エンジン破損後は無人/AI操縦でも慣性で漂流
     if (v.type === 'boat' && v !== curVehicle) {
+      if (typeof updateBoatDriftV054 === 'function' && !boatCanPropelV054(v)) updateBoatDriftV054(v, dt);
       v.bobT += dt * 2;
       v.obj.position.y = WATER_Y + 0.15 + Math.sin(v.bobT) * 0.06;
     }
@@ -1392,7 +1403,9 @@ function updateVehicleUI() {
             : Math.abs(Math.round(v.speed * 3.6)) + ' km/h';
   ui.vehicleSpeed.textContent = spd;
   let st = '';
-  if (v.burning) st += '🔥炎上 ';
+  if (v.damageStageV054 === 1) st += '軽微な発煙 ';
+  else if (v.damageStageV054 === 2) st += '黒煙 ';
+  else if (v.burning) st += '炎上 ';
   if (v.partHint) st += '⚠' + v.partHint;
   ui.vehicleParts.textContent = st;
   if (v.type === 'heli' && v.seats[curSeat].role === 'driver') ui.ammoMag.textContent = '🚀' + v.rockets;
