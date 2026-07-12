@@ -60,6 +60,7 @@ function resetGame() {
   resetV045();      // v0.4.5: 排莢・キルカメラ・負傷表現
   resetV046();      // v0.4.6: リーン・蘇生・LMG
   resetV047();      // v0.4.7: スモーク・無線・制圧
+  resetV048();      // v0.4.8: 車両部位・破壊可能壁
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -159,7 +160,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, v042, v043, v045, v046, v047 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);

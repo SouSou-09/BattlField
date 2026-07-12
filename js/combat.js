@@ -118,9 +118,11 @@ function updateBullets(dt) {
       const dd = h.object.userData.destructible;
       const wp = h.object.userData.windowPane;
       const bridge = h.object.userData.bridge;
+      const vehiclePart = h.object.userData.vehiclePart;
       if (dd) damageDestructible(dd, b.dmg * 1.5);
       else if (wp) breakWindow(wp);
       else if (bridge) damageBridge(bridge, b.dmg);
+      else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, b.dmg, h.point);
       else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }
       done = true;
       spawnTracer(_bPrev, h.point);
