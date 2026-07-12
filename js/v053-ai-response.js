@@ -181,7 +181,8 @@ function updateAiVehicleDriversV053(dt) {
     const goal = aiVehicleGoalV053(v, driver);
     const trackBlockedV054 = typeof tankTranslationBlockedV054 === 'function' && tankTranslationBlockedV054(v);
     const boatBrokenV054 = v.type === 'boat' && typeof boatCanPropelV054 === 'function' && !boatCanPropelV054(v);
-    if (!goal || (v.mobility <= 0 && !trackBlockedV054 && !boatBrokenV054)) {
+    const fuelDryV055 = typeof vehicleHasFuelV055 === 'function' && !vehicleHasFuelV055(v);
+    if (!goal || fuelDryV055 || (v.mobility <= 0 && !trackBlockedV054 && !boatBrokenV054)) {
       v.speed *= Math.pow(.25, dt);
       updateAiVehiclePoseV053(v, dt);
       continue;

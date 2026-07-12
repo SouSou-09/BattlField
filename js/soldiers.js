@@ -228,7 +228,8 @@ function findEnemyTarget(s) {
   // 敵AIは搭乗中の車両も狙う
   if (s.team === -1 && curVehicle) {
     const vd = Math.hypot(curVehicle.obj.position.x - s.obj.position.x, curVehicle.obj.position.z - s.obj.position.z);
-    if (vd < bd + 10) best = { kind: 'vehicle' };
+    const concealV055 = typeof vehicleCamoConcealmentV055 === 'function' ? vehicleCamoConcealmentV055(curVehicle) : 0;
+    if (vd < bd + 10 && Math.random() >= concealV055) best = { kind: 'vehicle' };
   }
   return best;
 }
@@ -560,7 +561,8 @@ function updateSoldiers(dt) {
       sfx.distShoot(camera.position.distanceTo(eye));
       const tracerColor = s.team === 1 ? 0x8ecbff : 0xff8866;
       if (tgt.kind === 'vehicle' && curVehicle) {
-        const hit = Math.random() < Math.max(0.15, 0.75 - tDist * 0.007);
+        const concealV055 = typeof vehicleCamoConcealmentV055 === 'function' ? vehicleCamoConcealmentV055(curVehicle) : 0;
+        const hit = Math.random() < Math.max(0.08, 0.75 - tDist * 0.007 - concealV055);
         const target = tPos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 4; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 4; }
         spawnTracer(eye, target, tracerColor);

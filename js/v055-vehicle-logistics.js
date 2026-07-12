@@ -95,7 +95,7 @@ function nearestRefuelPointV055(v) {
 
 function updateCamoNetV055(v, dt) {
   if (!v.camoNetV055 || !v.alive) return;
-  const stopped = Math.abs(v.speed || 0) < .12 && v !== curVehicle;
+  const stopped = Math.abs(v.speed || 0) < .12 && !v.refuelingV055;
   if (stopped) v.stationaryTV055 += dt;
   else v.stationaryTV055 = 0;
   const active = v.stationaryTV055 >= 7;
@@ -119,9 +119,11 @@ function updateVehicleFuelV055(v, dt) {
   const canRefuel = point && Math.abs(v.speed || 0) < .35 && (v.type !== 'heli' || v.alt < .4);
   v.refuelingV055 = !!canRefuel && v.fuelV055 < v.fuelMaxV055;
   if (v.refuelingV055) {
+    const before = v.fuelV055;
     v.fuelV055 = Math.min(v.fuelMaxV055, v.fuelV055 + 18 * dt);
+    v055.refuels += v.fuelV055 - before;
     if (Math.random() < dt * 2.5) spawnParticles(v.obj.position.clone().setY(v.obj.position.y + .5), 0x76c7ff, 1, .5, .65);
-    if (v.fuelV055 >= v.fuelMaxV055 && v.fuelDryV055) addFeed(v.name + ' 給油完了', 'blue');
+    if (v.fuelV055 >= v.fuelMaxV055 && before < v.fuelMaxV055) addFeed(v.name + ' 給油完了', 'blue');
   }
   const dry = v.fuelV055 <= .02;
   if (dry && !v.fuelDryV055) {

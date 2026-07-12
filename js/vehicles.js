@@ -496,7 +496,7 @@ function enterVehicle(v) {
 }
 function seatWeaponName(v, role) {
   if (role === 'driver') return v.type === 'heli' ? '機首機銃+ロケット' : '— (運転)';
-  if (role === 'passenger' && v.type === 'bike') return weaponDef().name;   // v0.4.1: バイク後席=自分の武器
+  if (typeof passengerCanFireV055 === 'function' && passengerCanFireV055(v, role)) return weaponDef().name;
   if (v.type === 'tank') return '125mm 主砲';
   if (v.type === 'aa') return '23mm 連装機関砲';
   return 'M2 重機関銃';
@@ -507,8 +507,8 @@ function updateSeatUI() {
   const st = v.seats[curSeat];
   ui.vehicleName.textContent = v.name + ' [' + (st.role === 'driver' ? '運転' : st.role === 'gunner' ? '砲手' : '同乗') + ']';
   ui.weaponName.textContent = seatWeaponName(v, st.role);
-  // v0.4.1: バイク後席は自分の武器の弾数を表示
-  if (v.type === 'bike' && st.role === 'passenger') { updateAmmoUI(); return; }
+  // v0.5.5: 開放座席の同乗者は個人武器を使用
+  if (typeof passengerCanFireV055 === 'function' && passengerCanFireV055(v, st.role)) { updateAmmoUI(); return; }
   ui.ammoMag.textContent = v.type === 'heli' && st.role === 'driver' ? '🚀' + v.rockets : '∞';
   ui.ammoMag.style.color = '#fff';
   ui.ammoReserve.textContent = '';
@@ -964,13 +964,14 @@ function updateVehicle(dt) {
   }
   const trackBlockedV054 = typeof tankTranslationBlockedV054 === 'function' && tankTranslationBlockedV054(v);
   const boatPropelsV054 = typeof boatCanPropelV054 !== 'function' || boatCanPropelV054(v);
+  const hasFuelV055 = typeof vehicleHasFuelV055 !== 'function' || vehicleHasFuelV055(v);
   const effMax = v.type === 'boat' && !boatPropelsV054
     ? Math.max(Math.abs(v.speed), v.maxSpeed * .12)
     : v.maxSpeed * v.mobility;
   if (trackBlockedV054) {
     v.speed = 0;
     if (role === 'driver' && steer !== 0) v.yaw -= steer * v.turnRate * dt;
-  } else if (throttle !== 0 && v.mobility > 0 && boatPropelsV054) {
+  } else if (throttle !== 0 && v.mobility > 0 && boatPropelsV054 && hasFuelV055) {
     v.speed += throttle * v.accel * dt;
   } else {
     v.speed *= Math.pow(v.type === 'boat' && !boatPropelsV054 ? .965 : .4, dt);
@@ -1159,7 +1160,9 @@ function updateHeli(dt, v, role) {
     }
   }
   const autorotationV054 = typeof heliAutorotationAvailableV054 !== 'function' || heliAutorotationAvailableV054(v);
-  if (v.mobility <= 0) lift = Math.min(lift, 0);   // ローター損傷では上昇不可
+  const hasFuelV055 = typeof vehicleHasFuelV055 !== 'function' || vehicleHasFuelV055(v);
+  if (v.mobility <= 0 || !hasFuelV055) lift = Math.min(lift, 0);   // ローター損傷・燃料切れでは上昇不可
+  if (!hasFuelV055) throttle = 0;
   // 高度。ローター重大損傷時は揚力を失い、通常の緩降下へ移れない
   v.vy += lift * 14 * dt;
   v.vy *= Math.pow(autorotationV054 ? .25 : .72, dt);
@@ -1406,7 +1409,11 @@ function updateVehicleUI() {
   if (v.damageStageV054 === 1) st += '軽微な発煙 ';
   else if (v.damageStageV054 === 2) st += '黒煙 ';
   else if (v.burning) st += '炎上 ';
-  if (v.partHint) st += '⚠' + v.partHint;
+  if (v.partHint) st += '⚠' + v.partHint + ' ';
+  if (v.fuelMaxV055 > 0) {
+    const fuelPct = Math.round(v.fuelV055 / v.fuelMaxV055 * 100);
+    st += v.refuelingV055 ? '給油中 ' + fuelPct + '%' : v.fuelDryV055 ? '燃料切れ' : 'FUEL ' + fuelPct + '%';
+  }
   ui.vehicleParts.textContent = st;
   if (v.type === 'heli' && v.seats[curSeat].role === 'driver') ui.ammoMag.textContent = '🚀' + v.rockets;
 }
