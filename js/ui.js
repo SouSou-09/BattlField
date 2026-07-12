@@ -350,6 +350,7 @@ const dpCtx = dpCanvas.getContext('2d');
 function deployPoints() {
   const pts = [{ id: 'HQ', x: HQ_BLUE.x, z: HQ_BLUE.z }];
   for (const f of flags) if (f.own === 1) pts.push({ id: f.id, x: f.x, z: f.z });
+  if (typeof squadDeployPoints === 'function') pts.push(...squadDeployPoints());
   return pts;
 }
 function openDeployScreen() {

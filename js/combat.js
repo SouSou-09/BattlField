@@ -114,9 +114,11 @@ function updateBullets(dt) {
       const h = hitsW[0];
       const dd = h.object.userData.destructible;
       const wp = h.object.userData.windowPane;
+      const bridge = h.object.userData.bridge;
       if (dd) damageDestructible(dd, b.dmg * 1.5);
       else if (wp) breakWindow(wp);
-      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }   // v0.4.2予定の弾痕フック
+      else if (bridge) damageBridge(bridge, b.dmg);
+      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }
       done = true;
       spawnTracer(_bPrev, h.point);
     } else if (b.pos.y < terrainH(b.pos.x, b.pos.z)) {
@@ -133,11 +135,8 @@ function updateBullets(dt) {
     }
   }
 }
-// v0.4.2で実装予定の弾痕 (現状はノーオペ)
-function addBulletHole(point, dir) { /* v0.4.2 */ }
-
 function playerShoot() {
-  if (weapon.reloading || weapon.cooldown > 0 || !player.alive) return;
+  if (weapon.reloading || weapon.cooldown > 0 || !player.alive || player.downed) return;
   if (weapon.switchT > 0 || knife.t > 0) return;   // v0.4.0: 切替/ナイフ中は射撃不可
   const w = weaponDef();
   if (!w.auto && fireLatch) return;   // 単発武器はトリガーを引き直す必要あり
@@ -151,7 +150,8 @@ function playerShoot() {
   else sfx.shoot();
   muzzleFlash.material.opacity = 1;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
-  muzzleLight.intensity = 2.5;
+  muzzleLight.intensity = 4.8;                       // v0.4.5: 夜間も周囲を照らす発砲光
+  if (typeof ejectCasing === 'function') ejectCasing();
   // v0.3.5: 武器固有のリコイルパターン
   //  ・縦: 連射するほど銃口が上がる (序盤は強く、後半はやや落ち着く)
   //  ・横: 武器ごとの周期パターン (sin波) + 小さなランダム成分
@@ -580,11 +580,17 @@ function damagePlayer(dmg, fromPos = null) {
   if (fromPos) showDamageDirection(fromPos);
   ui.vignette.style.opacity = Math.min(1, 0.4 + (1 - player.hp / player.maxHp) * 0.6);
   setTimeout(() => { if (player.hp > 30) ui.vignette.style.opacity = 0; }, 220);
-  if (player.hp <= 0) { player.hp = 0; playerDie(); }
+  if (player.hp <= 0) {
+    if (typeof enterDownedV046 === 'function' && enterDownedV046(fromPos)) { updateHpUI(); return; }
+    player.hp = 0;
+    if (typeof startKillcam === 'function') startKillcam(fromPos);
+    playerDie();
+  }
   updateHpUI();
 }
 function playerDie() {
   player.alive = false;
+  if (typeof v043 !== 'undefined') v043.streak = 0;
   player.respawnT = 5;
   player.deaths = (player.deaths || 0) + 1;        // v0.2.3
   firing = false;
@@ -615,11 +621,13 @@ function respawnPlayer(sp = null) {
   player.onGround = true;
   releaseChute();                                  // v0.3.1
   // v0.2.2: リスポーン時はフル装備で復帰
-  applyWeapon(curWeaponId);
+  if (typeof applyClassLoadout === 'function') applyClassLoadout();
+  else applyWeapon(curWeaponId);
   grenades.count = grenades.max;
   fireLatch = false;
   ui.vignette.style.opacity = 0;
   ui.reloadHint.textContent = '';
   updateHpUI(); updateAmmoUI();
   document.getElementById('respawn-screen').style.display = 'none';
+  if (typeof onRespawnV046 === 'function') onRespawnV046();
 }

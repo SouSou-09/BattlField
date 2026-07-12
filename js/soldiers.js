@@ -538,7 +538,8 @@ function updateSoldiers(dt) {
         const stancePen = player.stance === 2 ? 0.22 : player.stance === 1 ? 0.12 : 0;
         // v0.4.1: スモーク越しは大幅に当たらない
         const smokePen = smokeBlocks(eye, tPos) ? 0.3 : 0;
-        const hitChance = Math.max(0.03, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen);
+        const concealPen = typeof playerConcealment === 'function' ? playerConcealment() : 0;
+        const hitChance = Math.max(0.02, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen - concealPen);
         const hit = Math.random() < hitChance;
         const target = player.pos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
@@ -601,6 +602,7 @@ function playerKillSoldier(s, point, isHead = false) {
   vacateSeat(s);
   s.deaths++;                                      // v0.2.3
   game.kills++;
+  if (typeof onPlayerKillV043 === 'function') onPlayerKillV043();
   game.score += isHead ? 150 : 100;
   game.ticketsRed = Math.max(0, game.ticketsRed - 1);
   sfx.kill();
