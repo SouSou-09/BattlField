@@ -114,9 +114,11 @@ function updateBullets(dt) {
       const h = hitsW[0];
       const dd = h.object.userData.destructible;
       const wp = h.object.userData.windowPane;
+      const bridge = h.object.userData.bridge;
       if (dd) damageDestructible(dd, b.dmg * 1.5);
       else if (wp) breakWindow(wp);
-      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }   // v0.4.2予定の弾痕フック
+      else if (bridge) damageBridge(bridge, b.dmg);
+      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }
       done = true;
       spawnTracer(_bPrev, h.point);
     } else if (b.pos.y < terrainH(b.pos.x, b.pos.z)) {
@@ -133,9 +135,6 @@ function updateBullets(dt) {
     }
   }
 }
-// v0.4.2で実装予定の弾痕 (現状はノーオペ)
-function addBulletHole(point, dir) { /* v0.4.2 */ }
-
 function playerShoot() {
   if (weapon.reloading || weapon.cooldown > 0 || !player.alive) return;
   if (weapon.switchT > 0 || knife.t > 0) return;   // v0.4.0: 切替/ナイフ中は射撃不可

@@ -674,6 +674,7 @@ function fireShell(from, dir, owner = null, speed = 70, radius = 6.5, dmg = 140)
   s.m.visible = true;
 }
 function explodeAt(pos, radius = 6.5, dmg = 140, skipVehicle = null) {
+  if (typeof damageStrategicWorld === 'function') damageStrategicWorld(pos, radius, dmg);
   sfx.explosion();
   spawnParticles(pos, 0xff8830, 18, 8, 3);
   spawnParticles(pos, 0x554433, 12, 5, 2.5);
