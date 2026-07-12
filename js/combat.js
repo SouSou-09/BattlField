@@ -136,7 +136,7 @@ function updateBullets(dt) {
   }
 }
 function playerShoot() {
-  if (weapon.reloading || weapon.cooldown > 0 || !player.alive) return;
+  if (weapon.reloading || weapon.cooldown > 0 || !player.alive || player.downed) return;
   if (weapon.switchT > 0 || knife.t > 0) return;   // v0.4.0: 切替/ナイフ中は射撃不可
   const w = weaponDef();
   if (!w.auto && fireLatch) return;   // 単発武器はトリガーを引き直す必要あり
@@ -581,6 +581,7 @@ function damagePlayer(dmg, fromPos = null) {
   ui.vignette.style.opacity = Math.min(1, 0.4 + (1 - player.hp / player.maxHp) * 0.6);
   setTimeout(() => { if (player.hp > 30) ui.vignette.style.opacity = 0; }, 220);
   if (player.hp <= 0) {
+    if (typeof enterDownedV046 === 'function' && enterDownedV046(fromPos)) { updateHpUI(); return; }
     player.hp = 0;
     if (typeof startKillcam === 'function') startKillcam(fromPos);
     playerDie();
@@ -628,4 +629,5 @@ function respawnPlayer(sp = null) {
   ui.reloadHint.textContent = '';
   updateHpUI(); updateAmmoUI();
   document.getElementById('respawn-screen').style.display = 'none';
+  if (typeof onRespawnV046 === 'function') onRespawnV046();
 }

@@ -231,7 +231,7 @@ function cycleWeapon() {
 }
 window.addEventListener('keydown', e => {
   if (!game.running || curVehicle || !player.alive) return;
-  const map = { Digit1: 'ar', Digit2: 'smg', Digit3: 'sr', Digit4: 'sg' };
+  const map = { Digit1: 'ar', Digit2: 'smg', Digit3: 'sr', Digit4: 'sg', Digit5: 'lmg' };
   if (map[e.code] && map[e.code] !== curWeaponId) {
     applyWeapon(map[e.code]);
     setAds(false);
@@ -270,6 +270,7 @@ function stanceEyeHeight() {
 // ---------- Player movement (地形追従) ----------
 function updatePlayer(dt) {
   if (!player.alive) return;
+  if (player.downed) { firing = false; return; }
   let ix = 0, iz = 0, sprint = false;
   if (isMobile) {
     ix = joy.x; iz = joy.y;
@@ -353,7 +354,9 @@ function updatePlayer(dt) {
     }
   }
 
-  if (jumpQueued && player.onGround && !swimming && player.stance === 0 && !player.exhausted) { player.vel.y = 6.5; player.onGround = false; }
+  if (jumpQueued && player.onGround && !swimming && player.stance === 0 && !player.exhausted) {
+    if (!(typeof tryVaultV046 === 'function' && tryVaultV046())) { player.vel.y = 6.5; player.onGround = false; }
+  }
   else if (jumpQueued && player.stance !== 0) { player.stance = 0; }   // 伏せ/しゃがみ中のJUMP=立つ
   jumpQueued = false;
   // v0.3.4: パラシュートは手動開閉 (自動展開を廃止)
@@ -406,6 +409,11 @@ function updatePlayer(dt) {
   }
 
   camera.position.copy(player.pos);
+  if (typeof leanOffsetV046 === 'function') {
+    const side = leanOffsetV046();
+    camera.position.x += Math.cos(player.yaw) * side;
+    camera.position.z -= Math.sin(player.yaw) * side;
+  }
   const moving = Math.hypot(wx, wz) > 0.5;
   if (moving && player.onGround) {
     bobT += dt * (sprint ? 13 : swimming ? 5 : player.stance === 2 ? 4 : 9);
@@ -413,7 +421,8 @@ function updatePlayer(dt) {
     if (swimming && Math.random() < dt * 6) spawnParticles(player.pos.clone().setY(WATER_Y + 0.1), 0xbfe3ef, 2, 1.5, 0.7);
   }
   // v0.4.0: スライディング中は視点を少しロール
-  camera.rotation.set(player.pitch, player.yaw, player.slideT > 0 ? Math.sin(player.slideT * 8) * 0.03 + 0.05 : 0);
+  const leanRoll = typeof leanAngleV046 === 'function' ? leanAngleV046() : 0;
+  camera.rotation.set(player.pitch, player.yaw, (player.slideT > 0 ? Math.sin(player.slideT * 8) * 0.03 + 0.05 : 0) - leanRoll);
   if (shake > 0.01) {
     camera.position.x += (Math.random() - .5) * shake;
     camera.position.y += (Math.random() - .5) * shake;
