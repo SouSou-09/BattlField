@@ -99,7 +99,9 @@ function playerShoot() {
     } else if (wDist < Infinity) {
       end = hitsW[0].point;
       const dd = hitsW[0].object.userData.destructible;
+      const wp = hitsW[0].object.userData.windowPane;   // v0.3.4: 窓ガラス
       if (dd) damageDestructible(dd, w.dmg * (curWeaponId === 'sg' ? 1 : 1.5));   // v0.2.3
+      else if (wp) breakWindow(wp);
       else spawnParticles(end, 0xb0a890, 3, 2);
     }
     spawnTracer(muzzleWorld, end);
@@ -321,6 +323,17 @@ function releaseChute() {
   if (!player.chute) return;
   player.chute = false;
   chuteMesh.visible = false;
+}
+// v0.3.4: 空中でパラシュートを手動で開閉 (閉じたまま落下すると落下ダメージ)
+function toggleChute() {
+  if (!player.alive || player.onGround) return;
+  if (player.chute) {
+    releaseChute();
+    addFeed('パラシュートを閉じた — 落下注意!', 'red');
+  } else {
+    const fallH = (player.pos.y - player.eyeHeight) - terrainH(player.pos.x, player.pos.z);
+    if (fallH > 3 && player.vel.y < 1) deployChute();
+  }
 }
 
 // ---------- Player damage / respawn ----------

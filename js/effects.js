@@ -175,7 +175,13 @@ const sfx = {
   flakDist: d => { if (d < 160) playShot(Math.max(0.02, 0.2 - d * 0.001), 420); },
   roadkill: () => { playBeep(180, 0.12, 0.2, 'sawtooth'); playBeep(90, 0.18, 0.2, 'square'); },
   // v0.3.1
-  chute: () => { playBeep(300, 0.18, 0.12, 'sawtooth'); setTimeout(() => playBeep(200, 0.25, 0.1, 'sawtooth'), 120); }
+  chute: () => { playBeep(300, 0.18, 0.12, 'sawtooth'); setTimeout(() => playBeep(200, 0.25, 0.1, 'sawtooth'), 120); },
+  // v0.3.4: ガラスが割れる音
+  glass: () => {
+    playBeep(2400 + Math.random() * 800, 0.06, 0.14, 'square');
+    setTimeout(() => playBeep(1700 + Math.random() * 600, 0.08, 0.1, 'triangle'), 40);
+    setTimeout(() => playBeep(1200 + Math.random() * 400, 0.1, 0.07, 'triangle'), 100);
+  }
 };
 let engine = null;
 function startEngine(type) {

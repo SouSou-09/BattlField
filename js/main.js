@@ -30,6 +30,7 @@ function resetGame() {
   fullmapOpen = false; fmWrap.style.display = 'none';
   scoreboardOpen = false; sbWrap.style.display = 'none';   // v0.2.3
   resetDestructibles();                                     // v0.2.3
+  resetWindows();                                           // v0.3.4: 窓ガラス復元
   game.timeLeft = MATCH_TIME; game.timerT = 0;              // v0.2.3
   ui.matchTimer.textContent = '15:00'; ui.matchTimer.classList.remove('low');
   player.deaths = 0;

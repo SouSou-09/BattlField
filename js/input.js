@@ -5,6 +5,8 @@
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
+  // v0.3.4: 空中でSpace → パラシュート開閉 (押し直しごとにトグル)
+  if (e.code === 'Space' && !e.repeat && game.running && player.alive && !curVehicle && !drone.active && !player.onGround) toggleChute();
   if (e.code === 'KeyR') reload();
   if (e.code === 'KeyE') toggleVehicle();
   if (e.code === 'KeyF') repairKeyHeld = true;     // v0.3: F長押しで修理
@@ -168,7 +170,11 @@ if (isMobile) {
   };
   bindFireBtn('btn-fire');
   bindFireBtn('btn-fire-alt');
-  bindBtn('btn-jump', () => jumpQueued = true);
+  bindBtn('btn-jump', () => {
+    // v0.3.4: 空中ではJUMPボタン = パラシュート開閉
+    if (player.alive && !curVehicle && !drone.active && !player.onGround) toggleChute();
+    else jumpQueued = true;
+  });
   bindBtn('btn-reload', () => reload());
   bindBtn('btn-aim', () => setAds(!ads.active));   // タップで切替
   bindBtn('btn-nade', () => throwGrenade());        // v0.2.2
@@ -242,15 +248,22 @@ function updatePlayer(dt) {
 
   if (jumpQueued && player.onGround && !swimming) { player.vel.y = 6.5; player.onGround = false; }
   jumpQueued = false;
-  // v0.3.1: パラシュート — 降下速度を制限し、自動展開する
-  const footY0 = player.pos.y - player.eyeHeight;
-  const fallH = footY0 - terrainH(player.pos.x, player.pos.z);   // 地表からの高さ
-  if (!player.chute && !player.onGround && player.vel.y < -9 && fallH > 8) deployChute();
+  // v0.3.4: パラシュートは手動開閉 (自動展開を廃止)
+  // ・閉じたまま = 自由落下で徐々に加速 (終端速度あり) → 高所落下はダメージ
+  // ・開いている = 降下速度を制限してゆっくり降下
   if (player.chute) {
     player.vel.y -= 4 * dt;
     if (player.vel.y < -3.2) player.vel.y = Math.max(-6.5, player.vel.y + 22 * dt); // ブレーキ
   } else {
     player.vel.y -= 18 * dt;
+    if (player.vel.y < -28) player.vel.y = -28;   // v0.3.4: 終端速度 (徐々に加速して頭打ち)
+  }
+  // 高所を落下中はヒントを表示 (v0.3.4)
+  if (!player.onGround && !player.chute && player.vel.y < -8 &&
+      (player.pos.y - player.eyeHeight) - terrainH(player.pos.x, player.pos.z) > 12) {
+    ui.reloadHint.textContent = (isMobile ? 'JUMPボタン' : 'Space') + ': パラシュート展開';
+  } else if (ui.reloadHint.textContent.includes('パラシュート') && !weapon.reloading) {
+    ui.reloadHint.textContent = '';
   }
 
   const footY = player.pos.y - player.eyeHeight;
@@ -264,9 +277,9 @@ function updatePlayer(dt) {
   const th = groundHeightAt(player.pos.x, player.pos.z, player.radius, player.pos.y - player.eyeHeight);
   const groundY = (th < WATER_Y - 0.2 ? Math.max(th, WATER_Y - 1.1) : th) + player.eyeHeight;
   if (player.pos.y <= groundY) {
-    // v0.3.1: 落下ダメージ (パラシュートなしの高所落下)
+    // v0.3.4: 落下ダメージ (パラシュートなしの高所落下 — 終端速度なら致死)
     if (player.vel.y < -12 && !swimming) {
-      damagePlayer(Math.min(85, Math.round((-player.vel.y - 12) * 6)));
+      damagePlayer(Math.min(110, Math.round((-player.vel.y - 12) * 7)));
       shake = Math.max(shake, 0.25);
     }
     player.pos.y = groundY; player.vel.y = 0; player.onGround = true;

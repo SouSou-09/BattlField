@@ -18,8 +18,8 @@ const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
                  (navigator.maxTouchPoints > 1 && 'ontouchstart' in window);
 
 document.getElementById('howto-text').innerHTML = isMobile
-  ? 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / AIM:エイム<br>GRND:グレネード / WPN:武器切替 / MAP:全体マップ / 戦績:スコアボード<br>⚙ボタンで描画品質・感度の設定'
-  : 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>WASD:移動 / マウス:視点 / 左クリック:射撃 / 右クリック:エイム<br>Shift:ダッシュ / Space:ジャンプ / R:リロード / E:乗り物(空中でEでパラシュート降下)<br>G:グレネード / M:全体マップ / Tab:スコアボード / 1〜4:武器切替<br>⚙ボタンで描画品質・感度の設定';
+  ? 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>左画面ドラッグ:移動(前いっぱいでダッシュ)<br>右画面ドラッグ:視点 / FIRE:射撃 / AIM:エイム / JUMP:ジャンプ(空中でパラシュート開閉)<br>GRND:グレネード / WPN:武器切替 / MAP:全体マップ / 戦績:スコアボード<br>⚙ボタンで描画品質・感度の設定'
+  : 'A〜Eの拠点を占領してチケットで勝利せよ!(制限時間15分)<br>WASD:移動 / マウス:視点 / 左クリック:射撃 / 右クリック:エイム<br>Shift:ダッシュ / Space:ジャンプ(空中でパラシュート開閉) / R:リロード / E:乗り物<br>G:グレネード / M:全体マップ / Tab:スコアボード / 1〜4:武器切替<br>⚙ボタンで描画品質・感度の設定';
 
 // ---------- Core three.js setup ----------
 const canvas = document.getElementById('game-canvas');

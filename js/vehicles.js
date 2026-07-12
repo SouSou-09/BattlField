@@ -468,15 +468,16 @@ function exitVehicle(forced = false) {
   v.seats[curSeat].occ = null;
   const side = new THREE.Vector3(Math.cos(v.yaw), 0, -Math.sin(v.yaw));
   if (v.type === 'heli' && v.alt > 3) {
-    // v0.3.1: 空中脱出 — パラシュートで降下
+    // v0.3.4: 空中脱出 — 即パラシュートではなく初速ゼロの自由落下から徐々に加速
+    // (Space / JUMPボタンでパラシュート開閉。開かず落ちると落下ダメージ)
     player.pos.set(
       v.obj.position.x + side.x * (v.radius + 1.5),
       v.obj.position.y + player.eyeHeight,
       v.obj.position.z + side.z * (v.radius + 1.5)
     );
-    player.vel.set(0, -1, 0);
+    player.vel.set(0, 0, 0);          // 初速ゼロ → 重力で徐々に落下
     player.onGround = false;
-    deployChute();
+    addFeed('🪂 ' + (isMobile ? 'JUMPボタン' : 'Space') + ' でパラシュート開閉', 'blue');
   } else {
     for (const s of [1, -1, 1.6, -1.6]) {
       const px = v.obj.position.x + side.x * (v.radius + 0.8) * s;
@@ -655,6 +656,11 @@ function explodeAt(pos, radius = 6.5, dmg = 140, skipVehicle = null) {
     if (dd.dead) continue;
     if (dd.m.position.distanceTo(pos) < radius) damageDestructible(dd, 100);
   }
+  // v0.3.4: 爆風で近くの窓ガラスが割れる
+  for (const wp of windows) {
+    if (wp.broken) continue;
+    if (wp.m.position.distanceTo(pos) < radius + 2) breakWindow(wp);
+  }
   const camD = camera.position.distanceTo(pos);
   if (camD < 25) shake = Math.max(shake, 0.5 * (1 - camD / 25));
 }
@@ -714,7 +720,9 @@ function fireMG(v, muzzleWorld, dir, dmg, range) {
   } else if (wDist < Infinity) {
     end = hitsW[0].point;
     const dd = hitsW[0].object.userData.destructible;
+    const wp = hitsW[0].object.userData.windowPane;   // v0.3.4: 窓ガラス
     if (dd) damageDestructible(dd, dmg);
+    else if (wp) breakWindow(wp);
     else spawnParticles(end, 0xb0a890, 3, 2);
   }
   spawnTracer(muzzleWorld, end, 0xffe9a0);

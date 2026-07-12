@@ -209,22 +209,64 @@ const roadTex = makeCanvasTexture(256, (g, s) => {
   g.fillStyle = 'rgba(220,220,220,.5)';
   g.fillRect(0, 8, s, 4); g.fillRect(0, s - 12, s, 4);
 }, 1, 1);
+// v0.3.4: リアルなファサード — 高解像度化 / 雨だれ汚れ / 階の帯 /
+//         窓台・十字桟・空の映り込み / 室外機 / 1F店構え / 基礎帯
 function facadeTex(base, winLit) {
-  return makeCanvasTexture(256, (g, s) => {
+  return makeCanvasTexture(512, (g, s) => {
+    // ベース + コンクリートのむら
     g.fillStyle = base; g.fillRect(0, 0, s, s);
-    for (let i = 0; i < 250; i++) {
-      g.fillStyle = 'rgba(0,0,0,.06)';
-      g.fillRect(Math.random() * s, Math.random() * s, 3, 3);
+    for (let i = 0; i < 700; i++) {
+      g.fillStyle = `rgba(0,0,0,${(0.02 + Math.random() * 0.05).toFixed(3)})`;
+      g.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 5, 2 + Math.random() * 5);
     }
-    for (let y = 20; y < s - 30; y += 52) {
-      for (let x = 16; x < s - 30; x += 46) {
-        g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x - 2, y - 2, 32, 40);
-        g.fillStyle = Math.random() < winLit ? 'rgba(255,238,170,.75)' : 'rgba(28,40,52,.9)';
-        g.fillRect(x, y, 28, 36);
-        g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x, y, 28, 8);
+    for (let i = 0; i < 300; i++) {
+      g.fillStyle = `rgba(255,255,255,${(0.02 + Math.random() * 0.04).toFixed(3)})`;
+      g.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 4, 2 + Math.random() * 4);
+    }
+    // 縦の雨だれ汚れ
+    for (let i = 0; i < 14; i++) {
+      const x = Math.random() * s, w = 2 + Math.random() * 6, h = 40 + Math.random() * 170;
+      const y = Math.random() * s * 0.5;
+      const gr = g.createLinearGradient(0, y, 0, y + h);
+      gr.addColorStop(0, 'rgba(28,28,26,.18)'); gr.addColorStop(1, 'rgba(28,28,26,0)');
+      g.fillStyle = gr; g.fillRect(x, y, w, h);
+    }
+    // 階の帯 (フロアライン)
+    for (let y = 104; y < s - 40; y += 104) {
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, y - 3, s, 5);
+      g.fillStyle = 'rgba(255,255,255,.09)'; g.fillRect(0, y + 2, s, 2);
+    }
+    // 窓 (額縁 + グラデガラス + 十字桟 + 窓台 + 点灯ばらつき)
+    for (let y = 24; y < s - 66; y += 104) {
+      for (let x = 20; x < s - 56; x += 76) {
+        g.fillStyle = 'rgba(18,20,22,.85)'; g.fillRect(x - 4, y - 4, 52, 66);
+        const lit = Math.random() < winLit;
+        const gg = g.createLinearGradient(x, y, x + 44, y + 58);
+        if (lit) { gg.addColorStop(0, 'rgba(255,240,180,.95)'); gg.addColorStop(1, 'rgba(222,182,112,.85)'); }
+        else {
+          gg.addColorStop(0, 'rgba(58,78,98,.95)');
+          gg.addColorStop(0.5, 'rgba(128,158,184,.9)');
+          gg.addColorStop(1, 'rgba(40,55,70,.95)');
+        }
+        g.fillStyle = gg; g.fillRect(x, y, 44, 58);
+        g.fillStyle = 'rgba(22,25,28,.8)';
+        g.fillRect(x + 20, y, 4, 58); g.fillRect(x, y + 27, 44, 4);
+        g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(x, y, 44, 10);
+        // 窓台
+        g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(x - 6, y + 58, 56, 6);
+        g.fillStyle = 'rgba(210,210,205,.4)'; g.fillRect(x - 6, y + 56, 56, 3);
+        // たまに室外機
+        if (Math.random() < 0.15) {
+          g.fillStyle = 'rgba(188,193,196,.9)'; g.fillRect(x + 8, y + 40, 26, 16);
+          g.fillStyle = 'rgba(88,93,96,.9)'; g.fillRect(x + 10, y + 43, 22, 3);
+          g.fillRect(x + 10, y + 49, 22, 3);
+        }
       }
     }
-    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, s - 12, s, 12);
+    // 1F: 店構え風の暗い帯 + 基礎
+    g.fillStyle = 'rgba(18,20,25,.45)'; g.fillRect(0, s - 62, s, 62);
+    g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(0, s - 62, s, 4);
+    g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(0, s - 14, s, 14);
   }, 2, 2);
 }
 const buildingTexA = facadeTex('#8f8d84', 0.28);
