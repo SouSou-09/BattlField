@@ -349,6 +349,38 @@ function resetWindows() {
   }
 }
 
+/* ---------- v0.4.8: ロケットで開口できる壁セグメント ---------- */
+const destructibleWalls = [];
+function addBreachableWall(x, z, w, h, d, material, rotY = 0, yBase = null) {
+  const m = addBox(x, z, w, h, d, material, rotY, yBase, true);
+  const ob = obstacles[obstacles.length - 1];
+  const wall = { m, ob, hp: 95, hp0: 95, breached: false };
+  m.userData.destructibleWall = wall;
+  destructibleWalls.push(wall);
+  return m;
+}
+function breachWallV048(wall) {
+  if (!wall || wall.breached) return;
+  wall.breached = true;
+  wall.m.visible = false;
+  const oi = obstacles.indexOf(wall.ob); if (oi >= 0) obstacles.splice(oi, 1);
+  const si = solidMeshes.indexOf(wall.m); if (si >= 0) solidMeshes.splice(si, 1);
+  spawnParticles(wall.m.position.clone(), 0x8b8175, 24, 7, 2.8);
+  spawnParticles(wall.m.position.clone(), 0x4a4540, 14, 4, 2.2);
+  if (typeof addBattleScar === 'function') addBattleScar(wall.m.position, 'scorch', 2.3);
+  addFeed('壁を破壊 — 新たな侵入経路を確保', 'blue');
+}
+function resetDestructibleWallsV048() {
+  for (const wall of destructibleWalls) {
+    wall.hp = wall.hp0;
+    if (!wall.breached) continue;
+    wall.breached = false;
+    wall.m.visible = true;
+    if (!obstacles.includes(wall.ob)) obstacles.push(wall.ob);
+    if (!solidMeshes.includes(wall.m)) solidMeshes.push(wall.m);
+  }
+}
+
 /* ---------- v0.3.4: 射撃窓つき壁 (窓ガラスは撃つと割れて撃ち抜ける) ---------- */
 function buildWindowWall(cx, cz, horiz, len, h, T, gy, mat) {
   const WW = 1.7, SILL = 1.1, TOP = 2.3;
@@ -361,17 +393,17 @@ function buildWindowWall(cx, cz, horiz, len, h, T, gy, mat) {
     const a = edges[i], b = edges[i + 1];
     if (b - a <= 0.05) continue;
     const c = (a + b) / 2, sl = b - a;
-    if (horiz) addBox(cx + c, cz, sl, h, T, mat, 0, gy);
-    else addBox(cx, cz + c, T, h, sl, mat, 0, gy);
+    if (horiz) addBreachableWall(cx + c, cz, sl, h, T, mat, 0, gy);
+    else addBreachableWall(cx, cz + c, T, h, sl, mat, 0, gy);
   }
   for (const o of offs) {
     if (horiz) {
-      addBox(cx + o, cz, WW, SILL, T, mat, 0, gy);                 // 腰壁
-      addBox(cx + o, cz, WW, h - TOP, T, mat, 0, gy + TOP);        // まぐさ
+      addBreachableWall(cx + o, cz, WW, SILL, T, mat, 0, gy);                 // 腰壁
+      addBreachableWall(cx + o, cz, WW, h - TOP, T, mat, 0, gy + TOP);        // まぐさ
       addWindowPane(cx + o, gy + (SILL + TOP) / 2, cz, WW - 0.1, TOP - SILL - 0.06, true);
     } else {
-      addBox(cx, cz + o, T, SILL, WW, mat, 0, gy);
-      addBox(cx, cz + o, T, h - TOP, WW, mat, 0, gy + TOP);
+      addBreachableWall(cx, cz + o, T, SILL, WW, mat, 0, gy);
+      addBreachableWall(cx, cz + o, T, h - TOP, WW, mat, 0, gy + TOP);
       addWindowPane(cx, gy + (SILL + TOP) / 2, cz + o, WW - 0.1, TOP - SILL - 0.06, false);
     }
   }
@@ -525,20 +557,20 @@ function addEnterableBuilding(x, z, w, h, d, mat, doorDir = 0, stairs = true) {
     const len = wl.horiz ? w : d;
     if (wl.side !== doorDir) {
       if (h >= 3.2 && len >= 5.5) buildWindowWall(wl.cx, wl.cz, wl.horiz, len, h, T, gy, mat);
-      else if (wl.horiz) addBox(wl.cx, wl.cz, len, h, T, mat, 0, gy);
-      else addBox(wl.cx, wl.cz, T, h, len, mat, 0, gy);
+      else if (wl.horiz) addBreachableWall(wl.cx, wl.cz, len, h, T, mat, 0, gy);
+      else addBreachableWall(wl.cx, wl.cz, T, h, len, mat, 0, gy);
       continue;
     }
     // ドア付き壁: 左右セグメント + まぐさ
     const segLen = (len - DW) / 2;
     if (wl.horiz) {
-      addBox(wl.cx - (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
-      addBox(wl.cx + (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
-      addBox(wl.cx, wl.cz, DW, h - DH, T, mat, 0, gy + DH);   // まぐさ
+      addBreachableWall(wl.cx - (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
+      addBreachableWall(wl.cx + (DW + segLen) / 2, wl.cz, segLen, h, T, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz, DW, h - DH, T, mat, 0, gy + DH);   // まぐさ
     } else {
-      addBox(wl.cx, wl.cz - (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
-      addBox(wl.cx, wl.cz + (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
-      addBox(wl.cx, wl.cz, T, h - DH, DW, mat, 0, gy + DH);   // まぐさ
+      addBreachableWall(wl.cx, wl.cz - (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz + (DW + segLen) / 2, T, h, segLen, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz, T, h - DH, DW, mat, 0, gy + DH);   // まぐさ
     }
   }
   // v0.3.4: 内部階段 → 屋上ハッチ (十分な広さがあるとき)
@@ -602,7 +634,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 });
 // 廃墟壁
 [[-6, 20, 10, 3.5, 1, 0], [14, -12, 8, 2.8, 1, Math.PI / 2], [-16, 6, 9, 3, 1, Math.PI / 2]]
- .forEach(w => addBox(w[0], w[1], w[2], w[3], w[4], matWall, w[5]));
+ .forEach(w => addBreachableWall(w[0], w[1], w[2], w[3], w[4], matWall, w[5]));
 
 // === 拠点A: 北西の丘 (砦・監視塔) ===
 {
@@ -727,19 +759,19 @@ function addTwoStoryBuilding(x, z, w, h1, h2, d, mat, doorDir = 0) {
     const len = wl.horiz ? w : d;
     if (wl.side !== doorDir) {
       if (len >= 5.5) buildWindowWall(wl.cx, wl.cz, wl.horiz, len, h1, T, gy, mat);
-      else if (wl.horiz) addBox(wl.cx, wl.cz, len, h1, T, mat, 0, gy);
-      else addBox(wl.cx, wl.cz, T, h1, len, mat, 0, gy);
+      else if (wl.horiz) addBreachableWall(wl.cx, wl.cz, len, h1, T, mat, 0, gy);
+      else addBreachableWall(wl.cx, wl.cz, T, h1, len, mat, 0, gy);
       continue;
     }
     const segLen = (len - DW) / 2;
     if (wl.horiz) {
-      addBox(wl.cx - (DW + segLen) / 2, wl.cz, segLen, h1, T, mat, 0, gy);
-      addBox(wl.cx + (DW + segLen) / 2, wl.cz, segLen, h1, T, mat, 0, gy);
-      addBox(wl.cx, wl.cz, DW, h1 - DH, T, mat, 0, gy + DH);
+      addBreachableWall(wl.cx - (DW + segLen) / 2, wl.cz, segLen, h1, T, mat, 0, gy);
+      addBreachableWall(wl.cx + (DW + segLen) / 2, wl.cz, segLen, h1, T, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz, DW, h1 - DH, T, mat, 0, gy + DH);
     } else {
-      addBox(wl.cx, wl.cz - (DW + segLen) / 2, T, h1, segLen, mat, 0, gy);
-      addBox(wl.cx, wl.cz + (DW + segLen) / 2, T, h1, segLen, mat, 0, gy);
-      addBox(wl.cx, wl.cz, T, h1 - DH, DW, mat, 0, gy + DH);
+      addBreachableWall(wl.cx, wl.cz - (DW + segLen) / 2, T, h1, segLen, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz + (DW + segLen) / 2, T, h1, segLen, mat, 0, gy);
+      addBreachableWall(wl.cx, wl.cz, T, h1 - DH, DW, mat, 0, gy + DH);
     }
   }
   // 内部階段 1F→2F (西壁沿い) + 2F床 (階段上に開口)
@@ -750,8 +782,8 @@ function addTwoStoryBuilding(x, z, w, h1, h2, d, mat, doorDir = 0) {
   for (const wl of walls) {
     const len = wl.horiz ? w : d;
     if (len >= 5.5) buildWindowWall(wl.cx, wl.cz, wl.horiz, len, h2, T, f2, mat);
-    else if (wl.horiz) addBox(wl.cx, wl.cz, len, h2, T, mat, 0, f2);
-    else addBox(wl.cx, wl.cz, T, h2, len, mat, 0, f2);
+    else if (wl.horiz) addBreachableWall(wl.cx, wl.cz, len, h2, T, mat, 0, f2);
+    else addBreachableWall(wl.cx, wl.cz, T, h2, len, mat, 0, f2);
   }
   // 内部階段 2F→屋上 (東壁沿い / 1Fと反対側で干渉回避) + 屋根ハッチ
   const hatch2 = addInteriorStairs(x, z, w, d, h2, T, f2, 1, -1);

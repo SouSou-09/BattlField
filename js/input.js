@@ -197,6 +197,7 @@ if (isMobile) {
   }
   bindBtn('btn-knife', () => knifeAttack());
   bindBtn('btn-nade', () => throwGrenade());        // v0.2.2
+  bindBtn('btn-smoke-v047', () => throwSmokeGrenadeV047());
   bindBtn('btn-weapon', () => cycleWeapon());       // v0.2.2: 次の武器に切替
   bindBtn('btn-vehicle', () => toggleVehicle());
   // v0.3: 新ボタン

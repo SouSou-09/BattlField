@@ -34,6 +34,8 @@ function groundHeightAt(x, z, r, yRef) {
 }
 const raycaster = new THREE.Raycaster();
 function hasLineOfSight(from, to) {
+  // v0.4.7: smoke volumes are first-class LOS blockers for player and AI
+  if (typeof smokeBlocks === 'function' && smokeBlocks(from, to)) return false;
   const dir = to.clone().sub(from);
   const dist = dir.length();
   raycaster.set(from, dir.normalize());
@@ -95,6 +97,7 @@ function updateBullets(dt) {
     const segLen = _bPrev.distanceTo(b.pos);
     b.travel += segLen;
     _bDir.copy(b.pos).sub(_bPrev).normalize();
+    suppressAlongBulletV047(_bPrev, b.pos);   // v0.4.7: near-miss suppression
     bulletRay.set(_bPrev, _bDir);
     bulletRay.far = segLen;
     const hitsE = bulletRay.intersectObjects(soldierHitMeshes, false)
@@ -115,9 +118,11 @@ function updateBullets(dt) {
       const dd = h.object.userData.destructible;
       const wp = h.object.userData.windowPane;
       const bridge = h.object.userData.bridge;
+      const vehiclePart = h.object.userData.vehiclePart;
       if (dd) damageDestructible(dd, b.dmg * 1.5);
       else if (wp) breakWindow(wp);
       else if (bridge) damageBridge(bridge, b.dmg);
+      else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, b.dmg, h.point);
       else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }
       done = true;
       spawnTracer(_bPrev, h.point);
@@ -619,6 +624,7 @@ function respawnPlayer(sp = null) {
   player.hp = player.maxHp; player.alive = true;
   player.lastDamageTime = -99;
   player.onGround = true;
+  onRespawnV047();
   releaseChute();                                  // v0.3.1
   // v0.2.2: リスポーン時はフル装備で復帰
   if (typeof applyClassLoadout === 'function') applyClassLoadout();
