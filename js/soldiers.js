@@ -288,6 +288,7 @@ function updateSoldiers(dt) {
       continue;
     }
     const sp = s.obj.position;
+    updateSoldierSuppressionV047(s, dt);   // v0.4.7: flinch and recovery
 
     // ---- チームマーカー更新 (v0.2.1) ----
     // 敵は「プレイヤーから視線が通り70m以内」のときのみ表示 (0.3秒間隔で判定)
@@ -498,6 +499,7 @@ function updateSoldiers(dt) {
 
     // ---- 射撃 ----
     s.shootCd -= dt;
+    trySuppressionFireV047(s, tgt, tPos, tDist, dt);
     if (tgt && s.hasLos && tDist < 65) s.aimT += dt; else s.aimT = 0;
     if (s.shootCd <= 0 && s.aimT > 0.35 && tgt && tDist < 65) {
       s.shootCd = 1.0 + Math.random() * 1.5;
@@ -539,12 +541,13 @@ function updateSoldiers(dt) {
         // v0.4.1: スモーク越しは大幅に当たらない
         const smokePen = smokeBlocks(eye, tPos) ? 0.3 : 0;
         const concealPen = typeof playerConcealment === 'function' ? playerConcealment() : 0;
-        const hitChance = Math.max(0.02, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen - concealPen);
+        const hitChance = Math.max(0.02, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen - concealPen - suppressionAimPenaltyV047(s));
         const hit = Math.random() < hitChance;
         const target = player.pos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
         spawnTracer(eye, target, tracerColor);
         if (hit) damagePlayer(6 + Math.random() * 8 | 0, eye);
+        else if (target.distanceTo(player.pos) < 3.2) suppressPlayerV047(.18, eye);
       } else if (tgt.kind === 'soldier') {
         const hit = Math.random() < Math.max(0.08, 0.42 - tDist * 0.005);
         const target = tPos.clone();
