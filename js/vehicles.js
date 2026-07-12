@@ -406,6 +406,7 @@ function spawnVehicles() {
 /* ---------- v0.3: ダメージ / 部位破損 / 炎上 ---------- */
 function damageVehicle(v, dmg, cause = '', hitPos = null) {
   if (!v.alive) return;
+  if (v.type === 'apc') dmg *= cause === 'smallarms' ? .25 : cause === 'explosion' ? .72 : .88;
   v.hp -= dmg;
   if (typeof damageVehiclePartsV048 === 'function') damageVehiclePartsV048(v, dmg, cause, hitPos);
   if (typeof damageVehicleSystemsV054 === 'function') {
@@ -498,6 +499,7 @@ function seatWeaponName(v, role) {
   if (role === 'driver') return v.type === 'heli' ? '機首機銃+ロケット' : '— (運転)';
   if (typeof passengerCanFireV055 === 'function' && passengerCanFireV055(v, role)) return weaponDef().name;
   if (v.type === 'tank') return '125mm 主砲';
+  if (v.type === 'apc') return '30mm 機関砲';
   if (v.type === 'aa') return '23mm 連装機関砲';
   return 'M2 重機関銃';
 }
@@ -1106,8 +1108,8 @@ function updateVehicle(dt) {
     v.turret.rotation.y = aimYaw - v.yaw;
   }
 
-  // v0.4.1: バイク後席 — 自分の武器で射撃可能
-  if (v.type === 'bike' && role === 'passenger') {
+  // v0.5.5: 開放座席の同乗者は個人武器で射撃可能
+  if (typeof passengerCanFireV055 === 'function' && passengerCanFireV055(v, role)) {
     weapon.cooldown -= dt;
     weapon.burstResetT -= dt;
     if (weapon.burstResetT <= 0 && weapon.burst > 0) weapon.burst = 0;

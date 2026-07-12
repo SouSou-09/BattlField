@@ -320,7 +320,7 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     g.fillStyle = '#5aff9c';
     g.fillRect(px - 3.5, py - 3.5, 7, 7);
     g.fillStyle = '#06131f';
-    g.fillText(v.type === 'heli' ? 'H' : v.type === 'boat' ? 'B' : v.type === 'tank' ? 'T' : v.type === 'aa' ? 'A' : v.type === 'mg' ? 'M' : 'J', px - 2.5, py + 3);
+    g.fillText(v.type === 'heli' ? 'H' : v.type === 'boat' ? 'B' : v.type === 'tank' ? 'T' : v.type === 'apc' ? 'P' : v.type === 'transport' ? 'R' : v.type === 'aa' ? 'A' : v.type === 'mg' ? 'M' : 'J', px - 2.5, py + 3);
   }
   // v0.3: ドローン
   if (drone.active) {
