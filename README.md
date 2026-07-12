@@ -1,5 +1,11 @@
 # STEEL FRONT — 更新履歴
 
+## v0.6.5(2026-07-12)
+- 車両・武器・建物のマテリアルをMeshLambertMaterialからMeshStandardMaterialへ実行時アップグレードし、金属部(車両フレーム・ハブ・武器バレル等)はmetalness高・roughness低で反射表現、非金属部(車体塗装・タイヤ・建物壁等)はmetalness0・roughness中高でマット質感と質感分離を実現
+- 手続き生成のequirectグラデ環境マップをPMREMGeneratorで変換してscene.environmentへ設定し、MeshStandardMaterialのenvMapで金属面に空の映り込み反射を表現、昼夜(dayF)に応じて環境マップ強度を0.5秒間隔で自動調整
+- 建物外壁に汚れ垂れ流し/亀裂+錆/水垢染みの3種の経年劣化テクスチャを生成し、建物メッシュの位置ハッシュに基づくランダム割当で外壁のroughness・色味にバリエーションを付与
+- コンクリート/波形金属/瓦/シングルの4種の屋根材テクスチャを生成し、屋根メッシュの位置ハッシュで材質を振り分け(金属屋根は反射表現、瓦屋根は粗面質感)
+
 ## v0.6.4(2026-07-12)
 - 木の幹に縦縞模様の樹皮テクスチャ(CanvasTexture)を生成してmatTrunkへ適用し、横断亀裂・苔ノイズで質感を強化
 - 葉マテリアルを半透明化(transparent+opacity+alphaTest)して光の抜け感を表現し、2色の葉を樹種別バリエーションで配置
