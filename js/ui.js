@@ -46,8 +46,8 @@ function updateHpUI() {
   ui.hpText.textContent = 'HP ' + Math.ceil(player.hp);
 }
 function updateAmmoUI() {
-  // v0.4.1: バイク後席は自分の武器を使うため表示を更新
-  if (curVehicle && !(curVehicle.type === 'bike' && curVehicle.seats[curSeat].role === 'passenger')) return;
+  // v0.5.5: 開放座席の同乗者は自分の武器を使う
+  if (curVehicle && !(typeof passengerCanFireV055 === 'function' && passengerCanFireV055(curVehicle, curVehicle.seats[curSeat].role))) return;
   ui.ammoMag.textContent = weapon.mag;
   ui.ammoMag.style.color = weapon.mag <= Math.max(3, weapon.magSize * 0.18) ? '#ff6b5e' : '#fff';
   ui.ammoReserve.textContent = ' / ' + weapon.reserve;
@@ -131,7 +131,7 @@ const helpWrap = document.getElementById('help-wrap');
 {
   const PC_HELP = [
     ['移動', [['W A S D', '移動'], ['Shift', 'ダッシュ(スタミナ消費)'], ['Space', 'ジャンプ / 空中でパラシュート開閉'], ['C', 'しゃがみ(ダッシュ中=スライディング)'], ['Z', '伏せ'], ['はしご', 'W/Sで昇降'], ['マウス', '視点']]],
-    ['戦闘', [['左クリック', '射撃'], ['右クリック', 'エイム(ADS)'], ['R', 'リロード'], ['G', 'グレネード'], ['N', 'スモークグレネード'], ['V', 'ナイフ(背後は一撃)'], ['1〜4', '武器切替(0.5秒の隙)']]],
+    ['戦闘', [['左クリック', '射撃'], ['右クリック', 'エイム(ADS)'], ['R', 'リロード'], ['G', 'グレネード'], ['N', 'スモークグレネード'], ['V', 'ナイフ(背後は一撃)'], ['J', 'RPG'], ['Y / U', 'クレイモア設置 / 起爆'], ['K', '双眼鏡'], ['Q短押し', '偵察タグ'], ['1〜4', '武器切替(0.5秒の隙)']]],
     ['乗り物', [['E', '乗る / 降りる'], ['X', '座席切替'], ['W/S', '前進 / 後退'], ['A/D', '旋回'], ['Space/C', 'ヘリ上昇 / 下降'], ['Q', 'ヘリロケット'], ['H', 'クラクション(車内)'], ['F 長押し', '車両修理']]],
     ['その他', [['T', '偵察ドローン'], ['M', '全体マップ'], ['Tab', 'スコアボード'], ['H', 'このヘルプ'], ['Esc', '閉じる']]]
   ];
@@ -320,7 +320,7 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     g.fillStyle = '#5aff9c';
     g.fillRect(px - 3.5, py - 3.5, 7, 7);
     g.fillStyle = '#06131f';
-    g.fillText(v.type === 'heli' ? 'H' : v.type === 'boat' ? 'B' : v.type === 'tank' ? 'T' : v.type === 'aa' ? 'A' : v.type === 'mg' ? 'M' : 'J', px - 2.5, py + 3);
+    g.fillText(v.type === 'heli' ? 'H' : v.type === 'boat' ? 'B' : v.type === 'tank' ? 'T' : v.type === 'apc' ? 'P' : v.type === 'transport' ? 'R' : v.type === 'aa' ? 'A' : v.type === 'mg' ? 'M' : 'J', px - 2.5, py + 3);
   }
   // v0.3: ドローン
   if (drone.active) {

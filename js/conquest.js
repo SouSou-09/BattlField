@@ -26,7 +26,8 @@ function updateFlags(dt) {
     if (net !== 0 && (blue > 0) !== (red > 0) || (blue > 0 && red > 0)) hot = blue > 0 || red > 0;
     if (net > 0 && f.own !== 1) {
       // 青が占領を進める (中立化 → 占領)
-      f.cap += dt * Math.min(net, 3) / CAP_TIME;
+      const rate = typeof captureRateV058 === 'function' ? captureRateV058(f, blue, red, 1) : Math.min(net, 3);
+      f.cap += dt * rate / CAP_TIME;
       hot = true;
       if (f.cap >= 1) {
         f.cap = 0;
@@ -42,7 +43,8 @@ function updateFlags(dt) {
         updateFlagVisual(f);
       }
     } else if (net < 0 && f.own !== -1) {
-      f.cap += dt * Math.min(-net, 3) / CAP_TIME;
+      const rate = typeof captureRateV058 === 'function' ? captureRateV058(f, blue, red, -1) : Math.min(-net, 3);
+      f.cap += dt * rate / CAP_TIME;
       hot = true;
       if (f.cap >= 1) {
         f.cap = 0;
