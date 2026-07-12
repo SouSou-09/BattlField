@@ -787,10 +787,12 @@ function fireMG(v, muzzleWorld, dir, dmg, range) {
     const wp = hitsW[0].object.userData.windowPane;   // v0.3.4: 窓ガラス
     const vehiclePart = hitsW[0].object.userData.vehiclePart;   // v0.4.8
     const vehicleSystem = hitsW[0].object.userData.vehicleSystemV054;
+    const strategicV057 = hitsW[0].object.userData.strategicV057;
     if (dd) damageDestructible(dd, dmg);
     else if (wp) breakWindow(wp);
     else if (vehicleSystem) damageVehicleSystemDirectV054(vehicleSystem, dmg, end);
     else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, dmg, end);
+    else if (strategicV057) damageStrategicV057(strategicV057, dmg);
     else spawnParticles(end, 0xb0a890, 3, 2);
   }
   spawnTracer(muzzleWorld, end, 0xffe9a0);
