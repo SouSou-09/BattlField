@@ -9,6 +9,8 @@ function resetGame() {
   clearEffects();
   for (const s of shells) { s.ttl = 0; s.m.visible = false; }
   for (const b of bulletPool) { b.active = false; b.m.visible = false; }   // v0.4.0
+  for (const g of aiNadePool) { g.active = false; g.m.visible = false; }   // v0.4.1
+  for (const s of smokes) { s.ttl = 0; s.grp.visible = false; }            // v0.4.1
   if (curVehicle) { curVehicle = null; curSeat = 0; gunGroup.visible = true; stopEngine(); }
   ui.vehicleBox.style.display = 'none';
   if (drone.active) endDrone(false);               // v0.3
@@ -52,6 +54,7 @@ function resetGame() {
     const a = (i / 10) * Math.PI * 2;
     createSoldier(-1, HQ_RED.x + Math.cos(a) * (6 + Math.random() * 8), HQ_RED.z + Math.sin(a) * (6 + Math.random() * 8));
   }
+  assignSquads();   // v0.4.1: 4人1組の分隊を編成
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -127,6 +130,8 @@ function loop(now) {
     updateDamageArcs(dt);
     updateBullets(dt);          // v0.4.0: 発射体式の弾丸
     updateKnife(dt);            // v0.4.0: ナイフ
+    updateAiGrenades(dt);       // v0.4.1: AIグレネード
+    updateSmokes(dt);           // v0.4.1: スモーク
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3

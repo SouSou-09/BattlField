@@ -102,6 +102,43 @@ function createJeep(x, z, rotY = 0) {
   return v;
 }
 
+/* ---------- v0.4.1: バイク — 高速・無防備・2人乗り(後席射撃可) ---------- */
+function createBike(x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 1.7), matVDark); frame.position.y = 0.75;
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 0.6), matVBody); tank.position.set(0, 0.95, -0.25);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.12, 0.9), matVDark); seat.position.set(0, 0.98, 0.45);
+  const bars = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.06, 0.06), matVDark); bars.position.set(0, 1.18, -0.72);
+  const fork = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.62, 0.1), matHub); fork.position.set(0, 0.72, -0.82); fork.rotation.x = 0.3;
+  const exhaustB = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.9, 6), matRust);
+  exhaustB.rotation.x = Math.PI / 2; exhaustB.position.set(0.2, 0.55, 0.5);
+  const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 8), matLight);
+  hl.rotation.x = Math.PI / 2; hl.position.set(0, 1.05, -0.95);
+  g.add(frame, tank, seat, bars, fork, exhaustB, hl);
+  const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.12, 12);
+  const wheels = [];
+  [[0, -0.85], [0, 0.85]].forEach(o => {
+    const w = new THREE.Mesh(wheelGeo, matTire);
+    w.rotation.z = Math.PI / 2;
+    w.position.set(o[0], 0.36, o[1]);
+    g.add(w); wheels.push(w);
+  });
+  g.traverse(m => { if (m.isMesh) m.castShadow = !isMobile; });
+  g.position.set(x, terrainH(x, z), z);
+  g.rotation.y = rotY;
+  scene.add(g);
+  const v = baseVehicleState({
+    type: 'bike', name: 'KLR バイク', obj: g, turret: null, muzzle: null, wheels,
+    yaw: rotY, hp: 120, maxHp: 120,
+    radius: 1.0, maxSpeed: 26, accel: 15, turnRate: 2.6,
+    fireInterval: 0, camDist: 6.5, camH: 2.2, dmg: 0, gunRange: 0,
+    lean: 0,
+    seats: [mkSeat('driver', 0, 1.5, -0.1), mkSeat('passenger', 0, 1.5, 0.7)]
+  });
+  vehicles.push(v);
+  return v;
+}
+
 function createTank(x, z, rotY = 0) {
   const g = new THREE.Group();
   const hull = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.9, 5.2), matTank); hull.position.y = 1.05;
@@ -335,6 +372,11 @@ function spawnVehicles() {
   createJeep(-104, -56, 0);
   createJeep(-200, 138, Math.PI / 2);   // 拠点B
   createTank(210, -172, Math.PI);       // 拠点D
+  // v0.4.1: バイク — 旗の裏取り用に各拠点へ分散配置
+  createBike(HQ_BLUE.x + 6, HQ_BLUE.z - 20, -Math.PI / 4);
+  createBike(HQ_RED.x - 6, HQ_RED.z + 20, Math.PI * 0.75);
+  createBike(-6, 26, Math.PI / 2);       // 拠点C
+  createBike(-192, 160, 0);              // 拠点B
   // 拠点E ヘリパッド
   createHeli(262, 264, Math.PI);
   // 湖のボート (岸辺)
@@ -447,6 +489,7 @@ function enterVehicle(v) {
 }
 function seatWeaponName(v, role) {
   if (role === 'driver') return v.type === 'heli' ? '機首機銃+ロケット' : '— (運転)';
+  if (role === 'passenger' && v.type === 'bike') return weaponDef().name;   // v0.4.1: バイク後席=自分の武器
   if (v.type === 'tank') return '125mm 主砲';
   if (v.type === 'aa') return '23mm 連装機関砲';
   return 'M2 重機関銃';
@@ -457,6 +500,8 @@ function updateSeatUI() {
   const st = v.seats[curSeat];
   ui.vehicleName.textContent = v.name + ' [' + (st.role === 'driver' ? '運転' : st.role === 'gunner' ? '砲手' : '同乗') + ']';
   ui.weaponName.textContent = seatWeaponName(v, st.role);
+  // v0.4.1: バイク後席は自分の武器の弾数を表示
+  if (v.type === 'bike' && st.role === 'passenger') { updateAmmoUI(); return; }
   ui.ammoMag.textContent = v.type === 'heli' && st.role === 'driver' ? '🚀' + v.rockets : '∞';
   ui.ammoMag.style.color = '#fff';
   ui.ammoReserve.textContent = '';
@@ -904,14 +949,28 @@ function updateVehicle(dt) {
     if (Math.abs(v.speed) < 0.15) v.speed = 0;
   }
   if (v.type !== 'boat') {
-    // 坂の影響: 上りで減速
+    // v0.4.1: 坂の影響強化 — 上りで減速 + 急斜面では横方向に滑る
     const aheadH = terrainH(v.obj.position.x - Math.sin(v.yaw) * 3, v.obj.position.z - Math.cos(v.yaw) * 3);
     const slope = (aheadH - terrainH(v.obj.position.x, v.obj.position.z)) / 3;
     v.speed -= slope * Math.sign(v.speed) * (v.type === 'tank' ? 2.5 : 5) * dt * Math.abs(v.speed) * 0.4;
+    if (v.type !== 'tank') {
+      const sx0 = Math.cos(v.yaw), sz0 = -Math.sin(v.yaw);
+      const hL2 = terrainH(v.obj.position.x - sx0 * 2, v.obj.position.z - sz0 * 2);
+      const hR2 = terrainH(v.obj.position.x + sx0 * 2, v.obj.position.z + sz0 * 2);
+      const sideSlope = (hL2 - hR2) / 4;
+      if (Math.abs(sideSlope) > 0.3) {
+        v.obj.position.x += sx0 * sideSlope * 5 * dt;
+        v.obj.position.z += sz0 * sideSlope * 5 * dt;
+      }
+    }
   }
   v.speed = Math.max(-effMax * 0.45, Math.min(effMax, v.speed));
   if (Math.abs(v.speed) > 0.3) {
     v.yaw -= steer * v.turnRate * dt * Math.sign(v.speed) * Math.min(1, Math.abs(v.speed) / 4);
+  }
+  // v0.4.1: バイクのリーン (旋回方向へ車体を傾ける)
+  if (v.type === 'bike') {
+    v.lean = THREE.MathUtils.lerp(v.lean || 0, -steer * 0.35 * Math.min(1, Math.abs(v.speed) / 8), Math.min(1, dt * 6));
   }
   const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
   const nx = v.obj.position.x + fx * v.speed * dt;
@@ -930,7 +989,11 @@ function updateVehicle(dt) {
     if (Math.abs(v.speed) > 6) {
       spawnParticles(v.obj.position.clone().setY(v.obj.position.y + 1), 0x999999, 5, 3);
       playBeep(90, 0.15, 0.15, 'sawtooth');
-      damageVehicle(v, Math.abs(v.speed) * 1.2, 'crash');
+      damageVehicle(v, Math.abs(v.speed) * (v.type === 'bike' ? 2.5 : 1.2), 'crash');
+      // v0.4.1: 衝突慣性 — カメラ揺れ + 車体の前のめり / バイクはライダーも負傷
+      shake = Math.max(shake, Math.min(0.5, Math.abs(v.speed) * 0.03));
+      v.obj.rotation.x -= Math.sign(v.speed) * 0.06;
+      if (v.type === 'bike' && Math.abs(v.speed) > 12) damagePlayer(Math.round(Math.abs(v.speed) * 1.2));
     }
     v.speed *= -0.25;
   }
@@ -947,16 +1010,22 @@ function updateVehicle(dt) {
       spawnParticles(v.obj.position.clone().setY(WATER_Y + 0.2).addScaledVector(new THREE.Vector3(fx, 0, fz), -2.5), 0xbfe3ef, 2, 2, 0.8);
     }
   } else {
+    // v0.4.1: サスペンション表現 — 目標姿勢へバネ補間 + 速度に応じた微振動
     v.obj.position.y = terrainH(px, pz);
     const hF = terrainH(px + fx * 2, pz + fz * 2);
     const hB = terrainH(px - fx * 2, pz - fz * 2);
     const sx = Math.cos(v.yaw), sz = -Math.sin(v.yaw);
     const hL = terrainH(px - sx * 1.5, pz - sz * 1.5);
     const hR = terrainH(px + sx * 1.5, pz + sz * 1.5);
+    const targetPitch = Math.atan2(hB - hF, 4) * 0.7 - v.speed * (v.type === 'bike' ? 0.004 : 0.0015);
+    const targetRoll = Math.atan2(hL - hR, 3) * 0.7 + (v.type === 'bike' ? v.lean || 0 : 0);
     v.obj.rotation.order = 'YXZ';
     v.obj.rotation.y = v.yaw;
-    v.obj.rotation.x = Math.atan2(hB - hF, 4) * 0.7;
-    v.obj.rotation.z = Math.atan2(hL - hR, 3) * 0.7;
+    v.obj.rotation.x = THREE.MathUtils.lerp(v.obj.rotation.x, targetPitch, Math.min(1, dt * 5));
+    v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, targetRoll, Math.min(1, dt * 5));
+    if (Math.abs(v.speed) > 8) {
+      v.obj.position.y += Math.sin(elapsed * 22) * 0.015 * Math.min(1, Math.abs(v.speed) / 15);
+    }
   }
   for (const w of v.wheels) w.rotation.x += v.speed * dt * 2.2;
   // v0.3: 轢き (ロードキル) 強化
@@ -1002,6 +1071,17 @@ function updateVehicle(dt) {
   if (v.turret && (role === 'gunner' || role === 'driver')) {
     const aimYaw = Math.atan2(-camDir.x, -camDir.z);
     v.turret.rotation.y = aimYaw - v.yaw;
+  }
+
+  // v0.4.1: バイク後席 — 自分の武器で射撃可能
+  if (v.type === 'bike' && role === 'passenger') {
+    weapon.cooldown -= dt;
+    weapon.burstResetT -= dt;
+    if (weapon.burstResetT <= 0 && weapon.burst > 0) weapon.burst = 0;
+    if (weapon.switchT > 0) weapon.switchT = Math.max(0, weapon.switchT - dt);
+    if (firing) playerShoot();
+    muzzleFlash.material.opacity = Math.max(0, muzzleFlash.material.opacity - dt * 18);
+    muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 25);
   }
 
   v.cd -= dt;

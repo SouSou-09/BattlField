@@ -46,7 +46,8 @@ function updateHpUI() {
   ui.hpText.textContent = 'HP ' + Math.ceil(player.hp);
 }
 function updateAmmoUI() {
-  if (curVehicle) return;
+  // v0.4.1: バイク後席は自分の武器を使うため表示を更新
+  if (curVehicle && !(curVehicle.type === 'bike' && curVehicle.seats[curSeat].role === 'passenger')) return;
   ui.ammoMag.textContent = weapon.mag;
   ui.ammoMag.style.color = weapon.mag <= Math.max(3, weapon.magSize * 0.18) ? '#ff6b5e' : '#fff';
   ui.ammoReserve.textContent = ' / ' + weapon.reserve;

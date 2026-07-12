@@ -128,6 +128,7 @@ function createSoldier(team, x, z) {
     respawnT: 0, marker, markerT: Math.random() * 0.3, seenByPlayer: false,
     inVehicle: null, seatIdx: 0, gunCd: 0, spotted: 0,   // v0.3
     vy: 0, onGround: true, jumpCd: 0,                    // v0.3.1: ジャンプ
+    squad: null, nadeCd: 6 + Math.random() * 10, smokeCd: 0,   // v0.4.1: 分隊 / グレネード
     // v0.2.3: スコアボード用戦績
     name: (team === 1 ? 'BLU-' : 'RED-') + SOLDIER_NAMES[soldierNameIdx++ % SOLDIER_NAMES.length],
     kills: 0, deaths: 0, score: 0
@@ -136,6 +137,32 @@ function createSoldier(team, x, z) {
   scene.add(g);
   soldiers.push(s);
   return s;
+}
+
+/* =========================================================
+   v0.4.1: 分隊システム — 4人1組で移動・制圧・旗防衛
+   隊長が目標拠点を選び、隊員は隊長に追従する
+   ========================================================= */
+const allSquads = [];
+function assignSquads() {
+  allSquads.length = 0;
+  for (const team of [1, -1]) {
+    const members = soldiers.filter(s => s.team === team);
+    for (let i = 0; i < members.length; i += 4) {
+      const sq = { members: members.slice(i, i + 4), leader: null };
+      for (let k = 0; k < sq.members.length; k++) {
+        sq.members[k].squad = sq;
+        sq.members[k].squadSlot = k;   // 隊内の位置 (フォーメーションオフセット)
+      }
+      allSquads.push(sq);
+    }
+  }
+}
+function squadLeader(sq) {
+  if (!sq) return null;
+  if (sq.leader && sq.leader.alive && !sq.leader.inVehicle) return sq.leader;
+  sq.leader = sq.members.find(m => m.alive && !m.inVehicle) || null;
+  return sq.leader;
 }
 
 // AI: 目標拠点を選ぶ (v0.2.1: 防衛判断を追加)
@@ -295,8 +322,14 @@ function updateSoldiers(dt) {
       if (defend) {
         s.targetFlag = defend;
         s.thinkT = 1.2;   // 防衛中は判断を高頻度に
-      } else if (!s.targetFlag || (s.targetFlag.own === s.team && Math.random() < 0.6)) {
-        s.targetFlag = pickFlagFor(s);
+      } else {
+        // v0.4.1: 分隊行動 — 隊員は隊長の目標に追従、隊長は自分で選ぶ
+        const ldr = squadLeader(s.squad);
+        if (ldr && ldr !== s && ldr.targetFlag) {
+          s.targetFlag = ldr.targetFlag;
+        } else if (!s.targetFlag || (s.targetFlag.own === s.team && Math.random() < 0.6)) {
+          s.targetFlag = pickFlagFor(s);
+        }
       }
     }
 
@@ -316,7 +349,7 @@ function updateSoldiers(dt) {
       s.losT = 0.25 + Math.random() * 0.15;
       if (tPos && tDist < 80) {
         const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
-        s.hasLos = hasLineOfSight(eye, tPos);
+        s.hasLos = hasLineOfSight(eye, tPos) && !smokeBlocks(eye, tPos);   // v0.4.1: スモークで視線切り
       } else s.hasLos = false;
     }
 
@@ -335,7 +368,22 @@ function updateSoldiers(dt) {
         const ip = targetPosOf(intruder);
         destX = ip.x; destZ = ip.z; wantDist = 6;
       } else {
-        destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+        // v0.4.1: 分隊フォーメーション — 隊長から離れすぎた隊員は隊長のもとへ合流
+        const ldr = squadLeader(s.squad);
+        if (ldr && ldr !== s && fd > FLAG_R + 8) {
+          const ld = Math.hypot(ldr.obj.position.x - sp.x, ldr.obj.position.z - sp.z);
+          if (ld > 16) {
+            // 隊長の周囲にスロットごとのオフセットで付いていく
+            const a = s.squadSlot * 2.1;
+            destX = ldr.obj.position.x + Math.cos(a) * 4;
+            destZ = ldr.obj.position.z + Math.sin(a) * 4;
+            wantDist = 2;
+          } else {
+            destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+          }
+        } else {
+          destX = s.targetFlag.x; destZ = s.targetFlag.z; wantDist = FLAG_R * 0.5;
+        }
       }
     } else { destX = sp.x; destZ = sp.z; }
 
@@ -430,6 +478,24 @@ function updateSoldiers(dt) {
       s.legR.rotation.x = -Math.sin(s.walkPhase) * 0.7;
     } else { s.legL.rotation.x = s.legR.rotation.x = 0; }
 
+    // ---- v0.4.1: グレネード / スモーク使用 ----
+    s.nadeCd -= dt;
+    s.smokeCd -= dt;
+    if (s.nadeCd <= 0 && tgt && tDist > 7 && tDist < 26) {
+      // 籠城相手(視線なしで位置は把握) or 交戦中の相手に山なり投擲
+      if (!s.hasLos || Math.random() < 0.4) {
+        s.nadeCd = 10 + Math.random() * 10;
+        aiThrowGrenade(s, tPos);
+      } else {
+        s.nadeCd = 3;
+      }
+    }
+    // スモーク: 低HPで撤退中に自分の位置へ展開 (隠れ蔑として離脱)
+    if (s.smokeCd <= 0 && retreating) {
+      s.smokeCd = 30;
+      spawnSmokeAt(new THREE.Vector3(sp.x, sp.y + 0.5, sp.z));
+    }
+
     // ---- 射撃 ----
     s.shootCd -= dt;
     if (tgt && s.hasLos && tDist < 65) s.aimT += dt; else s.aimT = 0;
@@ -437,7 +503,21 @@ function updateSoldiers(dt) {
       s.shootCd = 1.0 + Math.random() * 1.5;
       const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
       // v0.3.3: 発砲直前に視線を再チェック — 壁越しの命中 (弾の壁貫通) を防ぐ
-      if (!hasLineOfSight(eye, tPos)) { s.hasLos = false; s.aimT = 0; continue; }
+      if (!hasLineOfSight(eye, tPos)) {
+        // v0.4.1: 遮蔽が窓ガラスなら撃ち抜く — 建物籠城への対抗手段
+        const dir = tPos.clone().sub(eye);
+        const dist2 = dir.length();
+        raycaster.set(eye, dir.normalize());
+        raycaster.far = dist2;
+        const hits = raycaster.intersectObjects(solidMeshes, false);
+        const wpHit = hits.length && hits[0].object.userData.windowPane && !hits[0].object.userData.windowPane.broken;
+        if (wpHit && tDist < 40) {
+          sfx.distShoot(camera.position.distanceTo(eye));
+          spawnTracer(eye, hits[0].point, s.team === 1 ? 0x8ecbff : 0xff8866);
+          breakWindow(hits[0].object.userData.windowPane);
+        }
+        s.hasLos = false; s.aimT = 0.3; continue;   // 次フレームで本命を狙う
+      }
       sfx.distShoot(camera.position.distanceTo(eye));
       const tracerColor = s.team === 1 ? 0x8ecbff : 0xff8866;
       if (tgt.kind === 'vehicle' && curVehicle) {
@@ -456,7 +536,9 @@ function updateSoldiers(dt) {
         const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
         // v0.4.0: しゃがみ/伏せで被弾判定を縮小 (当てられにくい)
         const stancePen = player.stance === 2 ? 0.22 : player.stance === 1 ? 0.12 : 0;
-        const hitChance = Math.max(0.05, 0.5 - tDist * 0.007 - playerMoving - stancePen);
+        // v0.4.1: スモーク越しは大幅に当たらない
+        const smokePen = smokeBlocks(eye, tPos) ? 0.3 : 0;
+        const hitChance = Math.max(0.03, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen);
         const hit = Math.random() < hitChance;
         const target = player.pos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
