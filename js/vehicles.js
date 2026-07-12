@@ -1310,17 +1310,21 @@ function updateAIGunner(v, s, dt) {
   s.gunCd = (s.gunCd || 0) - dt;
   if (s.gunCd > 0) return;
   s.gunCd = v.type === 'tank' ? 3.0 : 0.5 + Math.random() * 0.4;
-  // 最寄りの敵を探す
+  // v0.5.3: 搭乗AIの陣営に応じて最寄りの敵兵/プレイヤーを探す
   const muzzleWorld = new THREE.Vector3();
   v.muzzle.getWorldPosition(muzzleWorld);
-  let best = null, bd = v.type === 'tank' ? 75 : 60;
-  for (const o of soldiers) {
-    if (!o.alive || o.team !== -1 || o.inVehicle) continue;
-    const d = o.obj.position.distanceTo(v.obj.position);
-    if (d < bd) { bd = d; best = o; }
+  let best = null, targetPlayer = false, bd = v.type === 'tank' ? 75 : 60;
+  if (s.team === -1 && player.alive && !curVehicle) {
+    const d = player.pos.distanceTo(v.obj.position);
+    if (d < bd) { bd = d; targetPlayer = true; }
   }
-  if (!best) return;
-  const tPos = best.obj.position.clone().setY(best.obj.position.y + 1.2);
+  for (const o of soldiers) {
+    if (!o.alive || o.team === s.team || o.inVehicle) continue;
+    const d = o.obj.position.distanceTo(v.obj.position);
+    if (d < bd) { bd = d; best = o; targetPlayer = false; }
+  }
+  if (!best && !targetPlayer) return;
+  const tPos = targetPlayer ? player.pos.clone() : best.obj.position.clone().setY(best.obj.position.y + 1.2);
   if (!hasLineOfSight(muzzleWorld.clone(), tPos)) return;
   // 砲塔を向ける
   if (v.turret) {
@@ -1337,8 +1341,9 @@ function updateAIGunner(v, s, dt) {
     const hit = Math.random() < Math.max(0.2, 0.6 - bd * 0.006);
     const target = tPos.clone();
     if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
-    spawnTracer(muzzleWorld, target, 0x8ecbff);
-    if (hit) damageSoldier(best, 14 + Math.random() * 14, target, true, s);
+    spawnTracer(muzzleWorld, target, s.team === 1 ? 0x8ecbff : 0xff8866);
+    if (hit && targetPlayer) damagePlayer(14 + Math.random() * 14 | 0, muzzleWorld);
+    else if (hit) damageSoldier(best, 14 + Math.random() * 14, target, s.team === 1, s);
   }
 }
 function updateAutoAA(v, dt) {

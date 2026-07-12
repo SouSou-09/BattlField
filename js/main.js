@@ -61,6 +61,10 @@ function resetGame() {
   resetV046();      // v0.4.6: リーン・蘇生・LMG
   resetV047();      // v0.4.7: スモーク・無線・制圧
   resetV048();      // v0.4.8: 車両部位・破壊可能壁
+  resetV050();      // v0.5.0: Qタグ・双眼鏡・足音可視化
+  resetV051();      // v0.5.1: RPG・クレイモア・AI狙撃兵
+  resetV052();      // v0.5.2: AIフランキング・役割・弾薬判断
+  resetV053();      // v0.5.3: AI車両利用・手榴弾回避
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -144,6 +148,9 @@ function loop(now) {
     updateV045(dt);             // v0.4.5: 没入感・負傷・キルカメラ
     updateV046(dt);             // v0.4.6: リーン・乗り越え・蘇生
     updateV047(dt);             // v0.4.7: スモーク・無線・制圧
+    updateV050(dt);             // v0.5.0: 偵察支援・足音リング
+    updateV051(dt);             // v0.5.1: RPG・地雷・狙撃陣地
+    updateV053(dt);             // v0.5.3: AI車両運転・手榴弾回避姿勢
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -160,7 +167,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);
