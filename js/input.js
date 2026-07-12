@@ -21,6 +21,10 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
   if (e.code === 'Tab') { e.preventDefault(); toggleScoreboard(true); }   // v0.2.3
   if (e.code === 'Escape') { toggleSettings(false); toggleScoreboard(false); toggleHelp(false); }   // v0.3.5
+  // v0.5.10: リプレイカメラ (Pキー) / ミニマップズーム (- / +)
+  if (e.code === 'KeyP' && !e.repeat && typeof toggleReplayV0510 === 'function') toggleReplayV0510();
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') { if (typeof setRadarZoomV0510 === 'function') setRadarZoomV0510(0.3); }
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') { if (typeof setRadarZoomV0510 === 'function') setRadarZoomV0510(-0.3); }
 });
 window.addEventListener('keyup', e => {
   if (e.code === 'Tab') toggleScoreboard(false);   // v0.2.3: Tab離しで閉じる

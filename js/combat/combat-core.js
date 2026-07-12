@@ -110,6 +110,7 @@ function updateBullets(dt) {
       const h = hitsE[0];
       const isHead = !!h.object.userData.isHead;
       damageSoldierByPlayer(h.object.userData.soldier, isHead ? b.hsDmg : b.dmg, h.point, isHead);
+      if (typeof onSoldierHitV0510 === 'function') onSoldierHitV0510(h.object.userData.soldier, h.point, isHead);
       showHitmarker(isHead);
       done = true;
       spawnTracer(_bPrev, h.point);
@@ -129,11 +130,11 @@ function updateBullets(dt) {
       else if (vehiclePart) damageVehiclePartDirectV048(vehiclePart, b.dmg, h.point);
       else if (strategicV057) damageStrategicV057(strategicV057, b.dmg);
       else if (defensiveV058) damageDefensiveV058(defensiveV058, b.dmg);
-      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }
+      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); if (typeof tryWaterRippleV062 === "function") tryWaterRippleV062(h.point); }
       done = true;
       spawnTracer(_bPrev, h.point);
     } else if (b.pos.y < terrainH(b.pos.x, b.pos.z)) {
-      spawnParticles(b.pos.clone().setY(terrainH(b.pos.x, b.pos.z) + 0.1), 0x8a7a5a, 3, 2);
+      spawnParticles(b.pos.clone().setY(terrainH(b.pos.x, b.pos.z) + 0.1), 0x8a7a5a, 3, 2); if (typeof tryWaterRippleV062 === "function") tryWaterRippleV062(b.pos);
       done = true;
     } else {
       spawnTracer(_bPrev, b.pos);

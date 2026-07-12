@@ -22,6 +22,7 @@ function fireShell(from, dir, owner = null, speed = 70, radius = 6.5, dmg = 140)
   s.m.visible = true;
 }
 function explodeAt(pos, radius = 6.5, dmg = 140, skipVehicle = null) {
+  if (typeof tryWaterRippleV062 === "function") tryWaterRippleV062(pos);
   if (typeof damageStrategicWorld === 'function') damageStrategicWorld(pos, radius, dmg);
   if (typeof damageDefensiveWorldV058 === 'function') damageDefensiveWorldV058(pos, radius, dmg);
   sfx.explosion();
