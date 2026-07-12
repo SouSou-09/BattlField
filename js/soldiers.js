@@ -388,6 +388,15 @@ function updateSoldiers(dt) {
       }
     } else { destX = sp.x; destZ = sp.z; }
 
+    // v0.5.1: 狙撃兵は高所の固定ポジションへ移動し、到着後は伏せて粘る
+    if (typeof sniperDestinationV051 === 'function') {
+      const nest = sniperDestinationV051(s);
+      if (nest) {
+        destX = nest.x; destZ = nest.z;
+        if (nest.hold && !(tgt && s.hasLos)) { destX = sp.x; destZ = sp.z; }
+      }
+    }
+
     const dx = destX - sp.x, dz = destZ - sp.z;
     const dist = Math.hypot(dx, dz) || 0.001;
 
@@ -500,8 +509,9 @@ function updateSoldiers(dt) {
     // ---- 射撃 ----
     s.shootCd -= dt;
     trySuppressionFireV047(s, tgt, tPos, tDist, dt);
-    if (tgt && s.hasLos && tDist < 65) s.aimT += dt; else s.aimT = 0;
-    if (s.shootCd <= 0 && s.aimT > 0.35 && tgt && tDist < 65) {
+    const effectiveRangeV051 = s.aiSniperV051 && s.sniperHoldingV051 ? 115 : 65;
+    if (tgt && s.hasLos && tDist < effectiveRangeV051) s.aimT += dt; else s.aimT = 0;
+    if (s.shootCd <= 0 && s.aimT > (s.aiSniperV051 ? 0.6 : 0.35) && tgt && tDist < effectiveRangeV051) {
       s.shootCd = 1.0 + Math.random() * 1.5;
       const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
       // v0.3.3: 発砲直前に視線を再チェック — 壁越しの命中 (弾の壁貫通) を防ぐ
@@ -549,7 +559,8 @@ function updateSoldiers(dt) {
         if (hit) damagePlayer(6 + Math.random() * 8 | 0, eye);
         else if (target.distanceTo(player.pos) < 3.2) suppressPlayerV047(.18, eye);
       } else if (tgt.kind === 'soldier') {
-        const hit = Math.random() < Math.max(0.08, 0.42 - tDist * 0.005);
+        const sniperBonusV051 = s.aiSniperV051 && s.sniperHoldingV051 ? 0.2 : 0;
+        const hit = Math.random() < Math.max(0.08, 0.42 + sniperBonusV051 - tDist * 0.005);
         const target = tPos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
         spawnTracer(eye, target, tracerColor);
