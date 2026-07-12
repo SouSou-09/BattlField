@@ -447,6 +447,8 @@ function playerKillSoldier(s, point, isHead = false) {
   } else {
     addFeed('敵兵を倒した +100');
   }
+  // v0.5.10: キルフィード (誰が誰を何で)
+  if (typeof addKillFeedV0510 === 'function') addKillFeedV0510('YOU', s.name, (typeof weaponDef === 'function' ? weaponDef().name : 'RIFLE'), isHead, 1);
   updateScoreUI(); updateTicketsUI();
   checkMatchEnd();
 }

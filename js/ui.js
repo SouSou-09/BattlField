@@ -179,6 +179,11 @@ function drawScoreboard() {
   }
   blue.sort((a, b) => b.score - a.score || b.kills - a.kills);
   red.sort((a, b) => b.score - a.score || b.kills - a.kills);
+  // v0.5.10: スコアボードフィルタ (兵科別/武器別ソート)
+  if (typeof getScoreboardSortV0510 === 'function') {
+    const cmp = getScoreboardSortV0510();
+    blue.sort(cmp); red.sort(cmp);
+  }
   document.getElementById('sb-blue-tk').textContent = 'チケット ' + game.ticketsBlue;
   document.getElementById('sb-red-tk').textContent = 'チケット ' + game.ticketsRed;
   document.getElementById('sb-blue-rows').innerHTML = blue.map(p => sbRow(p.name, p.score, p.kills, p.deaths, p.alive, p.me)).join('');
@@ -294,6 +299,8 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     g.beginPath(); g.arc(px, py, 11, 0, 7); g.fill();
     g.fillStyle = '#06131f'; g.fillText(f.id, px, py + 0.5);
   }
+  // v0.5.9: 前線可視化 (拠点間の支配ライン)
+  if (typeof drawFrontLineMapV059 === 'function') drawFrontLineMapV059(g, toMap);
   // ピックアップ
   for (const pk of pickups) {
     if (!pk.active) continue;
@@ -328,6 +335,8 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     g.fillStyle = '#ffd257';
     g.fillRect(dx2 - 3, dy2 - 3, 6, 6);
   }
+  // v0.5.9: 動的目標マーカー
+  if (typeof drawObjectiveMapV059 === 'function') drawObjectiveMapV059(g, toMap);
   if (deployMode) return;   // デプロイ画面では自機矢印を描かない
   // プレイヤー (向き付き矢印)
   const [ppx, ppy] = toMap(player.pos.x, player.pos.z);
@@ -409,7 +418,8 @@ document.getElementById('deploy-btn').addEventListener('click', () => {
 });
 
 function drawRadar() {
-  const g = ui.radar, S = 112, C = S / 2, RANGE = 95;
+  const g = ui.radar, S = 112, C = S / 2;
+  const RANGE = 95 / (typeof radarZoomV0510 === 'function' ? radarZoomV0510() : 1);
   g.clearRect(0, 0, S, S);
   g.strokeStyle = 'rgba(120,200,255,.25)';
   g.beginPath(); g.arc(C, C, 37, 0, 7); g.stroke();
@@ -435,6 +445,8 @@ function drawRadar() {
     g.fillStyle = '#06131f';
     g.fillText(f.id, px, pz + 0.5);
   }
+  // v0.5.9: 前線可視化 (拠点間の支配ライン)
+  if (typeof drawFrontLineRadarV059 === 'function') drawFrontLineRadarV059(g, toRadar);
   // 車両
   for (const v of vehicles) {
     if (!v.alive || v === curVehicle) continue;
@@ -453,6 +465,8 @@ function drawRadar() {
       g.beginPath(); g.arc(px, pz, 2.6, 0, 7); g.fill();
     }
   }
+  // v0.5.9: 動的目標マーカー
+  if (typeof drawObjectiveRadarV059 === 'function') drawObjectiveRadarV059(g, toRadar);
   // v0.5.0: 現在の姿勢・移動速度に応じた足音到達範囲
   if (typeof drawFootstepRadarV050 === 'function') drawFootstepRadarV050(g, C, RANGE);
   // player arrow
