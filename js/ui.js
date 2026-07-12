@@ -453,6 +453,8 @@ function drawRadar() {
       g.beginPath(); g.arc(px, pz, 2.6, 0, 7); g.fill();
     }
   }
+  // v0.5.0: 現在の姿勢・移動速度に応じた足音到達範囲
+  if (typeof drawFootstepRadarV050 === 'function') drawFootstepRadarV050(g, C, RANGE);
   // player arrow
   g.fillStyle = '#ffffff';
   g.beginPath(); g.moveTo(C, C - 6); g.lineTo(C - 4, C + 4); g.lineTo(C + 4, C + 4); g.closePath(); g.fill();
