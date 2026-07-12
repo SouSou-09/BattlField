@@ -281,6 +281,7 @@ function updateSoldiers(dt) {
           s.targetFlag = null; s.engageTarget = null; s.aimT = 0;
           s.shootCd = 1 + Math.random();
           if (typeof initAiSoldierV052 === 'function') initAiSoldierV052(s);
+          if (typeof initAiSoldierV053 === 'function') initAiSoldierV053(s);
           s.marker.visible = s.team === 1;   // 味方マーカー復帰
         } else {
           s.obj.visible = false; // チケット切れは復活しない
@@ -290,6 +291,8 @@ function updateSoldiers(dt) {
     }
     const sp = s.obj.position;
     updateSoldierSuppressionV047(s, dt);   // v0.4.7: flinch and recovery
+    if (typeof updateAiVehicleClaimsV053 === 'function') updateAiVehicleClaimsV053(s, dt);
+    if (typeof updateGrenadeReactionV053 === 'function') updateGrenadeReactionV053(s, dt);
 
     // ---- チームマーカー更新 (v0.2.1) ----
     // 敵は「プレイヤーから視線が通り70m以内」のときのみ表示 (0.3秒間隔で判定)
@@ -350,7 +353,8 @@ function updateSoldiers(dt) {
     s.losT -= dt;
     if (s.losT <= 0) {
       s.losT = 0.25 + Math.random() * 0.15;
-      if (tPos && tDist < 80) {
+      const losRangeV051 = s.aiSniperV051 && s.sniperHoldingV051 ? 115 : 80;
+      if (tPos && tDist < losRangeV051) {
         const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
         s.hasLos = hasLineOfSight(eye, tPos) && !smokeBlocks(eye, tPos);   // v0.4.1: スモークで視線切り
       } else s.hasLos = false;
@@ -405,6 +409,17 @@ function updateSoldiers(dt) {
       }
     }
 
+    // v0.5.3: 空車両への搭乗判断。手榴弾回避は全行動より優先する
+    if (typeof vehicleClaimDestinationV053 === 'function') {
+      const vehicleDest = vehicleClaimDestinationV053(s);
+      if (vehicleDest) { destX = vehicleDest.x; destZ = vehicleDest.z; wantDist = 0; }
+    }
+    let grenadeEvadeV053 = null;
+    if (typeof grenadeEvadeDestinationV053 === 'function') {
+      grenadeEvadeV053 = grenadeEvadeDestinationV053(s);
+      if (grenadeEvadeV053) { destX = grenadeEvadeV053.x; destZ = grenadeEvadeV053.z; wantDist = 0; }
+    }
+
     const dx = destX - sp.x, dz = destZ - sp.z;
     const dist = Math.hypot(dx, dz) || 0.001;
 
@@ -423,6 +438,7 @@ function updateSoldiers(dt) {
     else if (tgt && s.hasLos && dist < 7) { mvx = -dx / dist * .6; mvz = -dz / dist * .6; }
     else if (tgt && s.hasLos) { mvx = -dz / dist * s.strafeDir * .7; mvz = dx / dist * s.strafeDir * .7; }
     else if (dist > wantDist * 0.5) { mvx = dx / dist * 0.5; mvz = dz / dist * 0.5; }
+    if (grenadeEvadeV053 && grenadeEvadeV053.prone) { mvx = 0; mvz = 0; }
 
     // 障害物回避 (v0.3.1: 狭い隙間対応 + ジャンプ)
     s.jumpCd -= dt;
@@ -458,6 +474,7 @@ function updateSoldiers(dt) {
 
     // 目的地が遠く非交戦ならダッシュ (広いマップでの移動時間短縮)
     let spd = (!tgt && dist > 30) ? s.speed * 1.7 : s.speed;
+    if (grenadeEvadeV053 && !grenadeEvadeV053.prone) spd *= 1.65;
     const inWater = terrainH(sp.x, sp.z) < WATER_Y - 0.2;   // v0.3: 浅瀬は渡れるが減速
     if (inWater) spd *= 0.5;
     // v0.3.1: 当たり半径を 0.4→0.35 に縮小 (狭い隙間・ドアを通れるように)

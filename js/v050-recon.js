@@ -23,6 +23,9 @@ function toggleBinocularsV050(force) {
     firing = false;
     setAds(false);
     addFeed('双眼鏡展開 — Qで遠距離マーキング', 'blue');
+  } else {
+    camera.fov = FOV_HIP;
+    camera.updateProjectionMatrix();
   }
 }
 
@@ -110,6 +113,8 @@ function resetV050() {
   v050.noiseRange = 0;
   v050.footstepPhase = 0;
   binocularHudV050.style.display = 'none';
+  camera.fov = FOV_HIP;
+  camera.updateProjectionMatrix();
 }
 
 window.addEventListener('keydown', e => {
