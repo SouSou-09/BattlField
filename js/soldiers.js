@@ -602,6 +602,7 @@ function playerKillSoldier(s, point, isHead = false) {
   vacateSeat(s);
   s.deaths++;                                      // v0.2.3
   game.kills++;
+  if (typeof onPlayerKillV043 === 'function') onPlayerKillV043();
   game.score += isHead ? 150 : 100;
   game.ticketsRed = Math.max(0, game.ticketsRed - 1);
   sfx.kill();

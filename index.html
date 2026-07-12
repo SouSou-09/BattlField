@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>STEEL FRONT v0.4.2 - Conquest</title>
+<title>STEEL FRONT v0.4.3 - Conquest</title>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -171,6 +171,12 @@
 <section class="screen" id="start-screen">
   <h1>STEEL FRONT</h1>
   <div class="sub">CONQUEST — 10 vs 10 拠点占領戦 (A〜F / 400mマップ)</div>
+  <div class="wsel-row class-row" id="class-row">
+    <button class="wsel class-select sel" data-class="assault">突撃兵<span class="wd">AR / 擲弾</span></button>
+    <button class="wsel class-select" data-class="medic">衛生兵<span class="wd">SMG / 回復</span></button>
+    <button class="wsel class-select" data-class="support">援護兵<span class="wd">SG / 弾薬</span></button>
+    <button class="wsel class-select" data-class="recon">偵察兵<span class="wd">SR / UAV</span></button>
+  </div>
   <div class="wsel-row" id="wsel-row">
     <button class="wsel sel" data-w="ar">M4A1<span class="wd">アサルトライフル</span></button>
     <button class="wsel" data-w="smg">MP5<span class="wd">サブマシンガン</span></button>
@@ -199,6 +205,7 @@
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/v042-world.js"></script>
+<script src="js/v043-squads.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

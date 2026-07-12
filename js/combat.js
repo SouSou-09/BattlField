@@ -584,6 +584,7 @@ function damagePlayer(dmg, fromPos = null) {
 }
 function playerDie() {
   player.alive = false;
+  if (typeof v043 !== 'undefined') v043.streak = 0;
   player.respawnT = 5;
   player.deaths = (player.deaths || 0) + 1;        // v0.2.3
   firing = false;
@@ -614,7 +615,8 @@ function respawnPlayer(sp = null) {
   player.onGround = true;
   releaseChute();                                  // v0.3.1
   // v0.2.2: リスポーン時はフル装備で復帰
-  applyWeapon(curWeaponId);
+  if (typeof applyClassLoadout === 'function') applyClassLoadout();
+  else applyWeapon(curWeaponId);
   grenades.count = grenades.max;
   fireLatch = false;
   ui.vignette.style.opacity = 0;
