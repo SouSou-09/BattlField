@@ -53,8 +53,92 @@ function hasLineOfSight(from, to) {
 
 // ---------- Shooting ----------
 const shootRay = new THREE.Raycaster();
+
+/* =========================================================
+   v0.4.0: 発射体式の弾丸 — 弾速 + 弾道落下 (レイキャスト即着弾を廃止)
+   スナイパーは遠距離で偏差撮ち・山なり補正が必要に
+   ========================================================= */
+const BULLET_MAX = 48;
+const bulletPool = [];
+{
+  const bGeo = new THREE.SphereGeometry(0.05, 4, 3);
+  const bMat = new THREE.MeshBasicMaterial({ color: 0xffdd88 });
+  for (let i = 0; i < BULLET_MAX; i++) {
+    const m = new THREE.Mesh(bGeo, bMat);
+    m.visible = false;
+    m.frustumCulled = false;
+    scene.add(m);
+    bulletPool.push({ m, pos: new THREE.Vector3(), vel: new THREE.Vector3(), ttl: 0, active: false, dmg: 0, hsDmg: 0, travel: 0, maxRange: 100, pellet: false });
+  }
+}
+let bulletIdx = 0;
+function fireBullet(from, dir, w) {
+  const b = bulletPool.find(x => !x.active) || bulletPool[bulletIdx++ % BULLET_MAX];
+  b.active = true;
+  b.pos.copy(from);
+  b.vel.copy(dir).multiplyScalar(w.muzzleVel);
+  b.ttl = w.range / w.muzzleVel + 0.6;
+  b.dmg = w.dmg; b.hsDmg = w.hsDmg;
+  b.travel = 0; b.maxRange = w.range;
+  b.m.visible = true;
+  b.m.position.copy(from);
+}
+const bulletRay = new THREE.Raycaster();
+const _bPrev = new THREE.Vector3(), _bDir = new THREE.Vector3();
+function updateBullets(dt) {
+  for (const b of bulletPool) {
+    if (!b.active) continue;
+    b.ttl -= dt;
+    _bPrev.copy(b.pos);
+    b.vel.y -= 9.8 * dt;                       // 弾道落下
+    b.pos.addScaledVector(b.vel, dt);
+    const segLen = _bPrev.distanceTo(b.pos);
+    b.travel += segLen;
+    _bDir.copy(b.pos).sub(_bPrev).normalize();
+    bulletRay.set(_bPrev, _bDir);
+    bulletRay.far = segLen;
+    const hitsE = bulletRay.intersectObjects(soldierHitMeshes, false)
+      .filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
+    const hitsW = bulletRay.intersectObjects(solidMeshes, false);
+    const eDist = hitsE.length ? hitsE[0].distance : Infinity;
+    const wDist = hitsW.length ? hitsW[0].distance : Infinity;
+    let done = false;
+    if (eDist < wDist) {
+      const h = hitsE[0];
+      const isHead = !!h.object.userData.isHead;
+      damageSoldierByPlayer(h.object.userData.soldier, isHead ? b.hsDmg : b.dmg, h.point, isHead);
+      showHitmarker(isHead);
+      done = true;
+      spawnTracer(_bPrev, h.point);
+    } else if (wDist < Infinity) {
+      const h = hitsW[0];
+      const dd = h.object.userData.destructible;
+      const wp = h.object.userData.windowPane;
+      if (dd) damageDestructible(dd, b.dmg * 1.5);
+      else if (wp) breakWindow(wp);
+      else { spawnParticles(h.point, 0xb0a890, 3, 2); addBulletHole(h.point, _bDir); }   // v0.4.2予定の弾痕フック
+      done = true;
+      spawnTracer(_bPrev, h.point);
+    } else if (b.pos.y < terrainH(b.pos.x, b.pos.z)) {
+      spawnParticles(b.pos.clone().setY(terrainH(b.pos.x, b.pos.z) + 0.1), 0x8a7a5a, 3, 2);
+      done = true;
+    } else {
+      spawnTracer(_bPrev, b.pos);
+    }
+    if (done || b.ttl <= 0 || b.travel > b.maxRange) {
+      b.active = false;
+      b.m.visible = false;
+    } else {
+      b.m.position.copy(b.pos);
+    }
+  }
+}
+// v0.4.2で実装予定の弾痕 (現状はノーオペ)
+function addBulletHole(point, dir) { /* v0.4.2 */ }
+
 function playerShoot() {
   if (weapon.reloading || weapon.cooldown > 0 || !player.alive) return;
+  if (weapon.switchT > 0 || knife.t > 0) return;   // v0.4.0: 切替/ナイフ中は射撃不可
   const w = weaponDef();
   if (!w.auto && fireLatch) return;   // 単発武器はトリガーを引き直す必要あり
   if (weapon.mag <= 0) { sfx.empty(); weapon.cooldown = 0.25; fireLatch = true; return; }
@@ -86,42 +170,66 @@ function playerShoot() {
   // 拡散: 武器定義 + ヒート + 移動ペナルティ / ADSで大幅減少
   let spread = w.baseSpread + weapon.spreadHeat * w.heatSpread + (moveMag() > 0.1 ? 0.012 : 0);
   if (w.hipPenalty && ads.t < 0.6) spread += 0.05;   // スナイパー腰だめは大きく散る
+  // v0.4.0: 姿勢で命中精度アップ (しゃがみ×0.7 / 伏せ×0.5) + スタミナ切れで低下
+  if (player.stance === 1) spread *= 0.7;
+  else if (player.stance === 2) spread *= 0.5;
+  if (player.stamina < 0.2) spread += 0.012;   // 息切れ
   spread *= (1 - ads.t * 0.85);
 
-  const muzzleWorld = new THREE.Vector3();
-  muzzleFlash.getWorldPosition(muzzleWorld);
-  let anyHit = false, anyHead = false;
-
+  // v0.4.0: 発射体方式 — 弾速と重力落下のある弾丸を射出
   for (let p = 0; p < w.pellets; p++) {
     const dir = new THREE.Vector3(0, 0, -1)
       .applyEuler(new THREE.Euler(player.pitch + (Math.random() - .5) * spread, player.yaw + (Math.random() - .5) * spread, 0, 'YXZ'));
-    shootRay.set(camera.position.clone(), dir);
-    shootRay.far = w.range;
-
-    const hitsE = shootRay.intersectObjects(soldierHitMeshes, false).filter(h => h.object.userData.soldier && h.object.userData.soldier.alive && h.object.userData.soldier.team === -1);
-    const hitsW = shootRay.intersectObjects(solidMeshes, false);
-    let end = camera.position.clone().addScaledVector(dir, w.range);
-    const eDist = hitsE.length ? hitsE[0].distance : Infinity;
-    const wDist = hitsW.length ? hitsW[0].distance : Infinity;
-
-    if (eDist < wDist) {
-      const h = hitsE[0];
-      end = h.point;
-      const isHead = !!h.object.userData.isHead;
-      damageSoldierByPlayer(h.object.userData.soldier, isHead ? w.hsDmg : w.dmg, h.point, isHead);
-      anyHit = true; if (isHead) anyHead = true;
-    } else if (wDist < Infinity) {
-      end = hitsW[0].point;
-      const dd = hitsW[0].object.userData.destructible;
-      const wp = hitsW[0].object.userData.windowPane;   // v0.3.4: 窓ガラス
-      if (dd) damageDestructible(dd, w.dmg * (curWeaponId === 'sg' ? 1 : 1.5));   // v0.2.3
-      else if (wp) breakWindow(wp);
-      else spawnParticles(end, 0xb0a890, 3, 2);
-    }
-    spawnTracer(muzzleWorld, end);
+    fireBullet(camera.position.clone(), dir, w);
   }
-  if (anyHit) showHitmarker(anyHead);
   updateAmmoUI();
+}
+
+/* =========================================================
+   v0.4.0: 近接攻撃 (ナイフ) — Vキー / KNFボタン
+   背後からは一撃 (バックスタブ) +150
+   ========================================================= */
+const knife = { t: 0, cd: 0 };
+function knifeAttack() {
+  if (!player.alive || curVehicle || drone.active || knife.cd > 0 || weapon.switchT > 0) return;
+  knife.cd = 0.65;
+  knife.t = 0.32;
+  sfx.knife();
+  // 前方で2.4m以内の敵を探す
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  let best = null, bd = 2.4;
+  for (const s of soldiers) {
+    if (!s.alive || s.team !== -1 || s.inVehicle) continue;
+    const dx = s.obj.position.x - player.pos.x, dz = s.obj.position.z - player.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > bd) continue;
+    if ((dx * fx + dz * fz) / (d || 0.01) < 0.35) continue;   // 前方コーン内のみ
+    bd = d; best = s;
+  }
+  if (!best) return;
+  const hitP = best.obj.position.clone().setY(best.obj.position.y + 1.2);
+  // 背後判定: 敵の向きと攻撃方向が同じ → バックスタブ (即死)
+  const efx = Math.sin(best.obj.rotation.y), efz = Math.cos(best.obj.rotation.y);
+  const backstab = (efx * fx + efz * fz) > 0.45;
+  if (backstab) {
+    spawnParticles(hitP, 0xbb2222, 10, 4, 1.4);
+    damageSoldierByPlayer(best, 999, hitP);
+    addFeed('🔪 バックスタブ! +150', 'blue');
+    game.score += 50; updateScoreUI();
+  } else {
+    damageSoldierByPlayer(best, 55, hitP);
+  }
+}
+function updateKnife(dt) {
+  knife.cd = Math.max(0, knife.cd - dt);
+  if (knife.t > 0) {
+    knife.t -= dt;
+    // ナイフ振りモーション (銃を振る演出)
+    const k = Math.sin((0.32 - knife.t) / 0.32 * Math.PI);
+    gunGroup.rotation.z = -k * 0.9;
+    gunGroup.rotation.x = -k * 0.5;
+    if (knife.t <= 0) { gunGroup.rotation.z = 0; gunGroup.rotation.x = 0; }
+  }
 }
 
 function reload() {
@@ -385,6 +493,8 @@ function respawnPlayer(sp = null) {
     if (owned.length) sp = owned[Math.floor(Math.random() * owned.length)];
   }
   const rx = sp.x + (Math.random() - .5) * 10, rz = sp.z + (Math.random() - .5) * 10;
+  player.stance = 0; player.slideT = 0; player.stamina = 1; player.exhausted = false;   // v0.4.0
+  player.eyeHeight = 1.7;
   player.pos.set(rx, terrainH(rx, rz) + player.eyeHeight, rz);
   player.vel.set(0, 0, 0);
   player.hp = player.maxHp; player.alive = true;

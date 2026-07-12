@@ -181,7 +181,11 @@ const sfx = {
     playBeep(2400 + Math.random() * 800, 0.06, 0.14, 'square');
     setTimeout(() => playBeep(1700 + Math.random() * 600, 0.08, 0.1, 'triangle'), 40);
     setTimeout(() => playBeep(1200 + Math.random() * 400, 0.1, 0.07, 'triangle'), 100);
-  }
+  },
+  // v0.4.0
+  knife: () => { playBeep(2600, 0.04, 0.1, 'sawtooth'); setTimeout(() => playBeep(1800, 0.06, 0.08, 'sawtooth'), 40); },
+  stance: () => playBeep(320, 0.05, 0.07, 'square'),
+  slide: () => { playBeep(220, 0.2, 0.1, 'sawtooth'); }
 };
 let engine = null;
 function startEngine(type) {

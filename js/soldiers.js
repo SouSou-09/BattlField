@@ -454,7 +454,9 @@ function updateSoldiers(dt) {
         }
       } else if (tgt.kind === 'player') {
         const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
-        const hitChance = Math.max(0.05, 0.5 - tDist * 0.007 - playerMoving);
+        // v0.4.0: しゃがみ/伏せで被弾判定を縮小 (当てられにくい)
+        const stancePen = player.stance === 2 ? 0.22 : player.stance === 1 ? 0.12 : 0;
+        const hitChance = Math.max(0.05, 0.5 - tDist * 0.007 - playerMoving - stancePen);
         const hit = Math.random() < hitChance;
         const target = player.pos.clone();
         if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }

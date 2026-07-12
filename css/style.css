@@ -53,6 +53,17 @@
   #hp-fill { height:100%; width:100%; background:linear-gradient(90deg,#3ddc84,#a7f3c8); transition:width .2s; }
   #hp-text { font-size:12px; margin-top:3px; text-shadow:0 1px 2px #000; font-weight:600; }
 
+  /* v0.4.0: スタミナバー + 姿勢インジケーター */
+  #stamina-bar { width:170px; height:5px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.25); border-radius:3px; overflow:hidden; margin-top:4px; }
+  #stamina-fill { height:100%; width:100%; background:linear-gradient(90deg,#ffd257,#ffe9a0); transition:width .1s linear; }
+  #stamina-fill.tired { background:linear-gradient(90deg,#e0483d,#f3a7a0); }
+  #stance-ind { font-size:11px; color:#9fd4ff; margin-top:3px; text-shadow:0 1px 2px #000; font-weight:700; min-height:13px; }
+
+  /* v0.4.0: しゃがみ/ナイフボタン */
+  #btn-crouch { width:52px; height:52px; right:calc(36px + env(safe-area-inset-right)); bottom:calc(36px + env(safe-area-inset-bottom)); font-size:18px; border-color:rgba(160,220,255,.5); background:rgba(20,60,90,.4); }
+  #btn-crouch.on { background:rgba(120,200,255,.45); border-color:#9fd4ff; }
+  #btn-knife { width:48px; height:48px; right:calc(212px + env(safe-area-inset-right)); bottom:calc(224px + env(safe-area-inset-bottom)); font-size:15px; border-color:rgba(255,160,160,.5); background:rgba(90,20,20,.4); }
+
   #vehicle-box { display:none; margin-bottom:8px; }
   #vehicle-name { font-size:11px; letter-spacing:2px; color:#8affc1; text-shadow:0 1px 2px #000; font-weight:700; }
   #vehicle-bar { width:170px; height:9px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); border-radius:4px; overflow:hidden; margin-top:2px; }

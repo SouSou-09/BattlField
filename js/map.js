@@ -111,6 +111,44 @@ let waterMesh = null;
 const obstacles = [];             // AABB list {minX,maxX,minZ,maxZ,y0,h} (y0=底面, h=上面の絶対高さ)
 const solidMeshes = [];           // for line-of-sight raycasts
 
+/* =========================================================
+   v0.4.0: はしご — 壁面/監視塔に設置し、登って屋上・高所へ
+   ladders: {x,z,y0,y1,exitX,exitZ} — exitは登り切り方向(単位ベクトル)
+   ========================================================= */
+const ladders = [];
+const matLadder = new THREE.MeshLambertMaterial({ color: 0x8a7a5a });
+function addLadder(x, z, y0, y1, faceDir) {
+  // faceDir: はしごが向いている方向 (プレイヤーが立つ側) 0=+z 1=-z 2=+x 3=-x
+  const h = y1 - y0;
+  const g = new THREE.Group();
+  // サイドレール2本 + 横桟
+  const railGeo = new THREE.BoxGeometry(0.07, h, 0.07);
+  const r1 = new THREE.Mesh(railGeo, matLadder); r1.position.set(-0.3, h / 2, 0);
+  const r2 = new THREE.Mesh(railGeo, matLadder); r2.position.set(0.3, h / 2, 0);
+  g.add(r1, r2);
+  const rungGeo = new THREE.BoxGeometry(0.62, 0.05, 0.05);
+  for (let ry = 0.3; ry < h; ry += 0.38) {
+    const rung = new THREE.Mesh(rungGeo, matLadder);
+    rung.position.set(0, ry, 0);
+    g.add(rung);
+  }
+  g.position.set(x, y0, z);
+  g.rotation.y = faceDir === 0 ? 0 : faceDir === 1 ? Math.PI : faceDir === 2 ? -Math.PI / 2 : Math.PI / 2;
+  scene.add(g);
+  const exitX = faceDir === 2 ? -1 : faceDir === 3 ? 1 : 0;
+  const exitZ = faceDir === 0 ? -1 : faceDir === 1 ? 1 : 0;
+  ladders.push({ x, z, y0, y1, exitX, exitZ });
+}
+// プレイヤーがはしごゾーン内にいるか (input.jsから呼ばれる)
+function findLadder() {
+  const px = player.pos.x, pz = player.pos.z, footY = player.pos.y - player.eyeHeight;
+  for (const l of ladders) {
+    if (Math.abs(px - l.x) < 0.85 && Math.abs(pz - l.z) < 0.85 &&
+        footY > l.y0 - 0.6 && footY < l.y1 + 0.3) return l;
+  }
+  return null;
+}
+
 function addBox(x, z, w, h, d, material, rotY = 0, yBase = null, solid = true) {
   const gy = yBase === null ? terrainH(x, z) : yBase;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -776,12 +814,37 @@ function buildTower(tx, tz) {
   roof.position.set(tx, gy + 11.8, tz); roof.rotation.y = Math.PI / 4;
   scene.add(roof);
   obstacles.push({ minX: tx - 2.6, maxX: tx + 2.6, minZ: tz - 2.6, maxZ: tz + 2.6, y0: gy, h: gy + 12 });
+  // v0.4.0: 監視塔の南面にはしご — デッキに登れる
+  addLadder(tx, tz + 3.0, gy, gy + 8.5, 0);
 }
 buildTower(-50, 110);   // v0.3.3: 2倍拡張
 buildTower(-80, -90);
 buildTower(240, 40);
 buildTower(40, -240);   // v0.3.3: 新増
 buildTower(-240, 60);
+
+// v0.4.0: 建物側面のはしご — 屋上ルートを複数化 (主要拠点の大型建物)
+// 建物はoffRoadPosで動くため、直近の障害物(建物)を探して壁面に寄せる
+function addLadderNearBuilding(bx, bz, faceDir) {
+  // faceDir側の壁を探す: その位置で最も高い障害物を探す
+  let best = null;
+  for (const o of obstacles) {
+    if (bx > o.minX - 3 && bx < o.maxX + 3 && bz > o.minZ - 3 && bz < o.maxZ + 3) {
+      if (o.h - o.y0 > 5 && (!best || o.h > best.h)) best = o;
+    }
+  }
+  if (!best) return;
+  let lx, lz;
+  if (faceDir === 0) { lx = (best.minX + best.maxX) / 2; lz = best.maxZ + 0.45; }
+  else if (faceDir === 1) { lx = (best.minX + best.maxX) / 2; lz = best.minZ - 0.45; }
+  else if (faceDir === 2) { lx = best.maxX + 0.45; lz = (best.minZ + best.maxZ) / 2; }
+  else { lx = best.minX - 0.45; lz = (best.minZ + best.maxZ) / 2; }
+  addLadder(lx, lz, terrainH(lx, lz), best.h + 0.3, faceDir);
+}
+addLadderNearBuilding(-18, -16, 2);          // 拠点C 北西ビル
+addLadderNearBuilding(0, 30, 0);             // 拠点C 南ビル
+addLadderNearBuilding(210 - 12, -160 - 8, 1); // 拠点D 倉庫
+addLadderNearBuilding(260 - 8, 250 - 8, 2);   // 拠点E 基地ビル
 
 // === 岩場 (高台の斜面や空白地帯に岩を配置) ===
 {

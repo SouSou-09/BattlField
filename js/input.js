@@ -15,6 +15,9 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyH') { if (curVehicle) honk(); else toggleHelp(); }   // v0.3.5: 車内=クラクション / 徒歩=ヘルプ
   if (e.code === 'KeyQ') heliRockets();            // v0.3: ヘリロケット
   if (e.code === 'KeyG') throwGrenade();          // v0.2.2
+  if (e.code === 'KeyV') knifeAttack();            // v0.4.0: ナイフ
+  if (e.code === 'KeyC' && !e.repeat && !curVehicle && !drone.active) toggleCrouch();   // v0.4.0
+  if (e.code === 'KeyZ' && !e.repeat && !curVehicle && !drone.active) toggleProne();    // v0.4.0
   if (e.code === 'KeyM') toggleFullmap();          // v0.2.2
   if (e.code === 'Tab') { e.preventDefault(); toggleScoreboard(true); }   // v0.2.3
   if (e.code === 'Escape') { toggleSettings(false); toggleScoreboard(false); toggleHelp(false); }   // v0.3.5
@@ -177,6 +180,22 @@ if (isMobile) {
   });
   bindBtn('btn-reload', () => reload());
   bindBtn('btn-aim', () => setAds(!ads.active));   // タップで切替
+  // v0.4.0: しゃがみ(長押しで伏せ) / ナイフ
+  {
+    let crouchTO = null, longPressed = false;
+    const cbtn = document.getElementById('btn-crouch');
+    cbtn.addEventListener('touchstart', e => {
+      e.preventDefault(); e.stopPropagation();
+      longPressed = false;
+      crouchTO = setTimeout(() => { longPressed = true; toggleProne(); }, 420);
+    }, { passive: false });
+    cbtn.addEventListener('touchend', e => {
+      e.preventDefault(); e.stopPropagation();
+      clearTimeout(crouchTO);
+      if (!longPressed) toggleCrouch();
+    }, { passive: false });
+  }
+  bindBtn('btn-knife', () => knifeAttack());
   bindBtn('btn-nade', () => throwGrenade());        // v0.2.2
   bindBtn('btn-weapon', () => cycleWeapon());       // v0.2.2: 次の武器に切替
   bindBtn('btn-vehicle', () => toggleVehicle());
@@ -220,6 +239,34 @@ window.addEventListener('keydown', e => {
   }
 });
 
+/* ---------- v0.4.0: 姿勢 (しゃがみ/伏せ) / スライディング ---------- */
+function toggleCrouch() {
+  if (!player.alive) return;
+  // ダッシュ中にしゃがみ → スライディング
+  if (player.sprinting && player.onGround && player.stance === 0 && player.slideT <= 0) {
+    startSlide();
+    return;
+  }
+  player.stance = player.stance === 1 ? 0 : 1;
+  sfx.stance();
+}
+function toggleProne() {
+  if (!player.alive) return;
+  player.stance = player.stance === 2 ? 0 : 2;
+  sfx.stance();
+}
+function startSlide() {
+  player.slideT = 0.75;
+  player.stance = 1;
+  const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
+  player.slideDir.set(-sin, 0, -cos);   // 前方へ滑り込む
+  sfx.slide();
+}
+function stanceEyeHeight() {
+  if (player.slideT > 0) return 0.9;
+  return player.stance === 2 ? 0.55 : player.stance === 1 ? 1.1 : 1.7;
+}
+
 // ---------- Player movement (地形追従) ----------
 function updatePlayer(dt) {
   if (!player.alive) return;
@@ -237,21 +284,83 @@ function updatePlayer(dt) {
     if (keys['Space']) jumpQueued = true;
   }
   if (ads.t > 0.5) sprint = false;               // ADS中はダッシュ不可
+  if (player.stance !== 0) sprint = false;       // v0.4.0: しゃがみ/伏せ中はダッシュ不可
   // v0.3: 泳ぎ — 水域では低速・ジャンプ不可
   const swimming = terrainH(player.pos.x, player.pos.z) < WATER_Y - 0.2;
-  if (swimming) sprint = false;
-  const speed = (sprint ? 9.5 : 5.5) * (1 - ads.t * 0.45) * (swimming ? 0.45 : 1);
+  if (swimming) { sprint = false; player.stance = 0; player.slideT = 0; }
+
+  // v0.4.0: スタミナ制 — 疑走→息切れ→回復
+  if (player.exhausted && player.stamina > 0.35) player.exhausted = false;
+  if (player.exhausted) sprint = false;
+  const movingInput = Math.hypot(ix, iz) > 0.1;
+  if (sprint && movingInput && player.onGround) {
+    player.stamina -= dt / 6;                    // 約6秒で息切れ
+    if (player.stamina <= 0) {
+      player.stamina = 0;
+      player.exhausted = true;
+      sprint = false;
+      addFeed('息切れ…', 'red');
+    }
+  } else {
+    player.stamina = Math.min(1, player.stamina + dt / 4);
+  }
+  player.sprinting = sprint && movingInput;
+
+  // v0.4.0: 姿勢に応じた目線高さを滑らかに補間
+  {
+    const targetEye = swimming ? 1.7 : stanceEyeHeight();
+    const prevEye = player.eyeHeight;
+    player.eyeHeight += (targetEye - player.eyeHeight) * Math.min(1, dt * 10);
+    player.pos.y += player.eyeHeight - prevEye;   // 視点の高さ変化を位置に反映
+  }
+
+  // v0.4.0: 移動速度 — 姿勢/スタミナで変化
+  const stanceMul = player.stance === 2 ? 0.32 : player.stance === 1 ? 0.55 : 1;
+  const tired = player.exhausted ? 0.85 : 1;
+  const speed = (sprint ? 9.5 : 5.5) * stanceMul * tired * (1 - ads.t * 0.45) * (swimming ? 0.45 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   // カメラ空間(前=-Z)→ワールドへの回転変換 (v0.1.1 修正済み)
-  const wx = (ix * cos + iz * sin) * speed;
-  const wz = (iz * cos - ix * sin) * speed;
+  let wx = (ix * cos + iz * sin) * speed;
+  let wz = (iz * cos - ix * sin) * speed;
 
-  if (jumpQueued && player.onGround && !swimming) { player.vel.y = 6.5; player.onGround = false; }
+  // v0.4.0: スライディング — 滑走中は慢性移動 (操届は弱め)
+  if (player.slideT > 0) {
+    player.slideT -= dt;
+    const k = Math.max(0, player.slideT / 0.75);
+    const slideSpd = 11 * Math.pow(k, 0.65);
+    wx = player.slideDir.x * slideSpd + wx * 0.25;
+    wz = player.slideDir.z * slideSpd + wz * 0.25;
+    if (player.slideT <= 0) player.stance = 1;   // 滑走後はしゃがみ維持
+  }
+
+  // v0.4.0: はしご — ゾーン内で前後入力により昇降
+  const lad = findLadder();
+  if (lad && !swimming) {
+    player.stance = 0; player.slideT = 0;
+    const climb = iz < -0.1 ? 3.2 : iz > 0.1 ? -3.2 : 0;
+    player.vel.y = climb;
+    // はしごに吸着 (横移動を抑制)
+    wx *= 0.15; wz *= 0.15;
+    if (jumpQueued) { player.vel.y = 2.5; jumpQueued = false; }   // ジャンプで離脱
+    const footY2 = player.pos.y - player.eyeHeight;
+    if (climb > 0 && footY2 >= lad.y1 - 0.15) {
+      // 登り切り: プラットホームへ乗り移る
+      player.pos.x += lad.exitX * 1.1;
+      player.pos.z += lad.exitZ * 1.1;
+      player.pos.y = lad.y1 + player.eyeHeight + 0.1;
+      player.vel.y = 0;
+    }
+  }
+
+  if (jumpQueued && player.onGround && !swimming && player.stance === 0 && !player.exhausted) { player.vel.y = 6.5; player.onGround = false; }
+  else if (jumpQueued && player.stance !== 0) { player.stance = 0; }   // 伏せ/しゃがみ中のJUMP=立つ
   jumpQueued = false;
   // v0.3.4: パラシュートは手動開閉 (自動展開を廃止)
   // ・閉じたまま = 自由落下で徐々に加速 (終端速度あり) → 高所落下はダメージ
   // ・開いている = 降下速度を制限してゆっくり降下
-  if (player.chute) {
+  if (lad && !swimming) {
+    // はしご中は重力なし (上のclimb制御のみ)
+  } else if (player.chute) {
     player.vel.y -= 4 * dt;
     if (player.vel.y < -3.2) player.vel.y = Math.max(-6.5, player.vel.y + 22 * dt); // ブレーキ
   } else {
@@ -298,11 +407,12 @@ function updatePlayer(dt) {
   camera.position.copy(player.pos);
   const moving = Math.hypot(wx, wz) > 0.5;
   if (moving && player.onGround) {
-    bobT += dt * (sprint ? 13 : swimming ? 5 : 9);
-    camera.position.y += Math.sin(bobT) * (swimming ? 0.06 : 0.035);
+    bobT += dt * (sprint ? 13 : swimming ? 5 : player.stance === 2 ? 4 : 9);
+    camera.position.y += Math.sin(bobT) * (swimming ? 0.06 : player.slideT > 0 ? 0.015 : 0.035);
     if (swimming && Math.random() < dt * 6) spawnParticles(player.pos.clone().setY(WATER_Y + 0.1), 0xbfe3ef, 2, 1.5, 0.7);
   }
-  camera.rotation.set(player.pitch, player.yaw, 0);
+  // v0.4.0: スライディング中は視点を少しロール
+  camera.rotation.set(player.pitch, player.yaw, player.slideT > 0 ? Math.sin(player.slideT * 8) * 0.03 + 0.05 : 0);
   if (shake > 0.01) {
     camera.position.x += (Math.random() - .5) * shake;
     camera.position.y += (Math.random() - .5) * shake;
@@ -310,6 +420,8 @@ function updatePlayer(dt) {
 
   weapon.recoil = Math.max(0, weapon.recoil - dt * 8);
   weapon.spreadHeat = Math.max(0, weapon.spreadHeat - dt * 1.2);
+  // v0.4.0: 武器切替モーション (0.5秒 — 銃を下げてから構え直す)
+  if (weapon.switchT > 0) weapon.switchT = Math.max(0, weapon.switchT - dt);
   // v0.3.5: リコイルパターン — 撃ち止めで連射カウントをリセット + 銃口が一部戻る
   weapon.burstResetT -= dt;
   if (weapon.burstResetT <= 0 && weapon.burst > 0) weapon.burst = 0;
@@ -324,7 +436,10 @@ function updatePlayer(dt) {
   gunGroup.position.z = -0.55 + weapon.recoil * 0.06 + adsT * 0.18;
   gunGroup.rotation.x = weapon.recoil * 0.05;
   const bobAmp = (moving ? Math.sin(bobT) * 0.012 : 0) * (1 - adsT * 0.7);
-  gunGroup.position.y = (-0.26 + adsT * 0.075) + bobAmp;
+  // v0.4.0: 切替中は銃を大きく下げる (sinカーブで下げ→上げ)
+  const swDip = weapon.switchT > 0 ? Math.sin(Math.min(1, weapon.switchT / 0.5) * Math.PI) * 0.42 : 0;
+  gunGroup.position.y = (-0.26 + adsT * 0.075) + bobAmp - swDip;
+  if (weapon.switchT > 0) gunGroup.rotation.x = -swDip * 1.4;
   if (weapon.reloading) gunGroup.rotation.x = -0.5 + Math.sin(weapon.reloadTimer * 3) * 0.1;
 
   weapon.cooldown -= dt;
@@ -341,4 +456,18 @@ function updatePlayer(dt) {
   }
   if (firing) playerShoot();
   if (weapon.mag === 0 && !weapon.reloading && weapon.reserve > 0) reload();
+
+  // v0.4.0: スタミナ/姿勢 HUD更新
+  {
+    const sf = document.getElementById('stamina-fill');
+    sf.style.width = (player.stamina * 100) + '%';
+    sf.classList.toggle('tired', player.exhausted);
+    const si = document.getElementById('stance-ind');
+    const label = player.slideT > 0 ? '🛝 スライディング' : player.stance === 2 ? '🐍 伏せ' : player.stance === 1 ? '🧎 しゃがみ' : '';
+    if (si.textContent !== label) si.textContent = label;
+    if (isMobile) {
+      const cb = document.getElementById('btn-crouch');
+      cb.classList.toggle('on', player.stance !== 0);
+    }
+  }
 }

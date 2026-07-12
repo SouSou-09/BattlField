@@ -11,7 +11,10 @@ const player = {
   lastDamageTime: -99,
   radius: 0.45, eyeHeight: 1.7,
   alive: true, respawnT: 0,
-  chute: false                        // v0.3.1: パラシュート展開中
+  chute: false,                       // v0.3.1: パラシュート展開中
+  // v0.4.0: 姿勢 (0=立ち 1=しゃがみ 2=伏せ) / スライド / スタミナ
+  stance: 0, slideT: 0, slideDir: new THREE.Vector3(),
+  stamina: 1, breathT: 0, sprinting: false
 };
 const game = {
   score: 0, kills: 0, running: false,
@@ -26,19 +29,19 @@ const MATCH_TIME = 15 * 60;
 const WEAPONS = {
   ar:  { name: 'M4A1 CARBINE', magSize: 30, reserve: 120, fireInterval: 0.095, reloadTime: 2.1,
          dmg: 28, hsDmg: 68, baseSpread: 0.004, heatSpread: 0.02, auto: true,
-         adsFov: 48, pellets: 1, range: 300, kick: 0.009,
+         adsFov: 48, pellets: 1, range: 300, kick: 0.009, muzzleVel: 240,
          recoilV: 0.012, recoilH: 0.005, recoilFreq: 0.55, recoilPhase: 0.6 },
   smg: { name: 'MP5 SMG', magSize: 35, reserve: 175, fireInterval: 0.062, reloadTime: 1.7,
          dmg: 19, hsDmg: 46, baseSpread: 0.007, heatSpread: 0.028, auto: true,
-         adsFov: 55, pellets: 1, range: 180, kick: 0.006,
+         adsFov: 55, pellets: 1, range: 180, kick: 0.006, muzzleVel: 190,
          recoilV: 0.0075, recoilH: 0.0075, recoilFreq: 1.15, recoilPhase: 2.1 },
   sr:  { name: 'M24 SNIPER', magSize: 5, reserve: 30, fireInterval: 1.4, reloadTime: 3.0,
          dmg: 95, hsDmg: 200, baseSpread: 0.03, heatSpread: 0, auto: false, hipPenalty: true,
-         adsFov: 16, scope: true, pellets: 1, range: 500, kick: 0.03,
+         adsFov: 16, scope: true, pellets: 1, range: 500, kick: 0.03, muzzleVel: 430,
          recoilV: 0.055, recoilH: 0.004, recoilFreq: 0.3, recoilPhase: 0 },
   sg:  { name: 'M870 SHOTGUN', magSize: 6, reserve: 36, fireInterval: 0.85, reloadTime: 2.8,
          dmg: 11, hsDmg: 22, baseSpread: 0.035, heatSpread: 0, auto: false,
-         adsFov: 60, pellets: 8, range: 45, kick: 0.022,
+         adsFov: 60, pellets: 8, range: 45, kick: 0.022, muzzleVel: 120,
          recoilV: 0.034, recoilH: 0.011, recoilFreq: 0.8, recoilPhase: 1.0 }
 };
 let curWeaponId = 'ar';
@@ -47,7 +50,8 @@ const weapon = {
   fireInterval: 0.095, cooldown: 0,
   reloading: false, reloadTime: 2.1, reloadTimer: 0,
   recoil: 0, spreadHeat: 0,
-  burst: 0, burstResetT: 0, recoilPitch: 0   // v0.3.5: 連射リコイル状態
+  burst: 0, burstResetT: 0, recoilPitch: 0,   // v0.3.5: 連射リコイル状態
+  switchT: 0                                   // v0.4.0: 武器切替モーション
 };
 function weaponDef() { return WEAPONS[curWeaponId]; }
 function applyWeapon(id) {
@@ -57,7 +61,8 @@ function applyWeapon(id) {
     mag: w.magSize, magSize: w.magSize, reserve: w.reserve,
     fireInterval: w.fireInterval, reloadTime: w.reloadTime,
     cooldown: 0, reloading: false, reloadTimer: 0, recoil: 0, spreadHeat: 0,
-    burst: 0, burstResetT: 0, recoilPitch: 0   // v0.3.5
+    burst: 0, burstResetT: 0, recoilPitch: 0,   // v0.3.5
+    switchT: 0.5                                 // v0.4.0: 引き抜きに0.5秒の隙
   });
   if (typeof ui !== 'undefined' && ui.weaponName) {
     ui.weaponName.textContent = w.name;

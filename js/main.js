@@ -8,6 +8,7 @@ function resetGame() {
   soldiers.length = 0; soldierHitMeshes.length = 0;
   clearEffects();
   for (const s of shells) { s.ttl = 0; s.m.visible = false; }
+  for (const b of bulletPool) { b.active = false; b.m.visible = false; }   // v0.4.0
   if (curVehicle) { curVehicle = null; curSeat = 0; gunGroup.visible = true; stopEngine(); }
   ui.vehicleBox.style.display = 'none';
   if (drone.active) endDrone(false);               // v0.3
@@ -19,7 +20,8 @@ function resetGame() {
   // 拠点リセット
   for (const f of flags) { f.own = 0; f.cap = 0; updateFlagVisual(f); }
   // プレイヤー
-  Object.assign(player, { hp: 100, alive: true, yaw: Math.PI * 0.75, pitch: 0, lastDamageTime: -99, onGround: true, respawnT: 0 });
+  Object.assign(player, { hp: 100, alive: true, yaw: Math.PI * 0.75, pitch: 0, lastDamageTime: -99, onGround: true, respawnT: 0,
+    stance: 0, slideT: 0, stamina: 1, exhausted: false, eyeHeight: 1.7 });   // v0.4.0
   releaseChute();                                  // v0.3.1
   player.pos.set(HQ_BLUE.x, terrainH(HQ_BLUE.x, HQ_BLUE.z) + player.eyeHeight, HQ_BLUE.z);
   player.vel.set(0, 0, 0);
@@ -123,6 +125,8 @@ function loop(now) {
     updateInteractHint(dt);
     updateAds(dt);
     updateDamageArcs(dt);
+    updateBullets(dt);          // v0.4.0: 発射体式の弾丸
+    updateKnife(dt);            // v0.4.0: ナイフ
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -140,3 +144,7 @@ requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
 window.__dbg = { soldiers, flags, game, player, terrainH };
+// #autotest でスタートを自動クリック (動作検証用)
+if (location.hash === '#autotest') {
+  setTimeout(() => document.getElementById('start-btn').click(), 500);
+}
