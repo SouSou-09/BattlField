@@ -90,6 +90,7 @@ function resetGame() {
   resetV082();      // v0.8.2: 軍事航空基地
   resetV083();      // v0.8.3: 基地車両+新APC+補給トラック+リスポーン
   resetV084();      // v0.8.4: ジェット戦闘機(APRON_SLOTSにスポーン)
+  resetV085();      // v0.8.5: 川と橋と渡し場
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -200,6 +201,7 @@ function loop(now) {
     updateV082(dt);             // v0.8.2: 軍事航空基地(220mカリング)
     updateV083(dt);             // v0.8.3: 基地車両リスポーン・補給(220mカリング)
     updateV084(dt);             // v0.8.4: ジェット戦闘機リスポーン
+    updateV085(dt);             // v0.8.5: 川と橋と渡し場
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -216,7 +218,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070, v071, v072, v073, v074 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070, v071, v072, v073, v074, v081, v082, v083, v084, v085 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);

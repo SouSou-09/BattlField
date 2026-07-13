@@ -40,6 +40,45 @@ const TRENCHES = [
 // v0.3: 地下壕ピット [x, z, 半径, 深さ] — 上に屋根スラブを被せて地下室化
 // v0.8.0: 1.3倍拡張 旧:[100,-60,6.5,3.0]
 const PITS = [[130, -78, 8.5, 3.0]];
+// v0.8.5: 川 — 西端から東端へ蛇行する川の経路とパラメータ
+const RIVER_PATH = [[-520,-240],[-340,-200],[-160,-160],[0,-120],[200,-152],[340,-120],[520,-100]];
+const RIVER_HALF_WIDTH = 14;   // 川の半幅
+const RIVER_DEPTH = 4.5;       // 川底の深さ
+// v0.8.5: 橋梁定義 (道路と川の交点 / 甲板高さ / FLATS半径)
+// rotY=道路方向(atan2(dx,dz)) / span=橋長(道路方向) / width=橋幅 / deckH=甲板高 / flatR=平坦化半径
+// 交点計算: Road7(-313,-194) / Road4(-189,-167) / Road2(199,-152) / Road8(322,-124)
+const RIVER_BRIDGES = [
+  { x: -313, z: -194, rotY: 0.134, span: 48, width: 11, deckH: 3.0, flatR: 32 },
+  { x: -189, z: -167, rotY: 0.849, span: 48, width: 11, deckH: 3.0, flatR: 32 },
+  { x: 199,  z: -152, rotY: 2.222, span: 48, width: 11, deckH: 3.0, flatR: 32 },
+  { x: 322,  z: -124, rotY: 0.525, span: 48, width: 11, deckH: 3.0, flatR: 32 }
+];
+// v0.8.5: 渡し場 (浅瀬) — 川の中で歩兵・車両が渡河できる浅い地点
+// height = WATER_Y - 0.2 → isWater=false(渡河可) / 水面下0.2m(見た目は浅瀬)
+const RIVER_FORDS = [
+  { x: -430, z: -222, r: 11, h: -1.8 },
+  { x: 430,  z: -108, r: 11, h: -1.8 }
+];
+// v0.8.5: 川水路掘削 (線分に沿ってU字型断面で掘り下げ)
+function _riverCarveV085(x, z) {
+  let maxCarve = 0;
+  for (let i = 0; i < RIVER_PATH.length - 1; i++) {
+    const x1 = RIVER_PATH[i][0], z1 = RIVER_PATH[i][1];
+    const x2 = RIVER_PATH[i + 1][0], z2 = RIVER_PATH[i + 1][1];
+    const dx = x2 - x1, dz = z2 - z1;
+    const len2 = dx * dx + dz * dz;
+    let t = ((x - x1) * dx + (z - z1) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t, pz = z1 + dz * t;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < RIVER_HALF_WIDTH) {
+      const cross = 1 - d / RIVER_HALF_WIDTH;
+      const carve = RIVER_DEPTH * cross * cross;
+      if (carve > maxCarve) maxCarve = carve;
+    }
+  }
+  return maxCarve;
+}
 function terrainHeight(x, z) {
   let h = 0;
   // 丘 (滑らかに合成)
@@ -114,6 +153,8 @@ function terrainHeight(x, z) {
   const noiseScale = carve > 0.5 ? 0.15 : 1;
   h += (Math.sin(x * 0.045) * Math.cos(z * 0.05) * 0.75
      + Math.sin(x * 0.11 + 3) * Math.sin(z * 0.09 + 1) * 0.32) * noiseScale * (1 - mbBlend * 0.8);
+  // v0.8.5: 川水路
+  h -= _riverCarveV085(x, z);
   return h;
 }
 
@@ -147,8 +188,17 @@ const roadProfiles = ROADS.map(([x1, z1, x2, z2]) => {
   const hs = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
+    const sx = x1 + (x2 - x1) * t, sz = z1 + (z2 - z1) * t;
     // 水面下には沈まない (土手道セグメント対策)
-    hs.push(Math.max(WATER_Y + 0.6, terrainHeight(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t)));
+    let rh = Math.max(WATER_Y + 0.6, terrainHeight(sx, sz));
+    // v0.8.5: 橋梁地点は甲板高さを適用 (水面に沈まない)
+    for (let bi = 0; bi < RIVER_BRIDGES.length; bi++) {
+      if (Math.hypot(sx - RIVER_BRIDGES[bi].x, sz - RIVER_BRIDGES[bi].z) < RIVER_BRIDGES[bi].flatR) {
+        rh = RIVER_BRIDGES[bi].deckH;
+        break;
+      }
+    }
+    hs.push(rh);
   }
   for (let pass = 0; pass < 3; pass++) {
     for (let i = 1; i < n; i++) hs[i] = (hs[i - 1] + hs[i] * 2 + hs[i + 1]) / 4;
@@ -173,6 +223,15 @@ function isDeepWater(x, z) { return terrainH(x, z) < WATER_Y - 1.1; }
 // [x, z, 半径, 目標高さ(nullなら中心の高さ)]
 const FLATS = [];
 function flattenAt(x, z, r) { FLATS.push([x, z, r, terrainHeight(x, z)]); }
+// v0.8.5: 橋梁・渡し場の地形平坦化 (terrainHに反映 → 歩兵/車両通行判定 + メッシュ頂点)
+// 橋梁: 甲板高さで橋に沿った帯状平坦化(川は両岸に残る) / 渡し場: 浅瀬高さで平坦化(渡河可能)
+for (const _rb of RIVER_BRIDGES) {
+  const _bc = Math.cos(_rb.rotY), _bs = Math.sin(_rb.rotY);
+  for (let _bz = -_rb.span / 2; _bz <= _rb.span / 2; _bz += 5) {
+    FLATS.push([_rb.x + _bz * _bs, _rb.z + _bz * _bc, _rb.width / 2 + 2, _rb.deckH]);
+  }
+}
+for (const _rf of RIVER_FORDS) FLATS.push([_rf.x, _rf.z, _rf.r, _rf.h]);
 function terrainH(x, z) {
   let h = terrainHeight(x, z);
   for (const [fx, fz, fr, fh] of FLATS) {
