@@ -87,6 +87,7 @@ function resetGame() {
   resetV073();      // v0.7.3: AI移動能力拡張(スプリント/しゃがみ/カバー越え)
   resetV074();      // v0.7.4: 大規模バグ修正・品質向上
   resetV081();      // v0.8.1: ダウンタウン高密度市街地
+  resetV082();      // v0.8.2: 軍事航空基地
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -194,6 +195,7 @@ function loop(now) {
     updateV073(dt);             // v0.7.3: AI移動能力拡張(実行時フック)
     updateV074(dt);             // v0.7.4: 大規模バグ修正・品質向上(実行時フック)
     updateV081(dt);             // v0.8.1: ダウンタウン高密度市街地(220mカリング)
+    updateV082(dt);             // v0.8.2: 軍事航空基地(220mカリング)
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
