@@ -82,6 +82,7 @@ function resetGame() {
   resetV067();      // v0.6.7: 内装質感/家具配置/階段廊下ディテール
   resetV068();      // v0.6.8: 窓ガラス反射/内部照明/恒久ダメージ
   resetV070();      // v0.7.0: 武器/車両追加バリエーション
+  resetV071();      // v0.7.1: マップ構造リアル化(道路/建物/地形ディテール)
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -184,6 +185,7 @@ function loop(now) {
     updateV067(dt);             // v0.6.7: 内装メッシュ可視性更新(200mカリング)
     updateV068(dt);             // v0.6.8: 窓ガラス破損同期+内部照明昼夜連動
     updateV070(dt);             // v0.7.0: 武器/車両追加バリエーション(実行時フック)
+    updateV071(dt);             // v0.7.1: マップ装飾メッシュ可視性更新(220mカリング)
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -200,7 +202,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070, v071 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);
