@@ -59,6 +59,11 @@ const RIVER_FORDS = [
   { x: -430, z: -222, r: 11, h: -1.8 },
   { x: 430,  z: -108, r: 11, h: -1.8 }
 ];
+// v0.8.6: 鉄道路線 — 南側(z≈460-480)を東西に横断する幹線
+// MILBASE/湖/外周山脈と重複しない南側エリア (node検証済み)
+const RAILWAY_PATH = [[-480,460],[-340,470],[-170,475],[0,480],[170,475],[340,470],[480,460]];
+const RAILWAY_HALF_WIDTH = 5;    // 路盤半幅 (軌道+小径地)
+const RAILWAY_STATION = { x: 0, z: 480, rotY: 0, w: 36, d: 60, platformH: 1.2 };
 // v0.8.5: 川水路掘削 (線分に沿ってU字型断面で掘り下げ)
 function _riverCarveV085(x, z) {
   let maxCarve = 0;
@@ -232,6 +237,27 @@ for (const _rb of RIVER_BRIDGES) {
   }
 }
 for (const _rf of RIVER_FORDS) FLATS.push([_rf.x, _rf.z, _rf.r, _rf.h]);
+// v0.8.6: 鉄道路盤の帯状平坦化 (RIVER_BRIDGESと同様のstrip-of-circles手法)
+// 各セグメントに沿って5m間隔で円形FLATSを配置 → 線路幅分平坦化
+for (let _ri = 0; _ri < RAILWAY_PATH.length - 1; _ri++) {
+  const _rx1 = RAILWAY_PATH[_ri][0], _rz1 = RAILWAY_PATH[_ri][1];
+  const _rx2 = RAILWAY_PATH[_ri + 1][0], _rz2 = RAILWAY_PATH[_ri + 1][1];
+  const _rdx = _rx2 - _rx1, _rdz = _rz2 - _rz1;
+  const _rlen = Math.hypot(_rdx, _rdz);
+  const _rc = _rdx / _rlen, _rs = _rdz / _rlen;
+  for (let _rt = 0; _rt <= _rlen; _rt += 5) {
+    FLATS.push([_rx1 + _rc * _rt, _rz1 + _rs * _rt, RAILWAY_HALF_WIDTH, 2.0]);
+  }
+}
+// v0.8.6: 貨物駅構内の平坦化 (駅プラットホーム広場)
+{
+  const _sc = Math.cos(RAILWAY_STATION.rotY), _ss = Math.sin(RAILWAY_STATION.rotY);
+  for (let _sx = -RAILWAY_STATION.w / 2; _sx <= RAILWAY_STATION.w / 2; _sx += 6) {
+    for (let _sz = -RAILWAY_STATION.d / 2; _sz <= RAILWAY_STATION.d / 2; _sz += 6) {
+      FLATS.push([RAILWAY_STATION.x + _sx * _sc + _sz * _ss, RAILWAY_STATION.z - _sx * _ss + _sz * _sc, 4.5, 2.0]);
+    }
+  }
+}
 function terrainH(x, z) {
   let h = terrainHeight(x, z);
   for (const [fx, fz, fr, fh] of FLATS) {
