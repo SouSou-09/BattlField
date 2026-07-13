@@ -1,5 +1,16 @@
 # STEEL FRONT — 更新履歴
 
+## v0.8.7(2026-07-13) — 高架道路
+- 高架道路ルート — z=380を東西に横断する高架道路(HW_Z=380)、西ランプ起点x=-220から東ランプ終点x=460まで全長680m、甲板区間x=-160〜400(560m)+両側ランプ各60m、node検証済みでMILBASE/湖/道路と重複なし・地形最高点11.05m+余裕2.95mでHW_DECK_H=14に設定
+- 高架甲板(_buildDeck) — BoxGeometry甲板スラブ(560m×0.4m厚×12m幅・solid=false手動生成)、y0=甲板底面/h=甲板上面の薄い障害物で歩兵は甲板上を歩行可能(groundHeightAt: o.h<=yRef+0.55)かつ甲板下を通行可能(collidesAt: yRef+1.9<y0でcrawunder)、両側柵(高さ1.2m・addBox solid)+柵柱(16m間隔・デスクトップのみ)+中央分離帯(低縁石0.3m・デスクトップのみ)
+- 橋脚(_buildDeck) — 40m間隔で地形から甲板底面までBoxGeometry橋脚(1.5m角)、地形が高く甲板高<1mの地点は省略、各橋脚にobstacles+solidMeshes追加(弾丸命中・車両衝突)
+- 高架灯(_buildDeck) — 40m間隔・両側に灯柱(2.5m高)+灯具(0.3×0.15×0.6m・デスクトップのみ)
+- ランプ(_buildRamp) — 階段衝突(addBox step obstacles・step高0.35m<0.4m collidesAt制限・地面からstep頂部までsolid block→groundHeightAtで段々に登れる)+滑らかな表面メッシュ(PlaneGeometry頂点変形で傾斜追随・yaw=atan2(dx,0)回転規約・l2wワールド変換)+側壁(両側0.8m高・step追従・デスクトップのみ)、西ランプ=上り(地面→甲板)/東ランプ=下り(甲板→地面)
+- 標識(_buildSigns) — ランプ入口両端に標識柱(4m高)+標識板(3×1.2m・デスクトップのみ)
+- FLATS不使用 — 地形平坦化なし、障害物ベースの衝突判定で高架を実現(FLATSで地形を平坦化すると高架下の戦術的深度が失われるため)、車両はterrainHを使用しobstacles参照しないため高架下を走行可能
+- モバイル対応 — 柵柱/中央分離帯/高架灯/ランプ側壁/標識をisMobile時スキップ(主要構造の甲板・柵・橋脚・ランプ表面・階段は維持)
+- 初回生成パターン — v081/v082/v085/v086と同様にinitializedフラグでresetGame時に一度だけ生成、updateV087は静的構造のため空実行
+
 ## v0.8.6(2026-07-13) — 鉄道と貨物駅
 - 鉄道路線 — 南側(z≈460-480)を東西に横断する7点のRAILWAY_PATH([-480,460]→[480,460])、軍事基地/湖/外周山脈と重複しない南エリアに配置(node検証済み)、RAILWAY_HALF_WIDTH=5で路盤半幅を定義
 - 地形平坦化 — RAILWAY_PATH各セグメントに沿って5m間隔で円形FLATS(半径5m・高さ2.0)をstrip-of-circles配置、RAILWAY_STATION構内(w36×d60)は6m間隔グリッドで円形FLATS(半径4.5m・高さ2.0)を敷き詰め平坦化
