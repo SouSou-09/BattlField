@@ -93,6 +93,7 @@ function resetGame() {
   resetV085();      // v0.8.5: 川と橋と渡し場
   resetV086();      // v0.8.6: 鉄道と貨物駅
   resetV087();      // v0.8.7: 高架道路
+  resetV088();      // v0.8.8: 地下鉄/トンネルネットワーク
   updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
   ui.waveBanner.textContent = 'CONQUEST — 拠点を占領せよ';
   ui.waveBanner.style.opacity = 1;
@@ -206,6 +207,7 @@ function loop(now) {
     updateV085(dt);             // v0.8.5: 川と橋と渡し場
     updateV086(dt);             // v0.8.6: 鉄道と貨物駅
     updateV087(dt);             // v0.8.7: 高架道路
+    updateV088(dt);             // v0.8.8: 地下鉄/トンネルネットワーク
     updateGrenades(dt);
     updatePickups(dt);
     updateMatchTimer(dt);   // v0.2.3
@@ -222,7 +224,7 @@ updateHpUI(); updateAmmoUI(); updateScoreUI(); updateTicketsUI();
 requestAnimationFrame(loop);
 
 // デバッグ用フック (テスト自動化用 / 本体の動作には影響しない)
-window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070, v071, v072, v073, v074, v081, v082, v083, v084, v085, v086, v087 };
+window.__dbg = { soldiers, flags, game, player, terrainH, vehicles, destructibleWalls, v042, v043, v045, v046, v047, v048, v050, v051, v052, v053, v054, v055, v056, v057, v058, v059, v0510, v060, v061, v062, v063, v064, v065, v066, v067, v068, v070, v071, v072, v073, v074, v081, v082, v083, v084, v085, v086, v087, v088 };
 // #autotest でスタートを自動クリック (動作検証用)
 if (location.hash === '#autotest') {
   setTimeout(() => document.getElementById('start-btn').click(), 500);

@@ -258,6 +258,16 @@ for (let _ri = 0; _ri < RAILWAY_PATH.length - 1; _ri++) {
     }
   }
 }
+// v0.8.8: 地下鉄駅構内の平坦化 (z=300東西線の4駅、各駅24m×16mエリアを高さ2.0に平坦化)
+// node検証済み: S1西(-300,300)h0.74 / S2中央西(-100,300)h-0.64 / S3中央東(100,300)h0.64 / S4東(300,300)h11.5
+// FLATS平坦化で全駅を高さ2.0に統一(水面WATER_Y-1.6より十分に高い)
+for (const _subS of [{x:-300,z:300},{x:-100,z:300},{x:100,z:300},{x:300,z:300}]) {
+  for (let _sx = -12; _sx <= 12; _sx += 5) {
+    for (let _sz = -8; _sz <= 8; _sz += 5) {
+      FLATS.push([_subS.x + _sx, _subS.z + _sz, 5, 2.0]);
+    }
+  }
+}
 function terrainH(x, z) {
   let h = terrainHeight(x, z);
   for (const [fx, fz, fr, fh] of FLATS) {
