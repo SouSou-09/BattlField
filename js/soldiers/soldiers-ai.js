@@ -70,6 +70,11 @@ function updateSoldiers(dt) {
           s.vy = 0; s.onGround = true; s.jumpCd = 0;   // v0.3.1
           s.targetFlag = null; s.engageTarget = null; s.aimT = 0;
           s.shootCd = 1 + Math.random();
+          // v0.7.4: v073プロパティとスケールをリセット
+          s._savedSpeedV073 = undefined;
+          s.stanceV073 = 0;
+          s.sprintV073 = false;
+          if (s.obj.scale && s.obj.scale.y !== 1) s.obj.scale.y = 1;
           if (typeof initAiSoldierV052 === 'function') initAiSoldierV052(s);
           if (typeof initAiSoldierV053 === 'function') initAiSoldierV053(s);
           s.marker.visible = s.team === 1;   // 味方マーカー復帰

@@ -95,6 +95,7 @@ function respawnPlayer(sp = null) {
   }
   const rx = sp.x + (Math.random() - .5) * 10, rz = sp.z + (Math.random() - .5) * 10;
   player.stance = 0; player.slideT = 0; player.stamina = 1; player.exhausted = false;   // v0.4.0
+  player.sprinting = false; player.slideDir.set(0, 0, 0); player.downed = false;  // v0.7.4: 追加リセット
   player.eyeHeight = 1.7;
   player.pos.set(rx, terrainH(rx, rz) + player.eyeHeight, rz);
   player.vel.set(0, 0, 0);

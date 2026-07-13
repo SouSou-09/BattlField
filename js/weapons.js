@@ -14,7 +14,9 @@ const player = {
   chute: false,                       // v0.3.1: パラシュート展開中
   // v0.4.0: 姿勢 (0=立ち 1=しゃがみ 2=伏せ) / スライド / スタミナ
   stance: 0, slideT: 0, slideDir: new THREE.Vector3(),
-  stamina: 1, breathT: 0, sprinting: false
+  stamina: 1, breathT: 0, sprinting: false,
+  downed: false,          // v0.7.4: 初期定義に追加 (v046が動的に追加していた)
+  maxHp: 100, deaths: 0   // v0.7.4: 初期定義に追加
 };
 const game = {
   score: 0, kills: 0, running: false,

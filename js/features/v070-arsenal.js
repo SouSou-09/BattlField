@@ -27,6 +27,24 @@ var v070 = {
   vehicles: []      // 追加配置した車両の参照(可視性管理用)
 };
 
+// v0.7.4: リスタート時のvehicles配列蓄積バグ修正
+var _v070ResetHooked = false;
+function _hookResetV070() {
+  if (_v070ResetHooked) return;
+  _v070ResetHooked = true;
+  var _origResetGame = null;
+  if (typeof resetGame === 'function') {
+    _origResetGame = resetGame;
+    // resetGame内でspawnVehiclesが呼ばれ、その中でv070.vehiclesにpushされるため
+    // resetGame呼出前にv070.vehiclesをクリアする
+    resetGame = function () {
+      // v070.vehiclesをクリア (旧ゲームで追加した車両参照を破棄)
+      v070.vehicles.length = 0;
+      _origResetGame();
+    };
+  }
+}
+
 // ============================================================
 //  1. 武器追加バリエーション
 // ============================================================
@@ -317,6 +335,8 @@ function _hookSpawnVehiclesV070() {
 //  reset / update
 // ============================================================
 function resetV070() {
+  // v0.7.4: リスタート時のvehicles配列蓄積防止フック (初回のみ登録)
+  _hookResetV070();
   if (v070.initialized) return;
   v070.initialized = true;
   _addWeaponsV070();        // 武器追加

@@ -12,6 +12,8 @@
 
   var _origUpdateSoldiers = null;
   var _origFindEnemyTarget = null;
+  // v0.7.4: 処理対象兵士リスト — Post-hookで選択的に復元するためPre-hookで記録
+  var _processedSoldiers = [];
 
   // ---------------------------------------------------------------
   // resetV073 — updateSoldiers と findEnemyTarget をフック
@@ -47,17 +49,20 @@
   function _v073PreHook(dt) {
     v073.crouchingCount = 0;
     v073.sprintingCount = 0;
+    _processedSoldiers = [];                        // v0.7.4: 毎フレーム初期化
 
     for (var i = 0; i < soldiers.length; i++) {
       var s = soldiers[i];
       if (!s.alive || s.inVehicle) continue;
 
-      // 初回プロパティ初期化
-      if (s._origSpeedV073 === undefined) {
-        s._origSpeedV073 = s.speed;
+      // v0.7.4: 速度を毎フレーム保存 (他システムがspeed変更しても追従)
+      // 元は初回のみ_origSpeedV073を保存 → staleになるバグを修正
+      s._savedSpeedV073 = s.speed;
+      if (s.stanceV073 === undefined) {
         s.stanceV073 = 0;          // 0=立位, 1=しゃがみ
         s.sprintV073 = false;
       }
+      _processedSoldiers.push(s);                   // Post-hook用に記録
 
       var sp = s.obj.position;
       var tgt = (typeof targetAlive === 'function' && targetAlive(s.engageTarget)) ? s.engageTarget : null;
@@ -121,7 +126,7 @@
       var mult = 1;
       if (shouldCrouch) mult *= 0.55;         // プレイヤー crouch と同等
       if (shouldSprint) mult *= 1.45;         // 戦闘スプリント (非戦闘時は原本が更に*1.7)
-      s.speed = s._origSpeedV073 * mult;
+      s.speed = s._savedSpeedV073 * mult;      // v0.7.4: 保存した値を使用
 
       // スプリント中はジャンプCD短縮 (カバー越えを積極的に)
       if (shouldSprint && s.jumpCd > 0.3) s.jumpCd = 0.3;
@@ -135,15 +140,17 @@
   // Post-hook — 視覚的しゃがみ表現 + 検知率低下 + アニメ調整
   // ---------------------------------------------------------------
   function _v073PostHook(dt) {
-    for (var i = 0; i < soldiers.length; i++) {
-      var s = soldiers[i];
+    // v0.7.4: Pre-hookで処理した兵士のみ復元 (死亡/搭乗中の兵士は上書きしない)
+    for (var pi = 0; pi < _processedSoldiers.length; pi++) {
+      var s = _processedSoldiers[pi];
 
-      // s.speed を必ず復元 (死亡時も含む — speed流出防止)
-      if (s._origSpeedV073 !== undefined) {
-        s.speed = s._origSpeedV073;
+      // s.speed を復元 (Pre-hookで保存した値を使用)
+      if (s._savedSpeedV073 !== undefined) {
+        s.speed = s._savedSpeedV073;
+        s._savedSpeedV073 = undefined;          // 次フレーム用にクリア
       }
 
-      // 死亡/搭乗中 — スケールを1に戻す
+      // 死亡した場合 (Pre-hook後updateSoldiers内で死亡) — スケールを1に戻す
       if (!s.alive || s.inVehicle) {
         if (s.obj && s.obj.scale.y < 0.99) {
           s.obj.scale.y += (1 - s.obj.scale.y) * Math.min(1, dt * 8);
@@ -180,34 +187,27 @@
   // プレイヤーの crouch/prone も検知範囲に反映 (プレイヤーとAIの対称性)
   // ---------------------------------------------------------------
   function _v073FindEnemyTarget(s) {
-    var best = null, bd = 60;
+    // v0.7.4: 原本を呼び出して結果をフィルタする方式に変更
+    // (元は全ロジックを再実装しており保守性リスクがあった)
+    var result = _origFindEnemyTarget(s);
+    if (!result) return null;
 
-    // プレイヤー検知 (crouch/prone で範囲縮小)
-    if (s.team === -1 && player.alive) {
+    // crouch/prone対象の検知範囲縮小フィルタ
+    if (result.kind === 'player') {
       var pd = Math.hypot(player.pos.x - s.obj.position.x, player.pos.z - s.obj.position.z);
       var pRange = 60;
       if (player.stance === 1) pRange = 33;       // crouch: 45%減
       else if (player.stance === 2) pRange = 21;   // prone: 65%減
-      if (pd < bd && pd < pRange) { bd = pd; best = { kind: 'player' }; }
-    }
-
-    // AI兵士検知 (crouch で範囲縮小)
-    for (var i = 0; i < soldiers.length; i++) {
-      var o = soldiers[i];
-      if (!o.alive || o.team === s.team) continue;
+      if (pd > pRange) return null;               // 範囲外なら見失う
+    } else if (result.kind === 'soldier' && result.s) {
+      var o = result.s;
       var d = Math.hypot(o.obj.position.x - s.obj.position.x, o.obj.position.z - s.obj.position.z);
       var detRange = (o.stanceV073 === 1) ? 36 : 60;   // crouch: 40%減
-      if (d < bd && d < detRange) { bd = d; best = { kind: 'soldier', s: o }; }
+      if (d > detRange) return null;              // 範囲外なら見失う
     }
+    // vehicle は原本通り (フィルタ不要)
 
-    // 車両検知 (原本通り)
-    if (s.team === -1 && curVehicle) {
-      var vd = Math.hypot(curVehicle.obj.position.x - s.obj.position.x, curVehicle.obj.position.z - s.obj.position.z);
-      var concealV055 = typeof vehicleCamoConcealmentV055 === 'function' ? vehicleCamoConcealmentV055(curVehicle) : 0;
-      if (vd < bd + 10 && Math.random() >= concealV055) best = { kind: 'vehicle' };
-    }
-
-    return best;
+    return result;
   }
 
   // ---------------------------------------------------------------

@@ -27,7 +27,15 @@
   // resetV072 — updatePlayer をフックして移動リアル化を適用
   // ---------------------------------------------------------------
   function resetV072() {
-    if (v072.initialized) return;
+    // v0.7.4: 毎回状態変数をクリア (リセット時に呼ばれるたびに実行)
+    v072.smoothDX = 0; v072.smoothDZ = 0;
+    v072.prevX = 0; v072.prevZ = 0;
+    v072.landDip = 0; v072.wasGround = true; v072.prevVelY = 0;
+    v072.prevYaw = 0; v072.turnLean = 0;
+    v072.speedPrev = 0; v072.accelLean = 0;
+    v072.swayPhase = 0; v072.fovKick = 0;
+
+    if (v072.initialized) return;                  // フック自体は初回のみ
     v072.initialized = true;
     if (isMobile) return;                          // モバイル版は軽量化のためスキップ
     if (typeof updatePlayer !== 'function') return;
@@ -76,12 +84,16 @@
     player.pos.x = v072.prevX;
     player.pos.z = v072.prevZ;
     var footY = player.pos.y - player.eyeHeight;
+    // v0.7.4: collidesAtガード修正 — 関数が存在しない場合は安全側に倒す(移動許可)
+    // 元の || は正しいが、可読性向上のため明示的に記述
     var nx = v072.prevX + v072.smoothDX;
-    if (typeof collidesAt !== 'function' || !collidesAt(nx, player.pos.z, player.radius, footY)) {
+    var blockedX = (typeof collidesAt === 'function') && collidesAt(nx, player.pos.z, player.radius, footY);
+    if (!blockedX) {
       player.pos.x = nx;
     } else { v072.smoothDX *= 0.2; }                // 衝突時は慣性を抑制
     var nz = v072.prevZ + v072.smoothDZ;
-    if (typeof collidesAt !== 'function' || !collidesAt(player.pos.x, nz, player.radius, footY)) {
+    var blockedZ = (typeof collidesAt === 'function') && collidesAt(player.pos.x, nz, player.radius, footY);
+    if (!blockedZ) {
       player.pos.z = nz;
     } else { v072.smoothDZ *= 0.2; }
 
@@ -147,13 +159,11 @@
       slideRoll - leanRoll - v072.turnLean                   // roll: スライド + リーン + 旋回
     );
 
-    // ===== 6. スプリントFOVキック =====
+    // ===== 6. スプリントFOVキック (計算のみ) =====
+    // v0.7.4: camera.fovの直接設定を削除 — updateAds後にupdateV072で適用することで
+    // updateAdsとのFOV競合バグを修正 (元はupdateAdsがfovを上書きしてキックが無効化されていた)
     var targetKick = (player.sprinting && ads.t < 0.1) ? 5 : 0;
     v072.fovKick += (targetKick - v072.fovKick) * Math.min(1, dt * 4);
-    if (ads.t < 0.01 && !curVehicle) {
-      camera.fov = FOV_HIP + v072.fovKick;
-      camera.updateProjectionMatrix();
-    }
 
     // ===== 7. シェイク再適用 (カメラ位置を再構築したため) =====
     if (shake > 0.01) {
@@ -184,8 +194,15 @@
   // updateV072 — loop統合用 (拡張処理は全てフック内で完結)
   // ---------------------------------------------------------------
   function updateV072(dt) {
-    // 全ての処理は updatePlayer フック内で実行される。
-    // 将来の拡張用に残置 (足音判定やモーション状態管理など)。
+    // v0.7.4: FOVキック適用 — updateAdsの後に実行されるため、FOV競合を解決
+    // updateAdsがcamera.fovを設定した後、スプリントキックを上乗せする
+    if (isMobile) return;
+    if (!player || !player.alive || player.downed) return;
+    if (typeof curVehicle !== 'undefined' && curVehicle) return;
+    if (ads.t < 0.01 && v072.fovKick > 0.01) {
+      camera.fov = FOV_HIP + v072.fovKick;
+      camera.updateProjectionMatrix();
+    }
   }
 
   // Export

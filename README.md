@@ -1,5 +1,22 @@
 # STEEL FRONT — 更新履歴
 
+## v0.7.4(2026-07-13) — 大規模バグ修正 & 品質向上
+- v0.7.2状態変数リセット修正 — resetV072が初回以降early returnして状態変数(smoothDX/DZ/landDip/turnLean/accelLean/swayPhase/fovKick等12個)をリセットしないバグを修正、毎回resetV072呼出時に全状態変数を0クリアしてリスタート時の残留モーションを防止
+- v0.7.2 FOVキック競合修正 — スプリントFOVキックのcamera.fov直接設定をupdateV072へ移動、updateAds(dt)の後にupdateV072(dt)が実行されるためFOV競合を解決(元はupdateAdsがfovを上書きしてキックが無効化されていた)
+- v0.7.2 collidesAtガード修正 — `typeof collidesAt !== 'function' || !collidesAt(...)`の短絡評価を明示的な`blockedX = (typeof collidesAt === 'function') && collidesAt(...)`に書き換え、可読性向上と意図明確化
+- v0.7.3速度保存stale修正 — _origSpeedV073の初回固定保存を廃止し、毎フレーム_savedSpeedV073にs.speedを保存する方式に変更、他システムがspeedを変更しても追従して正確な倍率計算を保証
+- v0.7.3 Post-hook選択的復元修正 — 全兵士をループしてspeedを復元していたバグを修正、Pre-hookで処理した兵士のみ(_processedSoldiers配列)を復元対象とし死亡/搭乗中の兵士のspeedを上書きしない
+- v0.7.3 findEnemyTarget保守性修正 — 原本findEnemyTargetを完全再実装していたバグを修正、_origFindEnemyTargetを呼び出して結果をcrouch/prone範囲フィルタするラップ方式に変更、原本のロジック変更が自動反映される
+- v0.7.3 AIリスポーンクリーンアップ修正 — soldiers-ai.jsのリスポーン処理にv073プロパティ(_savedSpeedV073/stanceV073/sprintV073)のリセットとobj.scale.yの1.0復帰を追加、リスポーン時に前の姿勢状態が残らないように修正
+- v0.7.0 vehicles配列蓄積修正 — resetV070でresetGameをフックし呼出前にv070.vehicles.length=0でクリア、リスタート時に前ゲームの車両参照が蓄積するバグを修正
+- player.downed初期定義追加 — weapons.jsのplayer初期オブジェクトにdowned:false/maxHp:100/deaths:0を明示的に追加、v046が動的に追加していたプロパティを初期定義に統合してundefined参照を防止
+- respawnPlayer状態リセット修正 — combat-player.jsのrespawnPlayerにplayer.sprinting=false/player.slideDir.set(0,0,0)/player.downed=falseのリセットを追加、リスポーン時に前の状態が残るバグを修正
+- resetGame状態リセット修正(v074-qualityfix.js) — resetGameをフックして呼出前にplayer.downed/sprinting/slideDirをリセット、main.jsのObject.assignで上書きされないプロパティの残留を防止
+- カメラFOV異常値クランプ(品質向上) — updateV074で毎フレームcamera.fovが20-120の範囲外またはNaNの場合にFOV_HIP(75)にクランプ、異常値による描画破綻を防止
+- AI兵士null参照ガード(品質向上) — updateV074で10フレームに1回soldiers配列を走査しobjがnullの兵士を安全にsplice除去、updateSoldiers内のnull参照例外を防止
+- 効果音プール引数検証(品質向上) — spawnTracer/spawnParticlesをラップしてnull引数や不正count(0以下/200超)を弾く、不正引数による効果音プール破損を防止
+- ポインターロック安全クリーンアップ(品質向上) — pointerlockchangeイベントでポインターロック解除時にfiring/fireLatchをfalseにクリア、マウスロック解除後も発火状態が残るバグを防止、モバイル版は全機能スキップ
+
 ## v0.7.3(2026-07-13)
 - AIスプリント拡張 — updateSoldiersをPre/Postフックし、AIに状況に応じたスプリント(速度1.45倍)を実装: 拠点防衛urgence(旗が脅威下・25m以遠・非交戦)・長距離移動(目的地45m以遠・非交戦)・分隊長から22m以上離脱時の合流疾走、しゃがみ中はスプリント不可(プレイヤーと同様)、スプリント中はジャンプCD短縮(0.3s)でカバー越えを積極化
 - AIしゃがみ実装(新規) — 5つの状況判断でしゃがみ(速度0.55倍・プレイヤーcrouchと同等)を自動選択: ①狙撃兵の籠もり positioning ②長距離交戦(35-80m・視線あり)の精度向上 ③拠点防衛待ち伏せ(旗圈内70%・敵未視認) ④低HP隠蔽離脱(hp40以下・非交戦) ⑤乗り物近接待機、モデルをY軸0.72倍に縮小(dt*8の平滑補間)で視覚的表現
