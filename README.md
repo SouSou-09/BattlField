@@ -1,5 +1,18 @@
 # STEEL FRONT — 更新履歴
 
+## v0.8.4(2026-07-13) — ジェット戦闘機(最大の山場)
+- F-4ジェット戦闘機 — 胴体1.3×1.2×9+先細り機首+デルタ後退翼(±4.5m)+垂直/水平尾翼+エンジン排気口+キャノピー+ピトー管+警告灯、プリミティブジオメトリのみ
+- 物理挙動 — スロットル(W/S)→速度(max85/AB128)、ピッチ(マウスY)→機首上げ下げ、ロール(A/D)→バンク旋回、協調ターン(ロール連動ヨー)、失速(stallSpeed18以下で機首下げ降下)、地上/空中切替、アフターバーナー(Space)で1.5倍加速+青色炎演出、ブレーキ(C)
+- 移動 — YXZオイラー角から3D前方ベクトルを算出し位置を更新、地面衝突でハードランディング判定(speed>20かつ機首下で着地ダメージ)、障害物衝突でクラッシュ、ワールド境界で反転
+- 武器 — 20mm機関砲(fireMG・弾薬300発・ゆっくり回復・射程450m)＋空対地ミサイル(Qキー/heliRocketsフック・fireShell・8発・Cd1.0s・左右パイロン交互発射)
+- HUD — 速度km/h+高度m+スロットル%+失速警告+燃料+ミサイル残弾、人工水平儀(画面下部に円形ADI・ロール回転+ピッチ平行移動・空/地面2色+水平線+黄色機体基準十字)
+- APRON_SLOTSスポーン — resetV082()で生成済みのAPRON_SLOTS_BLUE/RED各2スロットに青赤2機ずつ配置、team割当
+- フック方式 — updateVehicle(nearestVehicle/seatWeaponName/updateSeatUI/enterVehicle/exitVehicle/destroyVehicle/updateVehicleUI/updateAutoAA/heliRockets/damageVehicle)を全てIIFE内ロード時フックでwrap、元関数は_orig*V084変数に保存
+- nearestVehicle — 空中ジェット(alt>5)は乗降不可、destroyVehicle — 空中撃墜でfalling/fallVy/fallSpin設定し慣性墜落、exitVehicle — 高高度脱出でパラシュート落下
+- 対空砲迎撃 — updateAutoAAフックでジェット(alt>5)も標的に追加、damageVehicle — ジェット軽装甲(小銃0.65倍/爆発0.55倍)
+- 90秒リスポーン — 破壊後90秒で残骸除去→元スロットに再生成、フィード通知
+- モバイル対応 — ミサイルモデル/キャノピーフレーム/エアインテーク/アフターバーナー炎をisMobile時スキップ
+
 ## v0.8.3(2026-07-13) — 基地車両+新APC+補給トラック+リスポーン
 - spawnVehiclesフック — v083ロード時に元関数を変数保存しラップ、spawnVehicles呼出後に両MILBASEへ基地車両を追加生成
 - 両軍事基地に6種車両配置 — 戦車/テクニカル(ジープ)/偵察車(バイク)/ヘリ/新APC/補給トラックをMILBASE回転対応の_l2wローカル→ワールド変換で配置、ローカル座標は滑走路(lx=0±11)と格納庫(lx≈-35)を回避
