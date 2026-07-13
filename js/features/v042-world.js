@@ -51,11 +51,12 @@ function damageBridge(bridge, amount) {
 }
 
 function createTunnelNetwork() {
+  // v0.8.0: 座標1.3倍拡張 (旧: -205,142 / -12,12 / 108,-55 / 204,-151)
   const points = [
-    { x: -205, z: 142, to: 1, name: 'B地下入口' },
-    { x: -12, z: 12, to: 0, name: 'C地下入口' },
-    { x: 108, z: -55, to: 3, name: '地下壕' },
-    { x: 204, z: -151, to: 2, name: 'D地下入口' }
+    { x: -266, z: 185, to: 1, name: 'B地下入口' },
+    { x: -16, z: 16, to: 0, name: 'C地下入口' },
+    { x: 140, z: -72, to: 3, name: '地下壕' },
+    { x: 265, z: -196, to: 2, name: 'D地下入口' }
   ];
   const concrete = new THREE.MeshLambertMaterial({ color: 0x555b58 });
   for (const p of points) {
@@ -72,7 +73,8 @@ function createTunnelNetwork() {
 function createBushes() {
   const leaf = new THREE.MeshLambertMaterial({ color: 0x345b2d, transparent: true, opacity: 0.92 });
   const geo = new THREE.IcosahedronGeometry(1, 1);
-  const centers = [[-242,-205],[-216,128],[-35,24],[22,-16],[185,-140],[244,228],[82,92],[154,153],[-115,170]];
+  // v0.8.0: 座標1.3倍拡張 (旧: [-242,-205]...)
+  const centers = [[-315,-267],[-281,166],[-46,31],[29,-21],[241,-182],[317,296],[107,120],[200,199],[-150,221]];
   for (const [cx, cz] of centers) {
     for (let i = 0; i < 5; i++) {
       const x = cx + (Math.random() - .5) * 12, z = cz + (Math.random() - .5) * 12;
@@ -114,8 +116,9 @@ function addBulletHole(point) { addBattleScar(point, 'bullet', 0.12 + Math.rando
 
 function initV042() {
   if (!v042.bridges.length) {
-    makeBridge(120, 61, 24, 0);
-    makeBridge(174, 120, 22, Math.PI / 2);
+    // v0.8.0: 座標・長さ1.3倍拡張 (旧: 120,61,24 / 174,120,22)
+    makeBridge(156, 79, 31, 0);
+    makeBridge(226, 156, 29, Math.PI / 2);
     createTunnelNetwork(); createBushes();
   }
   resetV042();

@@ -383,24 +383,24 @@ function spawnVehicles() {
   // 赤HQ (対空砲は自動迎撃 / 車両は奪取可能)
   createJeep(HQ_RED.x - 12, HQ_RED.z + 14, Math.PI * 0.75);
   createEmplacement('aa', HQ_RED.x + 14, HQ_RED.z + 8, Math.PI * 0.75, -1);
-  // 中立 (拠点C付近と道路沿い / v0.3.3: マップ2倍化に合わせ再配置+増量)
-  createJeep(12, 36, Math.PI / 2);
-  createJeep(-104, -56, 0);
-  createJeep(-200, 138, Math.PI / 2);   // 拠点B
-  createTank(210, -172, Math.PI);       // 拠点D
+  // 中立 (拠点C付近と道路沿い / v0.8.0: 旗位置参照へ修正)
+  createJeep(flags[2].x + 12, flags[2].z + 36, Math.PI / 2);
+  createJeep(-135, -73, 0);              // v0.8.0: 道路沿い (旧-104,-56)
+  createJeep(flags[1].x, flags[1].z - 12, Math.PI / 2);   // 拠点B
+  createTank(flags[3].x, flags[3].z - 12, Math.PI);       // 拠点D
   // v0.4.1: バイク — 旗の裏取り用に各拠点へ分散配置
   createBike(HQ_BLUE.x + 6, HQ_BLUE.z - 20, -Math.PI / 4);
   createBike(HQ_RED.x - 6, HQ_RED.z + 20, Math.PI * 0.75);
-  createBike(-6, 26, Math.PI / 2);       // 拠点C
-  createBike(-192, 160, 0);              // 拠点B
+  createBike(flags[2].x - 6, flags[2].z + 26, Math.PI / 2);       // 拠点C
+  createBike(flags[1].x + 8, flags[1].z + 10, 0);              // 拠点B
   // 拠点E ヘリパッド
-  createHeli(262, 264, Math.PI);
-  // 湖のボート (岸辺)
-  createBoat(56, 156, Math.PI / 2);
-  createBoat(190, 84, -Math.PI / 2);
+  createHeli(flags[4].x + 2, flags[4].z + 14, Math.PI);
+  // 湖のボート (岸辺) v0.8.0: LAKE基準
+  createBoat(LAKE.x - 100, LAKE.z, Math.PI / 2);
+  createBoat(LAKE.x + 34, LAKE.z - 72, -Math.PI / 2);
   // 固定機銃: 砦A / 島F
-  createEmplacement('mg', -244, -214, Math.PI / 4, 0);
-  createEmplacement('mg', 117, 112, Math.PI, 0);
+  createEmplacement('mg', flags[0].x + 6, flags[0].z + 6, Math.PI / 4, 0);
+  createEmplacement('mg', flags[5].x - 3, flags[5].z - 8, Math.PI, 0);
 }
 
 /* ---------- v0.3: ダメージ / 部位破損 / 炎上 ---------- */

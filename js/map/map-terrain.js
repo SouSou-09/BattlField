@@ -6,24 +6,54 @@
    own: 1=BLUE(プレイヤー側) / -1=RED / 0=中立
    ========================================================= */
 const FLAG_R = 14;                 // 占領判定半径
+// v0.8.0: 全座標1.3倍拡張 (旧値は各行コメント参照)
 const flags = [
-  { id: 'A', x: -250, z: -220, own: 0, cap: 0 }, // 北西の丘の上 (v0.3.3: 2倍拡張)
-  { id: 'B', x: -200, z: 150, own: 0, cap: 0 },  // 南西の村
-  { id: 'C', x: 0,   z: 0,   own: 0, cap: 0 },   // 中央市街地
-  { id: 'D', x: 210, z: -160, own: 0, cap: 0 },  // 北東の倉庫地区
-  { id: 'E', x: 260, z: 250, own: 0, cap: 0 },   // 南東の高地基地
-  { id: 'F', x: 120, z: 120, own: 0, cap: 0 }    // v0.3: 湖の島
+  { id: 'A', x: -325, z: -286, own: 0, cap: 0 }, // 北西の丘の上 旧:-250,-220
+  { id: 'B', x: -260, z: 195, own: 0, cap: 0 },  // 南西の村 旧:-200,150
+  { id: 'C', x: 0,   z: 0,   own: 0, cap: 0 },   // 中央市街地 (原点)
+  { id: 'D', x: 273, z: -208, own: 0, cap: 0 },  // 北東の倉庫地区 旧:210,-160
+  { id: 'E', x: 338, z: 325, own: 0, cap: 0 },   // 南東の高地基地 旧:260,250
+  { id: 'F', x: 156, z: 156, own: 0, cap: 0 }    // v0.3: 湖の島 旧:120,120
 ];
-const HQ_BLUE = { x: -340, z: 340 };   // 南西端 (v0.3.3: 2倍拡張)
-const HQ_RED  = { x: 340,  z: -340 };  // 北東端
+const HQ_BLUE = { x: -442, z: 442 };   // 南西端 旧:-340,340
+const HQ_RED  = { x: 442,  z: -442 };  // 北東端 旧:340,-340
+
+// v0.8.0: 軍事基地用平地定義 (後続バージョンが参照)
+// 滑走路が置ける矩形平地。両HQはマップ角にあるため外周側(WORLD境界側)には
+// 220m滑走路を置く余地が無く、HQからマップ中央方向へ約90m寄せた位置に配置する。
+// {x,z,rotY,w,d,flatH} — rotYは滑走路方向(長辺=滑走路長=d方向)、w=幅、d=長さ
+// rotY=-π/4: 青基地の滑走路は北東(中央方向)へ向く / rotY=3π/4: 赤基地は南西(中央方向)へ向く
+const MILBASE_BLUE = { x: HQ_BLUE.x + 92, z: HQ_BLUE.z - 92, rotY: -Math.PI * 0.25, w: 90, d: 220 };
+const MILBASE_RED  = { x: HQ_RED.x - 92,  z: HQ_RED.z + 92,  rotY: Math.PI * 0.75, w: 90, d: 220 };
+// 平地化目標高さは terrainHeight 計算前に設定するため、遅延で計算
+// (MILBASES 配列は terrain.js が参照する — ここでpushする前に高さを確定)
+(function _initMilbasesV080() {
+  const mbList = [MILBASE_BLUE, MILBASE_RED];
+  for (const mb of mbList) {
+    // 基地中心の元の地形高さをサンプリングして平地高とする
+    const samples = [];
+    for (let sxi = -2; sxi <= 2; sxi++) {
+      for (let szi = -2; szi <= 2; szi++) {
+        const sx = mb.x + sxi * 18;
+        const sz = mb.z + szi * 18;
+        samples.push(terrainHeight(sx, sz));
+      }
+    }
+    // 外周隆起を除外するため中央4x4の中央値採用
+    samples.sort(function (a, b) { return a - b; });
+    mb.flatH = samples[Math.floor(samples.length * 0.35)];
+    MILBASES.push(mb);
+  }
+})();
 
 // 拠点・HQ周辺を平地化
 for (const f of flags) flattenAt(f.x, f.z, 22);
 flattenAt(HQ_BLUE.x, HQ_BLUE.z, 20);
 flattenAt(HQ_RED.x, HQ_RED.z, 20);
-// v0.3: 島Fへの土手道 (水面より上に盛り土) v0.3.3: 2倍拡張
-for (let bx = 40; bx <= 104; bx += 4) {
-  FLATS.push([bx, 120, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, 120))]);
+// v0.3: 島Fへの土手道 (水面より上に盛り土)
+// v0.8.0: 1.3倍拡張 旧:bx=40〜104 / z=120
+for (let bx = 52; bx <= 135; bx += 5) {
+  FLATS.push([bx, 156, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, 156))]);
 }
 
 // ---------- 道路網 ----------
@@ -32,7 +62,7 @@ for (let bx = 40; bx <= 104; bx += 4) {
 
 /* ---------- Terrain mesh (ハイトフィールド) ---------- */
 {
-  const SEG = isMobile ? 160 : 220;   // v0.3.3: マップ2倍化に伴い分割を増やす
+  const SEG = isMobile ? 190 : 260;   // v0.8.0: WORLD 1.3倍拡張に伴う分割数増加 旧:160/220
   const geo = new THREE.PlaneGeometry(WORLD * 2 + 80, WORLD * 2 + 80, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;

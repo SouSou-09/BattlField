@@ -126,7 +126,8 @@ function resetV056() {
   createTransportV056(HQ_BLUE.x + 30, HQ_BLUE.z - 3, -Math.PI / 4);
   createAPCV056(HQ_RED.x - 28, HQ_RED.z + 18, Math.PI * .75);
   createTransportV056(HQ_RED.x - 30, HQ_RED.z + 3, Math.PI * .75);
-  createTransportV056(-218, 132, Math.PI / 2);
+  // v0.8.0: flag B 付傍に配置 (旧: -218,132 → 1.3倍=-283,172)
+  createTransportV056(flags[1].x - 23, flags[1].z - 23, Math.PI / 2);
 }
 
 function updateV056() {

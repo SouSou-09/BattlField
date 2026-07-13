@@ -319,14 +319,15 @@ function _hookSpawnVehiclesV070() {
   spawnVehicles = function () {
     _origSpawnVehiclesV070();
     // テクニカル: 各HQ周辺 + 中立拠点
+    // v0.8.0: 旗位置参照へ修正 (旧: -200,140 / 250,-160 / 255,245)
     createTechnicalV070(HQ_BLUE.x + 18, HQ_BLUE.z - 10, -Math.PI / 4);
     createTechnicalV070(HQ_RED.x - 18, HQ_RED.z + 10, Math.PI * 0.75);
-    createTechnicalV070(-200, 140, 0);              // 拠点B
-    createTechnicalV070(250, -160, Math.PI);         // 拠点D
+    createTechnicalV070(flags[1].x, flags[1].z - 10, 0);              // 拠点B
+    createTechnicalV070(flags[3].x + 40, flags[3].z, Math.PI);         // 拠点D
     // 偵察車: 各HQ + 拠点E
     createScoutV070(HQ_BLUE.x - 12, HQ_BLUE.z + 18, Math.PI / 4);
     createScoutV070(HQ_RED.x + 12, HQ_RED.z - 18, -Math.PI * 0.75);
-    createScoutV070(255, 245, Math.PI);              // 拠点E
+    createScoutV070(flags[4].x - 5, flags[4].z - 5, Math.PI);              // 拠点E
   };
   /* eslint-enable no-global-assign */
 }

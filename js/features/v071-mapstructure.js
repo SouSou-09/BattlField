@@ -239,7 +239,7 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
      5. 郊外住宅 — 村(拠点B)周辺に家を追加
      ========================================================= */
   function _addSuburbHousesV071() {
-    const cx = -200, cz = 150;   // 拠点B座標
+    const cx = flags[1].x, cz = flags[1].z;   // v0.8.0: 拠点B座標参照 (旧:-200,150)
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3;
       const r = 35 + _hashV071(i, 77) * 20;
@@ -298,11 +298,12 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
     const geoPost = new THREE.BoxGeometry(0.15, 1.0, 0.15);
     const geoRail = new THREE.BoxGeometry(1, 0.08, 0.08);
     const fields = [
-      { x: -130, z: 80, w: 40, d: 30 },
-      { x: 80, z: -200, w: 50, d: 35 },
-      { x: -300, z: 0, w: 35, d: 40 },
-      { x: 150, z: -50, w: 40, d: 30 },
-      { x: -80, z: 200, w: 45, d: 35 }
+      // v0.8.0: 座標を1.3倍へ再配置 (旧値は各行参照)
+      { x: -169, z: 104, w: 40, d: 30 },   // 旧:-130,80
+      { x: 104, z: -260, w: 50, d: 35 },   // 旧:80,-200
+      { x: -390, z: 0, w: 35, d: 40 },     // 旧:-300,0
+      { x: 195, z: -65, w: 40, d: 30 },    // 旧:150,-50
+      { x: -104, z: 260, w: 45, d: 35 }    // 旧:-80,200
     ];
     for (const f of fields) {
       const corners = [
@@ -349,9 +350,10 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
   function _addBermsV071() {
     const matBerm = new THREE.MeshLambertMaterial({ color: 0x7a7048 });
     const bermSpots = [
-      [50, -40, 12, 1.2], [-60, -100, 14, 1.0], [170, 100, 10, 1.1],
-      [-160, -120, 13, 1.3], [220, -50, 11, 1.0], [-50, 250, 12, 1.2],
-      [100, 200, 10, 0.9], [-220, 150, 14, 1.1]
+      // v0.8.0: 座標を1.3倍へ再配置 (旧値は各行参照)
+      [65, -52, 12, 1.2], [-78, -130, 14, 1.0], [221, 130, 10, 1.1],
+      [-208, -156, 13, 1.3], [286, -65, 11, 1.0], [-65, 325, 12, 1.2],
+      [130, 260, 10, 0.9], [-286, 195, 14, 1.1]
     ];
     for (const [bx, bz, r, hh] of bermSpots) {
       if (isWater(bx, bz) || onRoad(bx, bz)) continue;

@@ -1,5 +1,13 @@
 # STEEL FRONT — 更新履歴
 
+## v0.8.0(2026-07-13) — マップ拡張の土台(WORLD 1.3倍)
+- WORLD 400→520 (1040m四方) 拡張 — SEG分割数 PC:220→260 / モバイル:160→190 へ増やし頂点密度の低下を防止
+- 拠点・HQ座標1.3倍一括再計算 — flags(A〜F)/HQ_BLUE/HQ_RED/ROADS/HILLS/LAKE/ISLAND/TRENCHES/PITSの全座標と半径を1.3倍へ再配置(旧値は各行コメントに保持)
+- 軍事基地用平地確保 — MILBASE_BLUE/MILBASE_RED({x,z,rotY,w,d,flatH})を定義し両HQ外周側に約220m×90mの完全平坦領域を確保、terrainHeightに矩形平地化処理を追加し外周隆起と細かい起伏を基地領域で抑制
+- ハードコード座標の追随 — v071-mapstructure.js / map-districts.js / vehicles-core.js / v070-arsenal.js で数値直書きされていた拠点/HQ座標を flags[]/HQ_* 参照へ置換または1.3倍再計算(フィールド・土手道・岩場・木箱・ボート・固定機銃等)
+- 木本数90→130 / 木箱28→38 へ増量し拡張マップの密度を維持、軍事基地領域内は木を配置しない判定を追加
+- 監視塔・岩場・ Berm Spots の座標をWORLD拡張に合わせ再配置
+
 ## v0.7.4(2026-07-13) — 大規模バグ修正 & 品質向上
 - v0.7.2状態変数リセット修正 — resetV072が初回以降early returnして状態変数(smoothDX/DZ/landDip/turnLean/accelLean/swayPhase/fovKick等12個)をリセットしないバグを修正、毎回resetV072呼出時に全状態変数を0クリアしてリスタート時の残留モーションを防止
 - v0.7.2 FOVキック競合修正 — スプリントFOVキックのcamera.fov直接設定をupdateV072へ移動、updateAds(dt)の後にupdateV072(dt)が実行されるためFOV競合を解決(元はupdateAdsがfovを上書きしてキックが無効化されていた)

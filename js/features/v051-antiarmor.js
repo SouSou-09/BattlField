@@ -164,9 +164,10 @@ function updateClaymoresV051(dt) {
 
 function initSniperPositionsV051() {
   v051.sniperNests.length = 0;
+  // v0.8.0: 座標1.3倍拡張 (旧: [-238,-210]...)
   const candidates = [
-    [-238, -210], [-24, -20], [185, -142], [240, 225],
-    [238, -182], [22, 24], [-182, 136], [-250, -235]
+    [-309, -273], [-31, -26], [241, -185], [312, 293],
+    [309, -237], [29, 31], [-237, 177], [-325, -306]
   ];
   const perTeam = { 1: 0, '-1': 0 };
   for (const s of soldiers) {

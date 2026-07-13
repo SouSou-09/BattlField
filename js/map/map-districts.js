@@ -2,30 +2,35 @@
 /* STEEL FRONT — 地区構築: 各拠点の建物・塔・梯子・岩・木・旗杆 (map.js から分割) */
 
 /* ---------- 地区の構築 ---------- */
+/* =========================================================
+   v0.8.0: 座標は全て flags[] / HQ_* を参照するように改修
+   (旗位置が1.3倍拡張されても追従する)
+   ========================================================= */
 // === 拠点C: 中央市街地 ===
+// v0.8.0: 拠点C周辺の街区は旗位置(原点)周辺のオフセットで定義
 [[-18, -16, 16, 15, 18, matBuildingA], [20, -18, 18, 11, 14, matBuildingB],
  [22, 16, 14, 18, 14, matBuildingA], [-22, 18, 18, 12, 16, matBuildingC],
  [-2, -30, 22, 9, 12, matBuildingB], [0, 30, 20, 13, 12, matBuildingC]]
- .forEach(b => addBuilding(b[0], b[1], b[2], b[3], b[4], b[5]));
-// 市街地の遮蔽物
+ .forEach(b => addBuilding(flags[2].x + b[0], flags[2].z + b[1], b[2], b[3], b[4], b[5]));
+// v0.8.0: 中央市街地の位置は flags[2] を基準
 [[-8, 8, 8, 1.1, 1.2, 0], [10, -6, 8, 1.1, 1.2, Math.PI / 2], [6, 8, 6, 1.1, 1.2, 0]]
- .forEach(s => addBox(s[0], s[1], s[2], s[3], s[4], matSandbag, s[5]));
+ .forEach(s => addBox(flags[2].x + s[0], flags[2].z + s[1], s[2], s[3], s[4], matSandbag, s[5]));
 // v0.2.3: 中央市街地に進入可能な建物 (拠点Cの激戦区)
-addEnterableBuilding(-9, -8, 9, 4.5, 8, matBuildingB, 0);   // ドア南
-addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
+addEnterableBuilding(flags[2].x - 9, flags[2].z - 8, 9, 4.5, 8, matBuildingB, 0);   // ドア南
+addEnterableBuilding(flags[2].x + 11, flags[2].z + 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 [[-12, -4, 0], [12, 6, Math.PI / 2]].forEach(c => {
   // v0.3.4: コンテナも道路から退避
   const hw = Math.abs(Math.sin(c[2])) > 0.7 ? 1.6 : 6, hd = Math.abs(Math.sin(c[2])) > 0.7 ? 6 : 1.6;
-  const [cx, cz] = offRoadPos(c[0], c[1], hw, hd);
+  const [cx, cz] = offRoadPos(flags[2].x + c[0], flags[2].z + c[1], hw, hd);
   addBox(cx, cz, 12, 3, 3.2, matContainer, c[2]);
 });
 // 廃墟壁
 [[-6, 20, 10, 3.5, 1, 0], [14, -12, 8, 2.8, 1, Math.PI / 2], [-16, 6, 9, 3, 1, Math.PI / 2]]
- .forEach(w => addBreachableWall(w[0], w[1], w[2], w[3], w[4], matWall, w[5]));
+ .forEach(w => addBreachableWall(flags[2].x + w[0], flags[2].z + w[1], w[2], w[3], w[4], matWall, w[5]));
 
 // === 拠点A: 北西の丘 (砦・監視塔) ===
 {
-  const fx = -250, fz = -220;   // v0.3.3: 2倍拡張
+  const fx = flags[0].x, fz = flags[0].z;   // v0.8.0: flags[0]参照 (旧:-250,-220)
   // 丘上の砦壁 (コの字)
   addBox(fx, fz - 12, 22, 3, 1.4, matWall);
   addBox(fx - 11, fz, 1.4, 3, 22, matWall);
@@ -41,7 +46,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点B: 南西の村 ===
 {
-  const fx = -200, fz = 150;   // v0.3.3: 2倍拡張
+  const fx = flags[1].x, fz = flags[1].z;   // v0.8.0: flags[1]参照 (旧:-200,150)
   addHouse(fx - 10, fz - 8, 8, 5, 7);
   addHouse(fx + 9, fz - 10, 7, 4.5, 8, Math.PI / 2);
   addHouse(fx + 11, fz + 8, 9, 5.5, 7);
@@ -60,7 +65,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点D: 北東の倉庫地区 ===
 {
-  const fx = 210, fz = -160;   // v0.3.3: 2倍拡張
+  const fx = flags[3].x, fz = flags[3].z;   // v0.8.0: flags[3]参照 (旧:210,-160)
   addBuilding(fx - 12, fz - 8, 18, 8, 14, matBuildingB);
   addBuilding(fx + 13, fz + 6, 16, 7, 12, matBuildingB);
   // コンテナヤード (2段積みあり / v0.3.4: 道路から退避)
@@ -81,7 +86,7 @@ addEnterableBuilding(11, 10, 8, 4, 9, matBuildingC, 3);     // ドア西
 
 // === 拠点E: 南東の高地基地 ===
 {
-  const fx = 260, fz = 250;   // v0.3.3: 2倍拡張
+  const fx = flags[4].x, fz = flags[4].z;   // v0.8.0: flags[4]参照 (旧:260,250)
   addBuilding(fx - 8, fz - 8, 14, 9, 12, matBuildingA);
   addBuilding(fx + 10, fz + 6, 12, 6, 10, matBuildingC);
   // ヘリパッド風の台座
@@ -177,11 +182,12 @@ function addTwoStoryBuilding(x, z, w, h1, h2, d, mat, doorDir = 0) {
   buildRoofWithHatch(x, z, w, d, f2 + h2, hatch2, true);
 }
 // v0.3: 中央市街地に2階建て (拠点Cの縦の拠点)
-addTwoStoryBuilding(-12, 12, 10, 3.6, 3.2, 9, matBuildingA, 0);
+// v0.8.0: flags[2]基準
+addTwoStoryBuilding(flags[2].x - 12, flags[2].z + 12, 10, 3.6, 3.2, 9, matBuildingA, 0);
 
 // v0.3: 地下壕 (ピットの上に屋根スラブ / 塹壕から進入)
 {
-  const [px, pz, r] = PITS[0];
+  const [px, pz, r] = PITS[0];   // v0.8.0: PITS[0]=[130,-78,8.5]
   const gy = terrainHeight(px + r + 6, pz);   // 周囲の地表高さ目安
   const slabY = terrainH(px + r + 2, pz) + 0.1;
   // 屋根スラブ (塹壕側に開口を残す)
@@ -202,18 +208,18 @@ addTwoStoryBuilding(-12, 12, 10, 3.6, 3.2, 9, matBuildingA, 0);
 
 // === v0.3 拠点F: 湖の島 (土手道で接続 / 砦 + 固定機銃) ===
 {
-  const fx = 120, fz = 120;   // v0.3.3: 2倍拡張
+  const fx = flags[5].x, fz = flags[5].z;   // v0.8.0: flags[5]参照 (旧:120,120)
   // 島の砦壁 (半円状)
   addBox(fx, fz - 8, 14, 2.2, 1.2, matWall);
   addBox(fx - 8, fz + 2, 1.2, 2.2, 12, matWall);
   addBox(fx + 4, fz + 6, 8, 1.1, 1.2, matSandbag);
   addEnterableBuilding(fx + 3, fz - 2, 7, 3.4, 6, matWall, 3);
   addDestructibleBarrel(fx - 4, fz + 5);
-  // 桁橋風: 土手道の両脇に柵 (v0.3.3: 2倍拡張)
+  // 桁橋風: 土手道の両脇に柵 (v0.8.0: 旗位置基準に再計算)
   for (let i = 0; i < 8; i++) {
-    const bx = 44 + i * 7.5;
-    addBox(bx, 117.2, 3, 0.9, 0.25, matTrunk);
-    addBox(bx, 122.8, 3, 0.9, 0.25, matTrunk);
+    const bx = flags[5].x - 112 + i * 7.5;
+    addBox(bx, flags[5].z - 2.8, 3, 0.9, 0.25, matTrunk);
+    addBox(bx, flags[5].z + 2.8, 3, 0.9, 0.25, matTrunk);
   }
 }
 
@@ -236,14 +242,16 @@ function buildTower(tx, tz) {
   // v0.4.0: 監視塔の南面にはしご — デッキに登れる
   addLadder(tx, tz + 3.0, gy, gy + 8.5, 0);
 }
-buildTower(-50, 110);   // v0.3.3: 2倍拡張
-buildTower(-80, -90);
-buildTower(240, 40);
-buildTower(40, -240);   // v0.3.3: 新増
-buildTower(-240, 60);
+// v0.8.0: 監視塔位置はWORLD拡張に合わせ再配置 (旧値は参考)
+buildTower(-65, 143);   // v0.8.0: 旧-50,110
+buildTower(-104, -117); // v0.8.0: 旧-80,-90
+buildTower(312, 52);    // v0.8.0: 旧240,40
+buildTower(52, -312);   // v0.8.0: 旧40,-240
+buildTower(-312, 78);   // v0.8.0: 旧-240,60
 
 // v0.4.0: 建物側面のはしご — 屋上ルートを複数化 (主要拠点の大型建物)
 // 建物はoffRoadPosで動くため、直近の障害物(建物)を探して壁面に寄せる
+// v0.8.0: 旗位置基準に修正
 function addLadderNearBuilding(bx, bz, faceDir) {
   // faceDir側の壁を探す: その位置で最も高い障害物を探す
   let best = null;
@@ -260,15 +268,16 @@ function addLadderNearBuilding(bx, bz, faceDir) {
   else { lx = best.minX - 0.45; lz = (best.minZ + best.maxZ) / 2; }
   addLadder(lx, lz, terrainH(lx, lz), best.h + 0.3, faceDir);
 }
-addLadderNearBuilding(-18, -16, 2);          // 拠点C 北西ビル
-addLadderNearBuilding(0, 30, 0);             // 拠点C 南ビル
-addLadderNearBuilding(210 - 12, -160 - 8, 1); // 拠点D 倉庫
-addLadderNearBuilding(260 - 8, 250 - 8, 2);   // 拠点E 基地ビル
+addLadderNearBuilding(flags[2].x - 18, flags[2].z - 16, 2);          // 拠点C 北西ビル
+addLadderNearBuilding(flags[2].x, flags[2].z + 30, 0);             // 拠点C 南ビル
+addLadderNearBuilding(flags[3].x - 12, flags[3].z - 8, 1); // 拠点D 倉庫
+addLadderNearBuilding(flags[4].x - 8, flags[4].z - 8, 2);   // 拠点E 基地ビル
 
 // === 岩場 (高台の斜面や空白地帯に岩を配置) ===
 {
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
-  const rockSpots = [[-120, -60], [-100, -110], [110, 50], [70, -170], [-50, 180], [120, 120], [-230, 40], [40, 230], [230, -40], [-40, -230], [140, -40], [-140, -10], [20, 120], [-70, 70], [90, -80], [180, 40], [-180, -80], [-110, 190], [240, 100], [100, -220], [-300, 150], [300, -100], [150, 300], [-150, -300], [280, 180], [-280, -180], [200, 200], [-200, -100]];   // v0.3.3: 2倍拡張+増量
+  // v0.8.0: 座標を1.3倍相当へ再配置 (旧: -120,-60 等)
+  const rockSpots = [[-156,-78],[-130,-143],[143,65],[91,-221],[-65,234],[156,156],[-299,52],[52,299],[299,-52],[-52,-299],[182,-52],[-182,-13],[26,156],[-91,91],[117,-104],[234,52],[-234,-104],[-143,247],[312,130],[130,-286],[-390,195],[390,-130],[195,390],[-195,-390],[364,234],[-364,-234],[260,260],[-260,-130]];
   for (const [x, z] of rockSpots) {
     if (onRoad(x, z) || isWater(x, z)) continue;
     const s = 1 + Math.random() * 2.2;
@@ -290,7 +299,7 @@ addLadderNearBuilding(260 - 8, 250 - 8, 2);   // 拠点E 基地ビル
   const leafGeo1 = new THREE.ConeGeometry(1.9, 2.6, 7);
   const leafGeo2 = new THREE.ConeGeometry(1.4, 2.2, 7);
   let placed = 0, tries = 0;
-  while (placed < 90 && tries < 700) {   // v0.3.3: マップ2倍化に伴い増量
+  while (placed < 130 && tries < 1000) {   // v0.8.0: マップ拡張に伴い増量 (旧90/700)
     tries++;
     const x = (Math.random() * 2 - 1) * (WORLD - 12);
     const z = (Math.random() * 2 - 1) * (WORLD - 12);
@@ -298,6 +307,15 @@ addLadderNearBuilding(260 - 8, 250 - 8, 2);   // 拠点E 基地ビル
     let nearFlag = false;
     for (const f of flags) if (Math.hypot(x - f.x, z - f.z) < 16) { nearFlag = true; break; }
     if (nearFlag || Math.hypot(x - HQ_BLUE.x, z - HQ_BLUE.z) < 18 || Math.hypot(x - HQ_RED.x, z - HQ_RED.z) < 18) continue;
+    // v0.8.0: 軍事基地領域内は木を置かない
+    let inBase = false;
+    for (const mb of MILBASES) {
+      const dx = x - mb.x, dz = z - mb.z;
+      const cos = Math.cos(mb.rotY), sin = Math.sin(mb.rotY);
+      const lx = dx * cos + dz * sin, lz = -dx * sin + dz * cos;
+      if (lx > -mb.w / 2 - 8 && lx < mb.w / 2 + 8 && lz > -mb.d / 2 - 8 && lz < mb.d / 2 + 8) { inBase = true; break; }
+    }
+    if (inBase) continue;
     const g = new THREE.Group();
     const trunk = new THREE.Mesh(trunkGeo, matTrunk); trunk.position.y = 1.2;
     const l1 = new THREE.Mesh(leafGeo1, Math.random() < .5 ? matLeaf : matLeaf2); l1.position.y = 3.3;
@@ -316,11 +334,15 @@ addLadderNearBuilding(260 - 8, 250 - 8, 2);   // 拠点E 基地ビル
 
 // === ドラム缶・木箱の散布 (v0.2.3: 破壊可能) ===
 {
-  [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [24, 8], [-6, 29], [208, -155], [-197, 147], [-247, -215], [258, 247], [118, 123]].forEach(([x, z], i) => {
+  // v0.8.0: 旗位置基準
+  [[-12, -32], [-11, -31], [33, -14], [14, 24], [-32, 19], [24, 8], [-6, 29],
+   [flags[3].x - 2, flags[3].z + 5], [flags[1].x + 3, flags[1].z - 3],
+   [flags[0].x + 3, flags[0].z + 5], [flags[4].x - 2, flags[4].z - 3],
+   [flags[5].x - 2, flags[5].z + 3]].forEach(([x, z], i) => {
     addDestructibleBarrel(x, z, i % 2 === 1);
   });
-  for (let i = 0; i < 28; i++) {
-    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 320;
+  for (let i = 0; i < 38; i++) {  // v0.8.0: 増量 (旧28)
+    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 420;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (onRoad(x, z) || isWater(x, z)) continue;
     addDestructibleCrate(x, z, Math.random() < .5 ? 0 : Math.PI / 2);
