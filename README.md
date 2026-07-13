@@ -1,5 +1,11 @@
 # STEEL FRONT — 更新履歴
 
+## v0.7.0(2026-07-13)
+- 武器バリエーション追加 — DMR(M14 EBR・セミオートマークスマンライフル・magSize20/fireInterval0.18/dmg55/hsDmg120/range380/adsFov32)とPDW(MP7・フルオート・magSize40/fireInterval0.07/dmg22/hsDmg52/range210/adsFov50)をWEAPONSオブジェクトに追加、WEAPON_ORDERへpushしてDigit6/Digit7キーに割当
+- 武器選択UI(#wsel-row)へ動的にDMR/PDWボタンを注入し、selectWeaponUI経由でクリック切替えを可能にし、CLASSES.recon.altWeapon='dmr'/CLASSES.assault.altWeapon='pdw'を設定してクラス別副武器として運用
+- 車両バリエーション追加 — テクニカル(武装ピックアップトラック・ロングボディ4.4m・オープン荷台・DShK式重MG+防盾・4輪・hp260/maxSpeed19/dmg42/座席4)とスカウト(LAV-25式・6輪・軽装甲armorV056:0.4・hp450/maxSpeed14/dmg50/座席5・小型砲塔+同軸MG)を追加
+- spawnVehiclesをフックし、テクニカル4台(青本拠/赤本拠/B旗/D旗)+スカウト3台(青本拠/赤本拠/E旗)を拠点・旗位置に追加配置、既存車両生成後に追加スポーンしてプレイヤー/AIの機動力選択肢を拡張
+
 ## v0.6.8(2026-07-13)
 - 既存の割れる窓システム(windows配列/matGlassPane)と連動し、窓ガラスメッシュをMeshStandardMaterial(envMap反射+透過+微tint)へ実行時アップグレード、位置ハッシュで反射強度(0.3-0.7)と色味4種(0x9fc2d6/0x8ab4c8/0xa6c8d8/0x7a9eb0)にバリエーションを付与し、窓が割れると反射メッシュも連動非表示
 - 内部照明(停電/発電)を実装 — v067検出室内に電力状態を割当(拠点近傍80%稼働/孤立50%稼働)、稼働中の建物に発電機オブジェクト(箱+排気パイプ)+室内ポイントライト(暖色)+窓発光メッシュ(夜間の窓光)を配置、停電中の室内は暗室化
