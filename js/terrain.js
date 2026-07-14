@@ -16,18 +16,20 @@ const WATER_Y = -1.6;
    caused roads, buildings and infrastructure to overlap.
    ========================================================= */
 const MAP_LAYOUT = {
-  hqs: { blue: { x: -410, z: 430 }, red: { x: 410, z: -430 } },
+  hqs: { blue: { x: -410, z: 425 }, red: { x: 410, z: -425 } },
   flags: [
     { id: 'A', x: -300, z: -260 }, { id: 'B', x: -270, z: 190 },
     { id: 'C', x: 0, z: 0 }, { id: 'D', x: 270, z: -190 },
     { id: 'E', x: 300, z: 260 }, { id: 'F', x: 150, z: 150 }
   ],
-  downtown: { x: 0, z: 0, half: 78 },
+  downtown: { x: 0, z: 0, half: 120 },
   lake: { x: 150, z: 150, r: 76, depth: 8 },
   island: { x: 150, z: 150, r: 20, h: 9.5 },
   airbases: {
-    blue: { x: -410, z: 300, rotY: 0, w: 90, d: 220 },
-    red: { x: 410, z: -300, rotY: Math.PI, w: 90, d: 220 }
+    // The HQ is inside the perimeter so the first spawn opens directly into
+    // one combined army/air-force installation instead of behind a fence.
+    blue: { x: -410, z: 305, rotY: 0, w: 160, d: 290 },
+    red: { x: 410, z: -305, rotY: Math.PI, w: 160, d: 290 }
   },
   river: {
     halfWidth: 14, depth: 4.5,
@@ -189,7 +191,7 @@ const ROAD_W = 4.2;        // 路面の半幅
 const ROAD_SHOULDER = 3.5; // 路肩のブレンド幅
 // The roads terminate on downtown grid streets instead of cutting through blocks.
 const ROADS = [
-  [-410,430,-270,190], [-270,190,-78,0], [-78,0,0,0], [0,0,78,0], [78,0,270,-190], [270,-190,410,-430],
+  [-410,425,-270,190], [-270,190,-78,0], [-78,0,0,0], [0,0,78,0], [78,0,270,-190], [270,-190,410,-425],
   [-300,-260,0,-78], [0,-78,0,0], [0,0,0,78], [0,78,72,235], [72,235,300,260],
   [-300,-260,-270,190], [270,-190,430,35], [430,35,300,260],
   [54,150,130,150], [-300,-260,270,-190]
@@ -236,6 +238,16 @@ function isDeepWater(x, z) { return terrainH(x, z) < WATER_Y - 1.1; }
 // [x, z, 半径, 目標高さ(nullなら中心の高さ)]
 const FLATS = [];
 function flattenAt(x, z, r) { FLATS.push([x, z, r, terrainHeight(x, z)]); }
+// A broad, tiled civic pad prevents large downtown blocks from being buried
+// by local noise while retaining a blended waterfront on the south side.
+{
+  const _cityH = terrainHeight(MAP_LAYOUT.downtown.x, MAP_LAYOUT.downtown.z + 20);
+  for (let _cx = -MAP_LAYOUT.downtown.half; _cx <= MAP_LAYOUT.downtown.half; _cx += 16) {
+    for (let _cz = -76; _cz <= MAP_LAYOUT.downtown.half; _cz += 16) {
+      FLATS.push([MAP_LAYOUT.downtown.x + _cx, MAP_LAYOUT.downtown.z + _cz, 13, _cityH]);
+    }
+  }
+}
 // v0.8.5: 橋梁・渡し場の地形平坦化 (terrainHに反映 → 歩兵/車両通行判定 + メッシュ頂点)
 // 橋梁: 甲板高さで橋に沿った帯状平坦化(川は両岸に残る) / 渡し場: 浅瀬高さで平坦化(渡河可能)
 for (const _rb of RIVER_BRIDGES) {
@@ -303,6 +315,19 @@ function terrainH(x, z) {
       const rh = prof.hs[i0] + (prof.hs[i0 + 1] - prof.hs[i0]) * (ft - i0);
       const blend = d < ROAD_W ? 1 : 1 - (d - ROAD_W) / ROAD_SHOULDER;
       h = h * (1 - blend) + rh * blend;
+    }
+  }
+  // Roads and overlapping FLATS used to deform the already-level base after
+  // terrainHeight() had flattened it. Re-apply the installation pad last so
+  // every runway, barracks and vehicle sits on one guaranteed ground plane.
+  for (const mb of MILBASES) {
+    const dx = x - mb.x, dz = z - mb.z;
+    const c = Math.cos(mb.rotY), s = Math.sin(mb.rotY);
+    const lx = dx * c + dz * s, lz = -dx * s + dz * c;
+    const edgeX = mb.w / 2 - Math.abs(lx), edgeZ = mb.d / 2 - Math.abs(lz);
+    if (edgeX > 0 && edgeZ > 0) {
+      const blend = Math.min(1, Math.min(edgeX, edgeZ) / 8);
+      h = h * (1 - blend) + mb.flatH * blend;
     }
   }
   return h;

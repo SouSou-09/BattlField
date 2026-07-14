@@ -1,11 +1,11 @@
 'use strict';
 /* =========================================================
-   v0.8.2 — 軍事航空基地
+   v0.9.1 — 陸空統合大規模基地
    MILBASE_BLUE / MILBASE_RED 平地に滑走路・管制塔・格納庫・
    エプロン・対空砲・柵を配置
-   ・滑走路 200×22m (d方向=長辺に沿う)
-   ・管制塔 18m
-   ・格納庫 各基地2棟
+   ・滑走路 最大240×24m (d方向=長辺に沿う)
+   ・管制塔 18m / 格納庫 各基地2棟
+   ・陸軍区画 (司令部・兵舎・車両整備庫・補給所・ヘリパッド)
    ・エプロンスロット APRON_SLOTS_BLUE / APRON_SLOTS_RED (v0.8.4参照)
    ・対空砲 各基地2基 (createEmplacement)
    ・柵 + 探照灯
@@ -43,12 +43,12 @@ var APRON_SLOTS_RED  = [];
   }
 
   /* =========================================================
-     滑走路 — 200×22m アスファルト + 中央線
+     滑走路 — 最大240×24m アスファルト + 中央線
      ========================================================= */
   function _addRunway(mb) {
     const matAsphalt = new THREE.MeshLambertMaterial({ color: 0x1a1a1c });
     const matLine    = new THREE.MeshLambertMaterial({ color: 0xd0d0d0 });
-    const rwLen = 200, rwW = 22;
+    const rwLen = Math.min(240, mb.d - 40), rwW = 24;
     // 滑走路表面 (薄いBoxで法線を正しく)
     const rwGeo = new THREE.BoxGeometry(rwW, 0.3, rwLen);
     const rw = new THREE.Mesh(rwGeo, matAsphalt);
@@ -58,10 +58,9 @@ var APRON_SLOTS_RED  = [];
     rw.receiveShadow = !isMobile;
     scene.add(rw);
     _pushMesh(rw);
-    // 中央破線 (d方向に10本)
+    // 中央破線
     const dashGeo = new THREE.BoxGeometry(0.6, 0.32, 4);
-    for (let i = -4; i <= 4; i++) {
-      const lz = i * 20;
+    for (let lz = -rwLen / 2 + 18; lz <= rwLen / 2 - 18; lz += 20) {
       const p = _l2w(mb, 0, lz);
       const dash = new THREE.Mesh(dashGeo, matLine);
       dash.position.set(p.x, mb.flatH + 0.32, p.z);
@@ -189,10 +188,10 @@ var APRON_SLOTS_RED  = [];
   function _addApron(mb, slotsArr) {
     const matApron = new THREE.MeshLambertMaterial({ color: 0x4a4a4e });
     const matMark  = new THREE.MeshLambertMaterial({ color: 0xc8c8c0 });
-    const apW = 40, apD = 50;
+    const apW = 54, apD = 64;
     // エプロンは滑走路端 (dの+端) の脇
-    const lx = mb.w / 2 - 25;
-    const lz = mb.d / 2 - 35;
+    const lx = mb.w / 2 - 31;
+    const lz = mb.d / 2 - 38;
     const p = _l2w(mb, lx, lz);
     const apGeo = new THREE.BoxGeometry(apW, 0.3, apD);
     const ap = new THREE.Mesh(apGeo, matApron);
@@ -201,9 +200,9 @@ var APRON_SLOTS_RED  = [];
     ap.receiveShadow = !isMobile;
     scene.add(ap);
     _pushMesh(ap);
-    // 駐機スロット (2個 → v0.8.4でジェット2機スポーン)
-    for (let si = 0; si < 2; si++) {
-      const slx = lx - 8 + si * 16;
+    // 駐機スロット (3個 → 大型エプロン)
+    for (let si = 0; si < 3; si++) {
+      const slx = lx - 16 + si * 16;
       const slz = lz;
       const sp = _l2w(mb, slx, slz);
       const syaw = _l2wYaw(mb, 0);   // 滑走路に平行
@@ -220,6 +219,62 @@ var APRON_SLOTS_RED  = [];
       m2.rotation.y = mb.rotY;
       scene.add(m2);
       _pushMesh(m2);
+    }
+  }
+
+  /* =========================================================
+     陸軍区画 — 司令部・兵舎・整備庫・補給所・ヘリパッド
+     ========================================================= */
+  function _localBox(mb, lx, lz, w, h, d, material, lyaw) {
+    const p = _l2w(mb, lx, lz);
+    const m = addBox(p.x, p.z, w, h, d, material, _l2wYaw(mb, lyaw || 0), mb.flatH);
+    _pushMesh(m);
+    return m;
+  }
+
+  function _addArmyCompound(mb) {
+    const matArmy = new THREE.MeshLambertMaterial({ color: 0x596451 });
+    const matArmyDark = new THREE.MeshLambertMaterial({ color: 0x343b35 });
+    const matConcrete = new THREE.MeshLambertMaterial({ color: 0x777973 });
+    const matPad = new THREE.MeshLambertMaterial({ color: 0x505257 });
+    const matMark = new THREE.MeshBasicMaterial({ color: 0xd8d6c2 });
+
+    // Headquarters and two barracks form a protected army courtyard near HQ.
+    _localBox(mb, -48, 72, 24, 8, 16, matArmy, 0);
+    _localBox(mb, -49, 43, 22, 5.5, 13, matArmy, 0);
+    _localBox(mb,  49, 43, 22, 5.5, 13, matArmy, 0);
+    // Vehicle maintenance and supply buildings face the motor pool.
+    _localBox(mb, -48, 10, 25, 7, 18, matArmyDark, 0);
+    _localBox(mb,  50, 12, 18, 6, 16, matArmy, 0);
+    _localBox(mb,  50, 33, 14, 4.5, 10, matArmyDark, 0);
+
+    // Motor-pool hardstand and marked parking bays (surface only).
+    const poolP = _l2w(mb, -42, 105);
+    const pool = new THREE.Mesh(new THREE.BoxGeometry(46, 0.18, 42), matConcrete);
+    pool.position.set(poolP.x, mb.flatH + 0.09, poolP.z);
+    pool.rotation.y = mb.rotY;
+    pool.receiveShadow = !isMobile;
+    scene.add(pool); _pushMesh(pool);
+    for (let i = -2; i <= 2; i++) {
+      const p = _l2w(mb, -42 + i * 8, 105);
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 28), matMark);
+      line.position.set(p.x, mb.flatH + 0.2, p.z);
+      line.rotation.y = mb.rotY;
+      scene.add(line); _pushMesh(line);
+    }
+
+    // Two helicopter pads establish the rotary-wing side of the joint base.
+    for (const lz of [-72, -38]) {
+      const p = _l2w(mb, 51, lz);
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 0.22, 24), matPad);
+      pad.position.set(p.x, mb.flatH + 0.11, p.z);
+      scene.add(pad); _pushMesh(pad);
+      const h1 = new THREE.Mesh(new THREE.BoxGeometry(8, 0.24, 0.7), matMark);
+      const h2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.24, 8), matMark);
+      h1.position.set(p.x, mb.flatH + 0.24, p.z);
+      h2.position.copy(h1.position);
+      h1.rotation.y = h2.rotation.y = mb.rotY;
+      scene.add(h1, h2); _pushMesh(h1); _pushMesh(h2);
     }
   }
 
@@ -260,6 +315,10 @@ var APRON_SLOTS_RED  = [];
       { ax: -hw, az:  hd, bx: -hw, bz: -hd }
     ];
     const step = 5;
+    const hq = mb === MILBASE_BLUE ? HQ_BLUE : HQ_RED;
+    const hdx = hq.x - mb.x, hdz = hq.z - mb.z;
+    const hc = Math.cos(mb.rotY), hs = Math.sin(mb.rotY);
+    const hqLx = hdx * hc + hdz * hs, hqLz = -hdx * hs + hdz * hc;
     for (let ei = 0; ei < edges.length; ei++) {
       const e = edges[ei];
       const elen = Math.hypot(e.bx - e.ax, e.bz - e.az);
@@ -270,6 +329,9 @@ var APRON_SLOTS_RED  = [];
         const lz = e.az + (e.bz - e.az) * t;
         const p = _l2w(mb, lx, lz);
         const gy = mb.flatH;
+        // Leave a broad, visible gate where the HQ/spawn road meets the
+        // perimeter. This makes the army HQ and flight line one installation.
+        if (Math.hypot(lx - hqLx, lz - hqLz) < 16) continue;
         const post = new THREE.Mesh(postGeo, matFence);
         post.position.set(p.x, gy + 1, p.z);
         post.rotation.y = mb.rotY;
@@ -314,6 +376,7 @@ var APRON_SLOTS_RED  = [];
     _addHangar(mb, -1, -40);                  // 格納庫1
     _addHangar(mb, -1, 0);                    // 格納庫2 (モバイルは1棟のみでよいが低負荷)
     _addApron(mb, slotsArr);
+    _addArmyCompound(mb);
     _addAA(mb, team);
     _addFence(mb);
   }
@@ -339,7 +402,7 @@ function updateV082(dt) {
   if (v082.meshes.length === 0) return;
   const px = (typeof player !== 'undefined' && player) ? player.x : 0;
   const pz = (typeof player !== 'undefined' && player) ? player.z : 0;
-  const maxD2 = 220 * 220;
+  const maxD2 = 360 * 360;
   for (let i = 0; i < v082.meshes.length; i++) {
     const m = v082.meshes[i];
     if (!m || !m.parent) continue;
