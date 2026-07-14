@@ -276,6 +276,16 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     g.fillStyle = '#2c4638';
     g.beginPath(); g.arc(ix2, iy2, ISLAND.r / (HALF * 2) * S, 0, 7); g.fill();
   }
+  // v0.9.2: the rectangular downtown reads as one dense strategic district.
+  {
+    const city = MAP_LAYOUT.downtown;
+    const p1 = toMap(city.x - city.halfX, city.z - city.halfZ);
+    const p2 = toMap(city.x + city.halfX, city.z + city.halfZ);
+    g.fillStyle = 'rgba(75,82,88,.62)';
+    g.fillRect(p1[0], p1[1], p2[0] - p1[0], p2[1] - p1[1]);
+    g.strokeStyle = 'rgba(190,195,195,.55)'; g.lineWidth = 1;
+    g.strokeRect(p1[0], p1[1], p2[0] - p1[0], p2[1] - p1[1]);
+  }
   // 道路
   g.strokeStyle = 'rgba(160,150,120,.5)';
   g.lineWidth = 4;
@@ -296,22 +306,61 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
   }
   strokePath(RIVER_PATH, 'rgba(70,150,190,.9)', Math.max(3, RIVER_HALF_WIDTH * S / HALF));
   strokePath(RAILWAY_PATH, 'rgba(205,190,150,.9)', 2);
+
+  // Draw bridge decks after the river so all four crossings remain legible.
+  g.strokeStyle = 'rgba(215,210,190,.95)';
+  g.lineWidth = Math.max(2, 5 * S / 340);
+  for (const bridge of RIVER_BRIDGES) {
+    const sin = Math.sin(bridge.rotY), cos = Math.cos(bridge.rotY);
+    const a = toMap(
+      bridge.x - bridge.span / 2 * sin,
+      bridge.z - bridge.span / 2 * cos
+    );
+    const b = toMap(
+      bridge.x + bridge.span / 2 * sin,
+      bridge.z + bridge.span / 2 * cos
+    );
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+  }
+  g.strokeStyle = 'rgba(125,205,210,.9)'; g.lineWidth = 1.5;
+  for (const ford of RIVER_FORDS) {
+    const p = toMap(ford.x, ford.z);
+    g.beginPath(); g.arc(p[0], p[1], 3, 0, 7); g.stroke();
+  }
+
   const hw = MAP_LAYOUT.highway;
   const hw1 = toMap(hw.rampX1, hw.z), hw2 = toMap(hw.rampX2, hw.z);
   g.strokeStyle = 'rgba(180,190,205,.85)'; g.lineWidth = 3;
   g.beginPath(); g.moveTo(hw1[0], hw1[1]); g.lineTo(hw2[0], hw2[1]); g.stroke();
-  g.strokeStyle = 'rgba(20,25,30,.8)'; g.lineWidth = 1;
-  for (const st of MAP_LAYOUT.subway.stations) {
-    const p = toMap(st.x, MAP_LAYOUT.subway.z);
-    g.beginPath(); g.arc(p[0], p[1], 3, 0, 7); g.stroke();
+
+  const subway = MAP_LAYOUT.subway;
+  const sub1 = toMap(subway.stations[0].x, subway.z);
+  const sub2 = toMap(subway.stations[subway.stations.length - 1].x, subway.z);
+  g.save();
+  g.setLineDash([4, 3]);
+  g.strokeStyle = 'rgba(80,175,155,.8)'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(sub1[0], sub1[1]); g.lineTo(sub2[0], sub2[1]); g.stroke();
+  g.restore();
+  g.strokeStyle = 'rgba(20,25,30,.9)'; g.lineWidth = 1;
+  for (const st of subway.stations) {
+    const p = toMap(st.x, subway.z);
+    g.fillStyle = 'rgba(105,220,190,.95)';
+    g.beginPath(); g.arc(p[0], p[1], 3, 0, 7); g.fill(); g.stroke();
   }
-  for (const mb of [MILBASE_BLUE, MILBASE_RED]) {
+  [MILBASE_BLUE, MILBASE_RED].forEach(function (mb, index) {
     const p = toMap(mb.x, mb.z);
     const mw = mb.w / (HALF * 2) * S, md = mb.d / (HALF * 2) * S;
     g.save(); g.translate(p[0], p[1]); g.rotate(-mb.rotY);
-    g.strokeStyle = 'rgba(120,145,165,.75)'; g.lineWidth = 1.5;
-    g.strokeRect(-mw / 2, -md / 2, mw, md); g.restore();
-  }
+    g.fillStyle = index === 0 ? 'rgba(52,104,170,.28)' : 'rgba(170,62,52,.28)';
+    g.strokeStyle = index === 0 ? 'rgba(105,165,235,.9)' : 'rgba(235,110,100,.9)';
+    g.lineWidth = 1.5;
+    g.fillRect(-mw / 2, -md / 2, mw, md);
+    g.strokeRect(-mw / 2, -md / 2, mw, md);
+    // Runway centreline makes the joint air/army role legible at a glance.
+    g.strokeStyle = 'rgba(225,225,215,.82)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, -md * 0.4); g.lineTo(0, md * 0.4); g.stroke();
+    g.restore();
+  });
   // HQ
   g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   const [bx, by] = toMap(HQ_BLUE.x, HQ_BLUE.z);
