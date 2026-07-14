@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>STEEL FRONT v0.9.2 - Conquest</title>
+<title>STEEL FRONT v0.9.3 - Conquest</title>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -52,6 +52,13 @@
   <div id="killfeed"></div>
   <div id="wave-banner">CONQUEST</div>
   <div id="hs-banner">HEADSHOT!</div>
+  <!-- v0.9.3: combat-flight HUD -->
+  <div id="jet-flight-hud">
+    <div class="jet-tape jet-speed-tape"><span>SPD</span><b id="jet-hud-speed">000</b><small>km/h</small></div>
+    <div id="jet-flight-reticle"><i></i><i></i><i></i><i></i></div>
+    <div id="jet-hud-warning"></div>
+    <div class="jet-tape jet-alt-tape"><span>ALT</span><b id="jet-hud-alt">000</b><small>m</small></div>
+  </div>
   <!-- v0.3: ドローンHUD -->
   <div id="drone-hud">
     <div id="drone-title">偵察ドローン</div>
@@ -164,6 +171,24 @@
   <button class="tbtn" id="btn-down">▼DN</button>
   <button class="tbtn" id="btn-rocket">🚀</button>
   <button class="tbtn" id="btn-horn">📢</button>
+  <!-- v0.9.3: mobile combat-flight controls (shown only while piloting a jet) -->
+  <div id="jet-controls" aria-label="戦闘機操作">
+    <div id="jet-throttle" class="jet-control-panel">
+      <span class="jet-control-label">THR</span>
+      <div id="jet-throttle-rail"><div id="jet-throttle-fill"></div><div id="jet-throttle-handle"></div></div>
+      <b id="jet-throttle-value">0%</b>
+    </div>
+    <div id="jet-stick" class="jet-control-panel" aria-label="操縦桿">
+      <span class="jet-stick-axis jet-stick-axis-x"></span>
+      <span class="jet-stick-axis jet-stick-axis-y"></span>
+      <div id="jet-stick-knob"></div>
+    </div>
+    <button class="tbtn jet-action jet-fire" id="jet-btn-fire">GUN</button>
+    <button class="tbtn jet-action jet-missile" id="jet-btn-missile">MSL</button>
+    <button class="tbtn jet-action jet-ab" id="jet-btn-ab">AB</button>
+    <button class="tbtn jet-action jet-brake" id="jet-btn-brake">BRK</button>
+    <button class="tbtn jet-action jet-exit" id="jet-btn-exit">EXIT</button>
+  </div>
   <button id="btn-map">MAP</button>
   <button id="btn-score">戦績</button>
 </div>

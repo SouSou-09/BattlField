@@ -1,10 +1,10 @@
 'use strict';
 /* =========================================================
-   v0.9.2 — 横長の大規模中央都市
+   v0.9.3 — 横長の高密度中央都市
    河川南岸と貨物鉄道の間に規則的な矩形街区を形成
    ・グリッド状街路 (7m幅 / 約440×184m)
-   ・高層ビル 16棟 (36-62m) / モバイル8棟
-   ・中層ビル 20棟 (14-28m) / モバイル10棟
+   ・高層ビル 24棟 (32-62m) / モバイル12棟
+   ・中層ビル 40棟 (12-28m) / モバイル14棟
    ・進入可能建物 4棟 / モバイル2棟
    ・路地プロップ (ゴミ箱/街灯/消火栓)
    ・地下通路 (v042トンネル網に接続)
@@ -134,21 +134,28 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   }
 
   /* =========================================================
-     2. 高層ビル — 都市リングに16棟 (26-62m) / モバイル6棟
+     2. 高層ビル — 外周と副都心に24棟 / モバイル12棟
      ========================================================= */
   function _addHighrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
     // [x, z, w, h, d, matIdx]
     const desktop = [];
-    const xs = [-195, -165, -135, -105, 105, 135, 165, 195];
+    const outerXs = [-195, -165, -135, -105, 105, 135, 165, 195];
     for (let row = 0; row < 2; row++) {
-      for (let i = 0; i < xs.length; i++) {
-        desktop.push([xs[i], row === 0 ? -69 : 69, 17, 36 + ((i * 7 + row * 11) % 27), 18, (i + row) % 3]);
+      for (let i = 0; i < outerXs.length; i++) {
+        desktop.push([outerXs[i], row === 0 ? -69 : 69, 17, 36 + ((i * 7 + row * 11) % 27), 18, (i + row) % 3]);
       }
     }
-    // モバイル: 外周のランドマーク8棟のみ、高さを抑える。
+    // 高架の両側に副都心スカイラインを追加。中央広場と南北幹線は空ける。
+    const innerXs = [-78, -48, 48, 78];
+    for (let row = 0; row < 2; row++) {
+      for (let i = 0; i < innerXs.length; i++) {
+        desktop.push([innerXs[i], row === 0 ? -69 : 69, 16, 32 + ((i * 9 + row * 13) % 24), 17, (i + row + 2) % 3]);
+      }
+    }
+    // モバイル: 交互に間引き、高さとフットプリントも抑える。
     const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
-      return [b[0], b[1], 15, Math.round(b[3] * 0.58), 16, b[5]];
+      return [b[0], b[1], 14, Math.round(b[3] * 0.62), 15, b[5]];
     });
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
@@ -158,22 +165,35 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   }
 
   /* =========================================================
-     3. 中層ビル — 中間リングに20棟 (11-26m) / モバイル8棟
+     3. 中層ビル — 4列40棟 (12-28m) / モバイル14棟
      ========================================================= */
   function _addMidrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
     // [x, z, w, h, d, matIdx]
     const desktop = [];
-    const xs = [-195, -165, -135, -105, -75, 75, 105, 135, 165, 195];
+    const outerXs = [-195, -165, -135, -105, -75, 75, 105, 135, 165, 195];
     for (let row = 0; row < 2; row++) {
-      for (let i = 0; i < xs.length; i++) {
-        desktop.push([xs[i], row === 0 ? -40 : 40, 16, 14 + ((i * 5 + row * 3) % 15), 16, (i + row + 1) % 3]);
+      for (let i = 0; i < outerXs.length; i++) {
+        desktop.push([outerXs[i], row === 0 ? -40 : 40, 16, 14 + ((i * 5 + row * 3) % 15), 16, (i + row + 1) % 3]);
       }
     }
-    const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
-      return [b[0], b[1], 13, Math.max(9, Math.round(b[3] * 0.65)), 13, b[5]];
+    // 中心寄りの空き街区を埋める。z=0の高架と半径22mの広場は避ける。
+    const innerXs = [-78, -48, 48, 78, 108, -108];
+    const innerZs = [-40, -14, 14, 40];
+    for (let row = 0; row < innerZs.length; row++) {
+      for (let i = 0; i < innerXs.length; i++) {
+        const x = innerXs[(i + row * 2) % innerXs.length];
+        desktop.push([x, innerZs[row], 13, 12 + ((i * 4 + row * 7) % 14), 13, (i + row) % 3]);
+      }
+    }
+    // 既存の進入可能建物4棟と重なる区画は除外する。
+    const filtered = desktop.filter(function (b) {
+      return !((Math.abs(Math.abs(b[0]) - 48) < 10) && (Math.abs(Math.abs(b[1]) - 40) < 10));
     });
-    const list = isMobile ? mobile : desktop;
+    const mobile = filtered.filter(function (_, i) { return i % 3 === 0; }).map(function (b) {
+      return [b[0], b[1], 12, Math.max(9, Math.round(b[3] * 0.68)), 12, b[5]];
+    });
+    const list = isMobile ? mobile : filtered;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
       _trackedAddBuilding(b[0], b[1], b[2], b[3], b[4], mats[b[5]]);

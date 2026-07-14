@@ -329,12 +329,14 @@ function updateSoldiers(dt) {
     // ---- 射撃 ----
     s.shootCd -= dt;
     trySuppressionFireV047(s, tgt, tPos, tDist, dt);
-    const effectiveRangeV051 = s.aiSniperV051 && s.sniperHoldingV051 ? 115 : 65;
+    const effectiveRangeV051 = s.aiSniperV051 && s.sniperHoldingV051 ? 105 : 62;
     if (tgt && s.hasLos && tDist < effectiveRangeV051) s.aimT += dt; else s.aimT = 0;
-    if (s.shootCd <= 0 && s.aimT > (s.aiSniperV051 ? 0.6 : 0.35) && tgt && tDist < effectiveRangeV051 &&
+    // 距離に応じた照準時間を設け、発見直後の即命中を防ぐ。
+    const requiredAim = (s.aiSniperV051 ? 0.82 : 0.5) + Math.min(0.32, tDist * 0.004);
+    if (s.shootCd <= 0 && s.aimT > requiredAim && tgt && tDist < effectiveRangeV051 &&
         (typeof aiCanFireV052 !== 'function' || aiCanFireV052(s))) {
       if (typeof consumeAiRoundV052 === 'function') consumeAiRoundV052(s);
-      s.shootCd = 1.0 + Math.random() * 1.5;
+      s.shootCd = 1.25 + Math.random() * 1.75;
       const eye = new THREE.Vector3(sp.x, sp.y + 1.6, sp.z);
       // v0.3.3: 発砲直前に視線を再チェック — 壁越しの命中 (弾の壁貫通) を防ぐ
       if (!hasLineOfSight(eye, tPos)) {
@@ -356,9 +358,9 @@ function updateSoldiers(dt) {
       const tracerColor = s.team === 1 ? 0x8ecbff : 0xff8866;
       if (tgt.kind === 'vehicle' && curVehicle) {
         const concealV055 = typeof vehicleCamoConcealmentV055 === 'function' ? vehicleCamoConcealmentV055(curVehicle) : 0;
-        const hit = Math.random() < Math.max(0.08, 0.75 - tDist * 0.007 - concealV055);
+        const hit = Math.random() < Math.max(0.05, 0.55 - tDist * 0.008 - concealV055);
         const target = tPos.clone();
-        if (!hit) { target.x += (Math.random() - .5) * 4; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 4; }
+        if (!hit) { target.x += (Math.random() - .5) * 6; target.y += (Math.random() - .5) * 3; target.z += (Math.random() - .5) * 6; }
         spawnTracer(eye, target, tracerColor);
         if (hit) {
           const raw = 6 + Math.random() * 8;
@@ -368,16 +370,16 @@ function updateSoldiers(dt) {
           showDamageDirection(eye);
         }
       } else if (tgt.kind === 'player') {
-        const playerMoving = moveMag() > 0.1 ? 0.18 : 0;
+        const playerMoving = moveMag() > 0.1 ? 0.2 : 0;
         // v0.4.0: しゃがみ/伏せで被弾判定を縮小 (当てられにくい)
         const stancePen = player.stance === 2 ? 0.22 : player.stance === 1 ? 0.12 : 0;
         // v0.4.1: スモーク越しは大幅に当たらない
         const smokePen = smokeBlocks(eye, tPos) ? 0.3 : 0;
         const concealPen = typeof playerConcealment === 'function' ? playerConcealment() : 0;
-        const hitChance = Math.max(0.02, 0.5 - tDist * 0.007 - playerMoving - stancePen - smokePen - concealPen - suppressionAimPenaltyV047(s));
+        const hitChance = Math.max(0.015, 0.36 - tDist * 0.0065 - playerMoving - stancePen - smokePen - concealPen - suppressionAimPenaltyV047(s));
         const hit = Math.random() < hitChance;
         const target = player.pos.clone();
-        if (!hit) { target.x += (Math.random() - .5) * 3; target.y += (Math.random() - .5) * 2; target.z += (Math.random() - .5) * 3; }
+        if (!hit) { target.x += (Math.random() - .5) * 5; target.y += (Math.random() - .5) * 3; target.z += (Math.random() - .5) * 5; }
         spawnTracer(eye, target, tracerColor);
         if (hit) damagePlayer(6 + Math.random() * 8 | 0, eye);
         else if (target.distanceTo(player.pos) < 3.2) suppressPlayerV047(.18, eye);
