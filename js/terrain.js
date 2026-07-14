@@ -16,52 +16,55 @@ const WATER_Y = -1.6;
    caused roads, buildings and infrastructure to overlap.
    ========================================================= */
 const MAP_LAYOUT = {
-  hqs: { blue: { x: -410, z: 425 }, red: { x: 410, z: -425 } },
+  // Reference-plan orientation: blue joint base in the north, a broad central
+  // city, and the mirrored red joint base in the south. Positive Z is south
+  // on the tactical map, so the arrangement reads top-to-bottom in the UI.
+  hqs: { blue: { x: 0, z: -312 }, red: { x: 0, z: 312 } },
   flags: [
-    { id: 'A', x: -300, z: -260 }, { id: 'B', x: -270, z: 190 },
-    { id: 'C', x: 0, z: 0 }, { id: 'D', x: 270, z: -190 },
-    { id: 'E', x: 300, z: 260 }, { id: 'F', x: 150, z: 150 }
+    { id: 'A', x: -360, z: -225 }, { id: 'B', x: -180, z: -92 },
+    { id: 'C', x: 0, z: 0 }, { id: 'D', x: 180, z: 105 },
+    { id: 'E', x: 360, z: 220 }, { id: 'F', x: 425, z: 275 }
   ],
-  downtown: { x: 0, z: 0, half: 120 },
-  lake: { x: 150, z: 150, r: 76, depth: 8 },
-  island: { x: 150, z: 150, r: 20, h: 9.5 },
+  downtown: { x: 0, z: 0, halfX: 220, halfZ: 92 },
+  lake: { x: 425, z: 275, r: 38, depth: 6 },
+  island: { x: 425, z: 275, r: 11, h: 7 },
   airbases: {
-    // The HQ is inside the perimeter so the first spawn opens directly into
-    // one combined army/air-force installation instead of behind a fence.
-    blue: { x: -410, z: 305, rotY: 0, w: 160, d: 290 },
-    red: { x: 410, z: -305, rotY: Math.PI, w: 160, d: 290 }
+    // rotY values mirror the same local base plan. Local +X points toward the
+    // central battlefield for both teams, placing each HQ beside its main gate.
+    blue: { x: 0, z: -402, rotY: Math.PI / 2, w: 180, d: 300 },
+    red: { x: 0, z: 402, rotY: -Math.PI / 2, w: 180, d: 300 }
   },
   river: {
-    halfWidth: 14, depth: 4.5,
-    path: [[-520,-120],[-350,-140],[-170,-105],[0,-135],[180,-105],[350,-140],[520,-115]],
-    fords: [{ x: -430, z: -131, r: 11, h: -1.8 }, { x: 440, z: -127, r: 11, h: -1.8 }]
+    halfWidth: 15, depth: 4.8,
+    path: [[-520,-164],[-390,-154],[-260,-168],[-130,-151],[0,-160],[130,-151],[260,-168],[390,-154],[520,-164]],
+    fords: [{ x: -450, z: -159, r: 12, h: -1.8 }, { x: 450, z: -159, r: 12, h: -1.8 }]
   },
   railway: {
     halfWidth: 5,
-    path: [[-480,455],[-320,448],[-160,452],[0,455],[160,452],[320,448],[480,455]],
-    station: { x: 0, z: 455, rotY: Math.PI / 2, w: 36, d: 60, platformH: 1.2 }
+    path: [[-500,148],[-330,152],[-165,148],[0,150],[165,148],[330,152],[500,148]],
+    station: { x: 0, z: 150, rotY: Math.PI / 2, w: 44, d: 92, platformH: 1.2 }
   },
-  highway: { z: 350, deckH: 14, halfW: 6, deckX1: -300, deckX2: 380, rampX1: -360, rampX2: 440 },
+  highway: { z: 0, deckH: 14, halfW: 6, deckX1: -410, deckX2: 410, rampX1: -470, rampX2: 470 },
   subway: {
-    z: 300, platformOffset: 4,
+    z: 230, platformOffset: 4,
     stations: [
-      { name: '西駅', x: -330 }, { name: '中央西駅', x: -120 },
-      { name: '中央東駅', x: 120 }, { name: '東駅', x: 390 }
+      { name: 'S1 西駅', x: -300 }, { name: 'S2 中央西駅', x: -100 },
+      { name: 'S3 中央東駅', x: 100 }, { name: 'S4 東駅', x: 300 }
     ]
   }
 };
 
 const MILBASES = [];
 const HILLS = [
-  [-300, -260, 112, 13], [300, 260, 108, 14],
-  [300, -360, 82, 8], [-330, 350, 75, 7],
-  [-155, 225, 56, 5], [185, -235, 54, 5],
-  [-70, -390, 66, 7], [75, 395, 62, 7]
+  [-430, -245, 72, 8], [430, -245, 72, 8],
+  [-430, 245, 72, 8], [430, 245, 72, 8],
+  [-300, 310, 54, 5], [300, 310, 54, 5],
+  [-300, -310, 54, 5], [300, -310, 54, 5]
 ];
 const LAKE = MAP_LAYOUT.lake;
 const ISLAND = MAP_LAYOUT.island;
-const TRENCHES = [[-112, -48, -18, -76, 4.2, 2.4], [88, -72, 122, -82, 3.4, 3.0]];
-const PITS = [[130, -82, 8.5, 3.0]];
+const TRENCHES = [[-390, -205, -330, -195, 4.2, 2.4], [330, 195, 390, 205, 4.2, 2.4]];
+const PITS = [[390, 205, 8.5, 3.0]];
 const RIVER_PATH = MAP_LAYOUT.river.path;
 const RIVER_HALF_WIDTH = MAP_LAYOUT.river.halfWidth;
 const RIVER_DEPTH = MAP_LAYOUT.river.depth;
@@ -72,12 +75,10 @@ function _bridgeDeckHeightV090(x, z, rotY) {
   return Math.max(WATER_Y + 1.2,
     (terrainHeight(x - sx, z - sz) + terrainHeight(x + sx, z + sz)) / 2);
 }
-const RIVER_BRIDGES = [
-  { x: -291.0, z: -128.5, rotY: 0.068, span: 48, width: 11, deckH: _bridgeDeckHeightV090(-291.0, -128.5, 0.068), flatR: 28 },
-  { x: -129.4, z: -112.2, rotY: 0.857, span: 48, width: 11, deckH: _bridgeDeckHeightV090(-129.4, -112.2, 0.857), flatR: 28 },
-  { x: 155.1, z: -109.1, rotY: 2.184, span: 48, width: 11, deckH: _bridgeDeckHeightV090(155.1, -109.1, 2.184), flatR: 28 },
-  { x: 310.4, z: -131.9, rotY: 0.608, span: 48, width: 11, deckH: _bridgeDeckHeightV090(310.4, -131.9, 0.608), flatR: 28 }
-];
+const RIVER_BRIDGES = [-300, -100, 100, 300].map(function (x) {
+  const z = x === -300 || x === 300 ? -163.5 : -154.5;
+  return { x: x, z: z, rotY: 0, span: 52, width: 11, deckH: _bridgeDeckHeightV090(x, z, 0), flatR: 30 };
+});
 const RIVER_FORDS = MAP_LAYOUT.river.fords;
 const RAILWAY_PATH = MAP_LAYOUT.railway.path;
 const RAILWAY_HALF_WIDTH = MAP_LAYOUT.railway.halfWidth;
@@ -191,10 +192,20 @@ const ROAD_W = 4.2;        // 路面の半幅
 const ROAD_SHOULDER = 3.5; // 路肩のブレンド幅
 // The roads terminate on downtown grid streets instead of cutting through blocks.
 const ROADS = [
-  [-410,425,-270,190], [-270,190,-78,0], [-78,0,0,0], [0,0,78,0], [78,0,270,-190], [270,-190,410,-425],
-  [-300,-260,0,-78], [0,-78,0,0], [0,0,0,78], [0,78,72,235], [72,235,300,260],
-  [-300,-260,-270,190], [270,-190,430,35], [430,35,300,260],
-  [54,150,130,150], [-300,-260,270,-190]
+  // Northern base gate and distributor road to four river crossings.
+  [0,-312,0,-235], [-300,-235,300,-235],
+  [-300,-235,-300,-94], [-100,-235,-100,-94], [100,-235,100,-94], [300,-235,300,-94],
+  // Downtown perimeter and north/south avenues.
+  [-220,-94,220,-94], [-220,94,220,94],
+  [-180,-94,-180,94], [-60,-94,-60,94], [60,-94,60,94], [180,-94,180,94],
+  // Rail/subway belt and mirrored southern approach to the red base gate.
+  [-220,94,-220,230], [-100,94,-100,230], [100,94,100,230], [220,94,220,230],
+  [-300,230,300,230], [0,230,0,312],
+  // Flanking strategic roads keep the wilderness tactically connected.
+  [-500,-270,-360,-225], [-360,-225,-300,-235],
+  [300,-235,430,-250], [430,-250,500,-150],
+  [-500,150,-360,220], [-360,220,-300,230],
+  [300,230,360,220], [360,220,500,270]
 ];
 // 中心線の高さプロファイル (6m間隔でサンプリング → 移動平均で平滑化)
 const roadProfiles = ROADS.map(([x1, z1, x2, z2]) => {
@@ -241,9 +252,9 @@ function flattenAt(x, z, r) { FLATS.push([x, z, r, terrainHeight(x, z)]); }
 // A broad, tiled civic pad prevents large downtown blocks from being buried
 // by local noise while retaining a blended waterfront on the south side.
 {
-  const _cityH = terrainHeight(MAP_LAYOUT.downtown.x, MAP_LAYOUT.downtown.z + 20);
-  for (let _cx = -MAP_LAYOUT.downtown.half; _cx <= MAP_LAYOUT.downtown.half; _cx += 16) {
-    for (let _cz = -76; _cz <= MAP_LAYOUT.downtown.half; _cz += 16) {
+  const _cityH = terrainHeight(MAP_LAYOUT.downtown.x, MAP_LAYOUT.downtown.z);
+  for (let _cx = -MAP_LAYOUT.downtown.halfX; _cx <= MAP_LAYOUT.downtown.halfX; _cx += 16) {
+    for (let _cz = -MAP_LAYOUT.downtown.halfZ; _cz <= MAP_LAYOUT.downtown.halfZ; _cz += 16) {
       FLATS.push([MAP_LAYOUT.downtown.x + _cx, MAP_LAYOUT.downtown.z + _cz, 13, _cityH]);
     }
   }
@@ -353,6 +364,9 @@ function isInfrastructureReserved(x, z, margin = 0) {
     const lx = dx * c + dz * s, lz = -dx * s + dz * c;
     if (Math.abs(lx) < mb.w / 2 + margin && Math.abs(lz) < mb.d / 2 + margin) return true;
   }
+  const city = MAP_LAYOUT.downtown;
+  if (Math.abs(x - city.x) < city.halfX + margin && Math.abs(z - city.z) < city.halfZ + margin) return true;
+  if (_distanceToPathV090(x, z, RIVER_PATH) < RIVER_HALF_WIDTH + 4 + margin) return true;
   if (_distanceToPathV090(x, z, RAILWAY_PATH) < RAILWAY_HALF_WIDTH + 5 + margin) return true;
   const hw = MAP_LAYOUT.highway;
   if (x > hw.rampX1 - margin && x < hw.rampX2 + margin && Math.abs(z - hw.z) < hw.halfW + 6 + margin) return true;

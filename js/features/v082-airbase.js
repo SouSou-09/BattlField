@@ -1,6 +1,6 @@
 'use strict';
 /* =========================================================
-   v0.9.1 — 陸空統合大規模基地
+   v0.9.2 — 南北対称の陸空統合大規模基地
    MILBASE_BLUE / MILBASE_RED 平地に滑走路・管制塔・格納庫・
    エプロン・対空砲・柵を配置
    ・滑走路 最大240×24m (d方向=長辺に沿う)
@@ -78,6 +78,32 @@ var APRON_SLOTS_RED  = [];
         scene.add(bar);
         _pushMesh(bar);
       }
+    }
+  }
+
+  /* =========================================================
+     誘導路 — 滑走路と格納庫・エプロンを結ぶ明確な航空区画
+     ========================================================= */
+  function _addTaxiways(mb) {
+    const matTaxi = new THREE.MeshLambertMaterial({ color: 0x34363a });
+    const matTaxiLine = new THREE.MeshBasicMaterial({ color: 0xd4b942 });
+    const taxiX = -32, taxiLen = Math.min(236, mb.d - 44);
+    const p = _l2w(mb, taxiX, 0);
+    const taxi = new THREE.Mesh(new THREE.BoxGeometry(9, 0.16, taxiLen), matTaxi);
+    taxi.position.set(p.x, mb.flatH + 0.09, p.z);
+    taxi.rotation.y = mb.rotY;
+    taxi.receiveShadow = !isMobile;
+    scene.add(taxi); _pushMesh(taxi);
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.18, taxiLen - 8), matTaxiLine);
+    line.position.set(p.x, mb.flatH + 0.19, p.z);
+    line.rotation.y = mb.rotY;
+    scene.add(line); _pushMesh(line);
+    for (const lz of [-82, 0, 82]) {
+      const cp = _l2w(mb, -16, lz);
+      const connector = new THREE.Mesh(new THREE.BoxGeometry(32, 0.15, 8), matTaxi);
+      connector.position.set(cp.x, mb.flatH + 0.08, cp.z);
+      connector.rotation.y = mb.rotY;
+      scene.add(connector); _pushMesh(connector);
     }
   }
 
@@ -239,25 +265,25 @@ var APRON_SLOTS_RED  = [];
     const matPad = new THREE.MeshLambertMaterial({ color: 0x505257 });
     const matMark = new THREE.MeshBasicMaterial({ color: 0xd8d6c2 });
 
-    // Headquarters and two barracks form a protected army courtyard near HQ.
-    _localBox(mb, -48, 72, 24, 8, 16, matArmy, 0);
-    _localBox(mb, -49, 43, 22, 5.5, 13, matArmy, 0);
-    _localBox(mb,  49, 43, 22, 5.5, 13, matArmy, 0);
-    // Vehicle maintenance and supply buildings face the motor pool.
-    _localBox(mb, -48, 10, 25, 7, 18, matArmyDark, 0);
-    _localBox(mb,  50, 12, 18, 6, 16, matArmy, 0);
-    _localBox(mb,  50, 33, 14, 4.5, 10, matArmyDark, 0);
+    // The command/barracks row occupies the gate side, while logistics and
+    // maintenance face a dedicated motor pool on the opposite side.
+    _localBox(mb,  66,  0, 24, 8, 18, matArmy, 0);
+    _localBox(mb,  66, 32, 22, 5.5, 14, matArmy, 0);
+    _localBox(mb,  66, 60, 22, 5.5, 14, matArmy, 0);
+    _localBox(mb, -56, 30, 18, 5, 14, matArmyDark, 0);
+    _localBox(mb, -56, 55, 26, 7, 18, matArmyDark, 0);
+    _localBox(mb, -56, 79, 20, 6, 14, matArmy, 0);
 
     // Motor-pool hardstand and marked parking bays (surface only).
-    const poolP = _l2w(mb, -42, 105);
-    const pool = new THREE.Mesh(new THREE.BoxGeometry(46, 0.18, 42), matConcrete);
+    const poolP = _l2w(mb, -50, 108);
+    const pool = new THREE.Mesh(new THREE.BoxGeometry(54, 0.18, 36), matConcrete);
     pool.position.set(poolP.x, mb.flatH + 0.09, poolP.z);
     pool.rotation.y = mb.rotY;
     pool.receiveShadow = !isMobile;
     scene.add(pool); _pushMesh(pool);
     for (let i = -2; i <= 2; i++) {
-      const p = _l2w(mb, -42 + i * 8, 105);
-      const line = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 28), matMark);
+      const p = _l2w(mb, -50 + i * 9, 108);
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 26), matMark);
       line.position.set(p.x, mb.flatH + 0.2, p.z);
       line.rotation.y = mb.rotY;
       scene.add(line); _pushMesh(line);
@@ -372,9 +398,11 @@ var APRON_SLOTS_RED  = [];
      ========================================================= */
   function _buildAirbase(mb, slotsArr, team) {
     _addRunway(mb);
-    _addControlTower(mb, -1);                 // 滑走路の-w側
-    _addHangar(mb, -1, -40);                  // 格納庫1
-    _addHangar(mb, -1, 0);                    // 格納庫2 (モバイルは1棟のみでよいが低負荷)
+    _addTaxiways(mb);
+    _addControlTower(mb, -1);
+    _addHangar(mb, -1, -55);
+    _addHangar(mb, -1, 0);
+    if (!isMobile) _addHangar(mb, -1, 55);
     _addApron(mb, slotsArr);
     _addArmyCompound(mb);
     _addAA(mb, team);
@@ -400,8 +428,8 @@ function updateV082(dt) {
   if (v082.visT < 0.3) return;
   v082.visT = 0;
   if (v082.meshes.length === 0) return;
-  const px = (typeof player !== 'undefined' && player) ? player.x : 0;
-  const pz = (typeof player !== 'undefined' && player) ? player.z : 0;
+  const px = (typeof player !== 'undefined' && player && player.pos) ? player.pos.x : 0;
+  const pz = (typeof player !== 'undefined' && player && player.pos) ? player.pos.z : 0;
   const maxD2 = 360 * 360;
   for (let i = 0; i < v082.meshes.length; i++) {
     const m = v082.meshes[i];

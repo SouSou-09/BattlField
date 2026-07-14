@@ -1,10 +1,10 @@
 'use strict';
 /* =========================================================
-   v0.9.1 — 大規模中央都市
-   拠点C周辺に11×10街路 + 高層/中層ビル群を形成
-   ・グリッド状街路 (7m幅 / 約240m級)
-   ・高層ビル 16棟 (32-62m) / モバイル6棟
-   ・中層ビル 20棟 (12-26m) / モバイル8棟
+   v0.9.2 — 横長の大規模中央都市
+   河川南岸と貨物鉄道の間に規則的な矩形街区を形成
+   ・グリッド状街路 (7m幅 / 約440×184m)
+   ・高層ビル 16棟 (36-62m) / モバイル8棟
+   ・中層ビル 20棟 (14-28m) / モバイル10棟
    ・進入可能建物 4棟 / モバイル2棟
    ・路地プロップ (ゴミ箱/街灯/消火栓)
    ・地下通路 (v042トンネル網に接続)
@@ -55,12 +55,14 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const matStreet = new THREE.MeshLambertMaterial({ color: 0x2a2a2e });
     const matCross  = new THREE.MeshLambertMaterial({ color: 0x333338 });
     const matPlaza  = new THREE.MeshLambertMaterial({ color: 0x5a5a5e });
-    const sw    = 7;                         // 道路幅
-    const xLines = isMobile ? [-96, -48, 0, 48, 96] : [-112, -84, -56, -28, 0, 28, 56, 84, 112];
-    const zLines = isMobile ? [-70, -28, 14, 56, 98] : [-70, -42, -14, 14, 42, 70, 98, 126];
-    const halfX = isMobile ? 96 : 120;
-    const minZ = isMobile ? -70 : -78, maxZ = isMobile ? 98 : 134;
-    const step  = 8;                         // セグメント間隔
+    const sw = 7;
+    const xLines = isMobile
+      ? [-200, -100, 0, 100, 200]
+      : [-210, -180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180, 210];
+    const zLines = isMobile ? [-84, -42, 0, 42, 84] : [-84, -56, -28, 0, 28, 56, 84];
+    const halfX = MAP_LAYOUT.downtown.halfX;
+    const minZ = -MAP_LAYOUT.downtown.halfZ, maxZ = MAP_LAYOUT.downtown.halfZ;
+    const step = 8;
 
     // x方向の通り (z軸に沿って走る)
     for (let ix = 0; ix < xLines.length; ix++) {
@@ -137,33 +139,17 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   function _addHighrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
     // [x, z, w, h, d, matIdx]
-    const desktop = [
-      [-60, -60, 14, 42, 14, 0],   // NW角
-      [ 60, -60, 14, 38, 14, 1],   // NE角
-      [-60,  60, 14, 35, 14, 2],   // SW角
-      [ 60,  60, 14, 45, 14, 0],   // SE角 (最高層)
-      [-36, -60, 11, 28, 11, 1],   // 北辺
-      [ 36, -60, 11, 30, 11, 2],
-      [-36,  60, 11, 26, 11, 0],   // 南辺
-      [ 36,  60, 11, 32, 11, 1],
-      [-98, -56, 16, 52, 16, 2],
-      [ 98, -56, 16, 58, 16, 0],
-      [-98,   0, 15, 47, 15, 1],
-      [ 98,   0, 15, 54, 15, 2],
-      [-98,  56, 16, 44, 16, 0],
-      [ 98,  56, 16, 62, 16, 1],
-      [-98, 112, 17, 38, 17, 2],
-      [ 98, 112, 17, 50, 17, 0]
-    ];
-    // モバイル: 6棟・高さ低減
-    const mobile = [
-      [-60, -60, 14, 22, 14, 0],
-      [ 60, -60, 14, 20, 14, 1],
-      [ 60,  60, 14, 25, 14, 0],
-      [-98, -56, 14, 27, 14, 2],
-      [ 98,   0, 14, 29, 14, 1],
-      [ 98,  98, 14, 25, 14, 0]
-    ];
+    const desktop = [];
+    const xs = [-195, -165, -135, -105, 105, 135, 165, 195];
+    for (let row = 0; row < 2; row++) {
+      for (let i = 0; i < xs.length; i++) {
+        desktop.push([xs[i], row === 0 ? -69 : 69, 17, 36 + ((i * 7 + row * 11) % 27), 18, (i + row) % 3]);
+      }
+    }
+    // モバイル: 外周のランドマーク8棟のみ、高さを抑える。
+    const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
+      return [b[0], b[1], 15, Math.round(b[3] * 0.58), 16, b[5]];
+    });
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
@@ -177,35 +163,16 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   function _addMidrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
     // [x, z, w, h, d, matIdx]
-    const desktop = [
-      [-60, -36, 10, 16, 10, 1],
-      [ 60, -36, 10, 18, 10, 2],
-      [-60, -12, 10, 14, 10, 0],
-      [ 60, -12, 10, 15, 10, 1],
-      [-60,  12, 10, 13, 10, 2],
-      [ 60,  12, 10, 16, 10, 0],
-      [-60,  36, 10, 17, 10, 1],
-      [ 60,  36, 10, 14, 10, 2],
-      [-36, -36,  9, 12,  9, 0],
-      [ 36, -36,  9, 13,  9, 1],
-      [-36,  36,  9, 11,  9, 2],
-      [ 36,  36,  9, 15,  9, 0],
-      [-70, -56, 13, 22, 14, 0], [70, -56, 13, 19, 14, 1],
-      [-70, -28, 13, 18, 14, 2], [70, -28, 13, 24, 14, 0],
-      [-70,  56, 13, 20, 14, 1], [70,  56, 13, 26, 14, 2],
-      [-70,  84, 13, 17, 14, 0], [70,  84, 13, 21, 14, 1]
-    ];
-    // モバイル: 8棟・高さ低減
-    const mobile = [
-      [-60, -36, 10, 10, 10, 1],
-      [ 60, -36, 10, 12, 10, 2],
-      [-60,  36, 10, 10, 10, 1],
-      [ 60,  36, 10, 11, 10, 2],
-      [-36, -36,  9,  8,  9, 0],
-      [-70, -28, 11, 13, 12, 2],
-      [ 70,  28, 11, 15, 12, 0],
-      [-70,  84, 11, 12, 12, 1]
-    ];
+    const desktop = [];
+    const xs = [-195, -165, -135, -105, -75, 75, 105, 135, 165, 195];
+    for (let row = 0; row < 2; row++) {
+      for (let i = 0; i < xs.length; i++) {
+        desktop.push([xs[i], row === 0 ? -40 : 40, 16, 14 + ((i * 5 + row * 3) % 15), 16, (i + row + 1) % 3]);
+      }
+    }
+    const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
+      return [b[0], b[1], 13, Math.max(9, Math.round(b[3] * 0.65)), 13, b[5]];
+    });
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
@@ -219,14 +186,14 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   function _addEnterableV081() {
     // [x, z, w, h, d, doorDir, stairs]
     const desktop = [
-      [-36, -12,  8, 12, 10, 0, true],   // ドア:+z  階段あり
-      [ 36,  12,  8, 12, 10, 2, true],   // ドア:+x  階段あり
-      [-42,  84, 12, 14, 14, 0, true],
-      [ 42, 112, 12, 16, 14, 1, true]
+      [-48, -40, 14, 15, 16, 0, true],
+      [ 48,  40, 14, 15, 16, 2, true],
+      [-48,  40, 14, 18, 16, 1, true],
+      [ 48, -40, 14, 18, 16, 3, true]
     ];
     const mobile = [
-      [-36, -12,  8,  8,  8, 0, false],  // モバイル: 階段なし
-      [ 42,  84, 10, 10, 10, 1, false]
+      [-48, -40, 12, 10, 13, 0, false],
+      [ 48,  40, 12, 10, 13, 2, false]
     ];
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
@@ -250,10 +217,9 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const geoLamp = new THREE.BoxGeometry(0.5, 0.2, 0.3);
     // 建物がないブロックの中心座標
     const spots = [
-      [-12, -60], [12, -60], [-12, 60], [12, 60],
-      [-12, -36], [12, -36], [-12, 36], [12, 36],
-      [36, -12], [-36, 12],
-      [-84, -28], [84, 28], [-56, 84], [56, 112], [0, 112]
+      [-210, -14], [-180, 14], [-150, -14], [-120, 14],
+      [-90, -14], [-30, -40], [-30, 40], [30, -40], [30, 40],
+      [90, 14], [120, -14], [150, 14], [180, -14], [210, 14]
     ];
     for (let i = 0; i < spots.length; i++) {
       const sx = spots[i][0], sz = spots[i][1];
@@ -308,8 +274,8 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   function _addUndergroundPassageV081() {
     const baseIdx = v042.tunnels.length;
     const entries = [
-      { x: -36, z: -72, to: baseIdx + 1, name: 'ダウンタウン北' },
-      { x:  36, z:  72, to: baseIdx,     name: 'ダウンタウン南' }
+      { x: -30, z: -82, to: baseIdx + 1, name: 'ダウンタウン北口' },
+      { x:  30, z:  82, to: baseIdx,     name: 'ダウンタウン南口' }
     ];
     const concrete = new THREE.MeshLambertMaterial({ color: 0x555b58 });
     for (let i = 0; i < entries.length; i++) {
@@ -347,8 +313,8 @@ function updateV081(dt) {
   if (v081.visT < 0.3) return;
   v081.visT = 0;
   if (v081.meshes.length === 0) return;
-  const px = (typeof player !== 'undefined' && player) ? player.x : 0;
-  const pz = (typeof player !== 'undefined' && player) ? player.z : 0;
+  const px = (typeof player !== 'undefined' && player && player.pos) ? player.pos.x : 0;
+  const pz = (typeof player !== 'undefined' && player && player.pos) ? player.pos.z : 0;
   const maxD2 = 360 * 360;
   for (let i = 0; i < v081.meshes.length; i++) {
     const m = v081.meshes[i];

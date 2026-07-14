@@ -91,15 +91,15 @@
   obstacles.push({ minX: fx - 14.4, maxX: fx - 13.6, minZ: fz - 12.4, maxZ: fz - 11.6, y0: 0, h: terrainH(fx - 14, fz - 12) + 14 });
 }
 
-// === HQ (両軍ベース) ===
-function buildHQ(hq, mat) {
-  addBuilding(hq.x, hq.z - 8, 14, 7, 10, mat);
-  addBox(hq.x - 9, hq.z + 2, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
-  addBox(hq.x + 9, hq.z + 2, 8, 1.1, 1.2, matSandbag, Math.PI / 2);
-  addBox(hq.x, hq.z + 10, 10, 1.1, 1.2, matSandbag);
+// === HQ / main-gate checkpoints (両軍ベース) ===
+// The command buildings are part of v082's mirrored base plan. Keeping another
+// legacy HQ building here caused asymmetric overlap at the new north/south gates.
+function buildHQCheckpoint(hq) {
+  addBox(hq.x - 10, hq.z, 7, 1.1, 1.2, matSandbag);
+  addBox(hq.x + 10, hq.z, 7, 1.1, 1.2, matSandbag);
 }
-buildHQ(HQ_BLUE, matBuildingB);
-buildHQ(HQ_RED, matBuildingC);
+buildHQCheckpoint(HQ_BLUE);
+buildHQCheckpoint(HQ_RED);
 
 /* =========================================================
    v0.3: 立体構造 — 階段 / 2階建て / 地下壕 / 島の砦

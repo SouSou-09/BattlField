@@ -282,12 +282,13 @@ var _origSpawnVehiclesV083 = null;
      格納庫は lx≈-35 → lx=-22で中間配置
      ========================================================= */
   var BASE_SPECS = [
-    { type: 'tank',      lx: -22, lz: 25,  lyaw: Math.PI / 2, mobileSkip: false },
-    { type: 'technical', lx: 22,  lz: -25, lyaw: 0,            mobileSkip: true  },
-    { type: 'scout',     lx: 24,  lz: -55, lyaw: 0,            mobileSkip: true  },
-    { type: 'heli',      lx: 25,  lz: -85, lyaw: 0,            mobileSkip: true  },
-    { type: 'apc',       lx: -22, lz: 55,  lyaw: Math.PI / 2, mobileSkip: false },
-    { type: 'supply',    lx: -22, lz: 85,  lyaw: Math.PI / 2, mobileSkip: false }
+    // Armoured and logistics vehicles occupy marked bays in the motor pool.
+    { type: 'tank',      lx: -66, lz: 102, lyaw: 0, mobileSkip: false },
+    { type: 'technical', lx: -66, lz: 116, lyaw: 0, mobileSkip: true  },
+    { type: 'scout',     lx: -50, lz: 116, lyaw: 0, mobileSkip: true  },
+    { type: 'heli',      lx:  51, lz: -72, lyaw: 0, mobileSkip: true  },
+    { type: 'apc',       lx: -50, lz: 102, lyaw: 0, mobileSkip: false },
+    { type: 'supply',    lx: -34, lz: 102, lyaw: 0, mobileSkip: false }
   ];
 
   /* ---------- 両MILBASEに基地車両スポーン ---------- */
