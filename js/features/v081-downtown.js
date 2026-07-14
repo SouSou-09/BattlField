@@ -1,11 +1,11 @@
 'use strict';
 /* =========================================================
-   v0.8.1 — ダウンタウン高密度市街地
-   拠点C周辺にグリッド状街路 + 高層ビル群を形成
-   ・グリッド状街路 (6m幅)
-   ・高層ビル 8棟 (25-45m) / モバイル3棟
-   ・中層ビル 12棟 (10-18m) / モバイル5棟
-   ・進入可能建物 2棟 / モバイル1棟
+   v0.9.1 — 大規模中央都市
+   拠点C周辺に11×10街路 + 高層/中層ビル群を形成
+   ・グリッド状街路 (7m幅 / 約240m級)
+   ・高層ビル 16棟 (32-62m) / モバイル6棟
+   ・中層ビル 20棟 (12-26m) / モバイル8棟
+   ・進入可能建物 4棟 / モバイル2棟
    ・路地プロップ (ゴミ箱/街灯/消火栓)
    ・地下通路 (v042トンネル網に接続)
    ・220m距離カリング / モバイル60%減
@@ -55,21 +55,25 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const matStreet = new THREE.MeshLambertMaterial({ color: 0x2a2a2e });
     const matCross  = new THREE.MeshLambertMaterial({ color: 0x333338 });
     const matPlaza  = new THREE.MeshLambertMaterial({ color: 0x5a5a5e });
-    const sw    = 6;                         // 道路幅
-    const lines = isMobile ? [-48, 0, 48] : [-72, -48, -24, 0, 24, 48, 72];
-    const half  = isMobile ? 48 : 72;
+    const sw    = 7;                         // 道路幅
+    const xLines = isMobile ? [-96, -48, 0, 48, 96] : [-112, -84, -56, -28, 0, 28, 56, 84, 112];
+    const zLines = isMobile ? [-70, -28, 14, 56, 98] : [-70, -42, -14, 14, 42, 70, 98, 126];
+    const halfX = isMobile ? 96 : 120;
+    const minZ = isMobile ? -70 : -78, maxZ = isMobile ? 98 : 134;
     const step  = 8;                         // セグメント間隔
 
     // x方向の通り (z軸に沿って走る)
-    for (let ix = 0; ix < lines.length; ix++) {
-      const gx = lines[ix];
-      const segs = Math.max(4, Math.ceil((half * 2) / step));
-      const geo = new THREE.PlaneGeometry(sw, half * 2, 1, segs);
+    for (let ix = 0; ix < xLines.length; ix++) {
+      const gx = xLines[ix];
+      const lengthZ = maxZ - minZ;
+      const segs = Math.max(4, Math.ceil(lengthZ / step));
+      const geo = new THREE.PlaneGeometry(sw, lengthZ, 1, segs);
       geo.rotateX(-Math.PI / 2);
       const pos = geo.attributes.position;
       for (let i = 0; i < pos.count; i++) {
         const lx = pos.getX(i), lz = pos.getZ(i);
-        pos.setY(i, terrainH(gx + lx, lz) + 0.02);
+        pos.setZ(i, lz + (minZ + maxZ) / 2);
+        pos.setY(i, terrainH(gx + lx, lz + (minZ + maxZ) / 2) + 0.02);
       }
       geo.computeVertexNormals();
       const m = new THREE.Mesh(geo, matStreet);
@@ -81,10 +85,10 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       v081.meshes.push(m);
     }
     // z方向の通り (x軸に沿って走る)
-    for (let iz = 0; iz < lines.length; iz++) {
-      const gz = lines[iz];
-      const segs = Math.max(4, Math.ceil((half * 2) / step));
-      const geo = new THREE.PlaneGeometry(half * 2, sw, segs, 1);
+    for (let iz = 0; iz < zLines.length; iz++) {
+      const gz = zLines[iz];
+      const segs = Math.max(4, Math.ceil((halfX * 2) / step));
+      const geo = new THREE.PlaneGeometry(halfX * 2, sw, segs, 1);
       geo.rotateX(-Math.PI / 2);
       const pos = geo.attributes.position;
       for (let i = 0; i < pos.count; i++) {
@@ -101,12 +105,12 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       v081.meshes.push(m);
     }
     // 交差点マーク
-    for (let cx = 0; cx < lines.length; cx++) {
-      for (let cz = 0; cz < lines.length; cz++) {
+    for (let cx = 0; cx < xLines.length; cx++) {
+      for (let cz = 0; cz < zLines.length; cz++) {
         const cg = new THREE.PlaneGeometry(sw, sw);
         cg.rotateX(-Math.PI / 2);
         const cm = new THREE.Mesh(cg, matCross);
-        cm.position.set(lines[cx], terrainH(lines[cx], lines[cz]) + 0.03, lines[cz]);
+        cm.position.set(xLines[cx], terrainH(xLines[cx], zLines[cz]) + 0.03, zLines[cz]);
         cm.receiveShadow = !isMobile;
         cm.polygonOffset = true;
         cm.polygonOffsetFactor = -2;
@@ -115,7 +119,7 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       }
     }
     // 中央広場マーカー (拠点C周辺のプレイヤー可動域)
-    const plazaR = isMobile ? 12 : 16;
+    const plazaR = isMobile ? 16 : 22;
     const plazaGeo = new THREE.CircleGeometry(plazaR, 24);
     plazaGeo.rotateX(-Math.PI / 2);
     const plaza = new THREE.Mesh(plazaGeo, matPlaza);
@@ -128,7 +132,7 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   }
 
   /* =========================================================
-     2. 高層ビル — 外周リングに8棟 (25-45m) / モバイル3棟
+     2. 高層ビル — 都市リングに16棟 (26-62m) / モバイル6棟
      ========================================================= */
   function _addHighrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
@@ -141,13 +145,24 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       [-36, -60, 11, 28, 11, 1],   // 北辺
       [ 36, -60, 11, 30, 11, 2],
       [-36,  60, 11, 26, 11, 0],   // 南辺
-      [ 36,  60, 11, 32, 11, 1]
+      [ 36,  60, 11, 32, 11, 1],
+      [-98, -56, 16, 52, 16, 2],
+      [ 98, -56, 16, 58, 16, 0],
+      [-98,   0, 15, 47, 15, 1],
+      [ 98,   0, 15, 54, 15, 2],
+      [-98,  56, 16, 44, 16, 0],
+      [ 98,  56, 16, 62, 16, 1],
+      [-98, 112, 17, 38, 17, 2],
+      [ 98, 112, 17, 50, 17, 0]
     ];
-    // v0.8.1: モバイル60%減 — 3棟・高さ低減
+    // モバイル: 6棟・高さ低減
     const mobile = [
       [-60, -60, 14, 22, 14, 0],
       [ 60, -60, 14, 20, 14, 1],
-      [ 60,  60, 14, 25, 14, 0]
+      [ 60,  60, 14, 25, 14, 0],
+      [-98, -56, 14, 27, 14, 2],
+      [ 98,   0, 14, 29, 14, 1],
+      [ 98,  98, 14, 25, 14, 0]
     ];
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
@@ -157,7 +172,7 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   }
 
   /* =========================================================
-     3. 中層ビル — 中間リングに12棟 (10-18m) / モバイル5棟
+     3. 中層ビル — 中間リングに20棟 (11-26m) / モバイル8棟
      ========================================================= */
   function _addMidrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
@@ -174,15 +189,22 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       [-36, -36,  9, 12,  9, 0],
       [ 36, -36,  9, 13,  9, 1],
       [-36,  36,  9, 11,  9, 2],
-      [ 36,  36,  9, 15,  9, 0]
+      [ 36,  36,  9, 15,  9, 0],
+      [-70, -56, 13, 22, 14, 0], [70, -56, 13, 19, 14, 1],
+      [-70, -28, 13, 18, 14, 2], [70, -28, 13, 24, 14, 0],
+      [-70,  56, 13, 20, 14, 1], [70,  56, 13, 26, 14, 2],
+      [-70,  84, 13, 17, 14, 0], [70,  84, 13, 21, 14, 1]
     ];
-    // v0.8.1: モバイル60%減 — 5棟・高さ低減
+    // モバイル: 8棟・高さ低減
     const mobile = [
       [-60, -36, 10, 10, 10, 1],
       [ 60, -36, 10, 12, 10, 2],
       [-60,  36, 10, 10, 10, 1],
       [ 60,  36, 10, 11, 10, 2],
-      [-36, -36,  9,  8,  9, 0]
+      [-36, -36,  9,  8,  9, 0],
+      [-70, -28, 11, 13, 12, 2],
+      [ 70,  28, 11, 15, 12, 0],
+      [-70,  84, 11, 12, 12, 1]
     ];
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
@@ -192,16 +214,19 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
   }
 
   /* =========================================================
-     4. 進入可能建物 — 2棟 / モバイル1棟
+     4. 進入可能建物 — 4棟 / モバイル2棟
      ========================================================= */
   function _addEnterableV081() {
     // [x, z, w, h, d, doorDir, stairs]
     const desktop = [
       [-36, -12,  8, 12, 10, 0, true],   // ドア:+z  階段あり
-      [ 36,  12,  8, 12, 10, 2, true]    // ドア:+x  階段あり
+      [ 36,  12,  8, 12, 10, 2, true],   // ドア:+x  階段あり
+      [-42,  84, 12, 14, 14, 0, true],
+      [ 42, 112, 12, 16, 14, 1, true]
     ];
     const mobile = [
-      [-36, -12,  8,  8,  8, 0, false]   // モバイル: 階段なし
+      [-36, -12,  8,  8,  8, 0, false],  // モバイル: 階段なし
+      [ 42,  84, 10, 10, 10, 1, false]
     ];
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
@@ -227,7 +252,8 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const spots = [
       [-12, -60], [12, -60], [-12, 60], [12, 60],
       [-12, -36], [12, -36], [-12, 36], [12, 36],
-      [36, -12], [-36, 12]
+      [36, -12], [-36, 12],
+      [-84, -28], [84, 28], [-56, 84], [56, 112], [0, 112]
     ];
     for (let i = 0; i < spots.length; i++) {
       const sx = spots[i][0], sz = spots[i][1];
@@ -323,7 +349,7 @@ function updateV081(dt) {
   if (v081.meshes.length === 0) return;
   const px = (typeof player !== 'undefined' && player) ? player.x : 0;
   const pz = (typeof player !== 'undefined' && player) ? player.z : 0;
-  const maxD2 = 220 * 220;
+  const maxD2 = 360 * 360;
   for (let i = 0; i < v081.meshes.length; i++) {
     const m = v081.meshes[i];
     if (!m || !m.parent) continue;

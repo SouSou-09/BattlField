@@ -205,6 +205,9 @@ function _updateRipplesV062(dt) {
 // ============================================================
 function _createAtmosphereV062() {
   // 4a. 高さフォグ層: 地表〜低高度のグラデーション円柱
+  // The atmospheric shells follow the camera in X/Z. Keeping them centred at
+  // world origin put the expanded HQ only ~90m from the transparent cylinder,
+  // which looked like a pass-through wall immediately after spawning.
   var fogC = document.createElement('canvas');
   fogC.width = 2; fogC.height = 128;
   var fg = fogC.getContext('2d');
@@ -221,7 +224,7 @@ function _createAtmosphereV062() {
     side: THREE.BackSide, depthWrite: false, fog: false
   });
   v062.atmosphere.heightFog = new THREE.Mesh(fogGeo, fogMat);
-  v062.atmosphere.heightFog.position.set(0, 50, 0);
+  v062.atmosphere.heightFog.position.set(camera.position.x, 50, camera.position.z);
   v062.atmosphere.heightFog.renderOrder = -5;
   scene.add(v062.atmosphere.heightFog);
 
@@ -242,6 +245,7 @@ function _createAtmosphereV062() {
     side: THREE.BackSide, depthWrite: false, fog: false
   });
   v062.atmosphere.scatterDome = new THREE.Mesh(scatGeo, scatMat);
+  v062.atmosphere.scatterDome.position.set(camera.position.x, 0, camera.position.z);
   v062.atmosphere.scatterDome.renderOrder = -9;
   scene.add(v062.atmosphere.scatterDome);
 
@@ -252,7 +256,7 @@ function _createAtmosphereV062() {
     side: THREE.BackSide, depthWrite: false, fog: false
   });
   v062.atmosphere.hazeRing = new THREE.Mesh(ringGeo, ringMat);
-  v062.atmosphere.hazeRing.position.set(0, 6, 0);
+  v062.atmosphere.hazeRing.position.set(camera.position.x, 6, camera.position.z);
   v062.atmosphere.hazeRing.renderOrder = -4;
   scene.add(v062.atmosphere.hazeRing);
 }
@@ -300,6 +304,20 @@ function resetV062() {
 }
 
 function updateV062(dt) {
+  // Keep purely visual atmosphere shells centred on the viewer. They are not
+  // world boundaries and must never appear as a nearby stationary wall.
+  if (v062.atmosphere.heightFog) {
+    v062.atmosphere.heightFog.position.x = camera.position.x;
+    v062.atmosphere.heightFog.position.z = camera.position.z;
+  }
+  if (v062.atmosphere.scatterDome) {
+    v062.atmosphere.scatterDome.position.x = camera.position.x;
+    v062.atmosphere.scatterDome.position.z = camera.position.z;
+  }
+  if (v062.atmosphere.hazeRing) {
+    v062.atmosphere.hazeRing.position.x = camera.position.x;
+    v062.atmosphere.hazeRing.position.z = camera.position.z;
+  }
   // 水面アニメーション
   v062.water.time += dt;
   if (v062.water.mat) {
