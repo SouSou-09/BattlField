@@ -13,14 +13,9 @@ var v088 = { initialized: false, meshes: [] };
 (function () {
 
   /* ---------- 地下鉄パラメータ ---------- */
-  var SUBWAY_LINE_Z = 300;            // 路線のz座標 (東西横断)
-  var SUBWAY_PLATFORM_OFFSET = 3;     // プラットフォームzオフセット (西行-3/東行+3)
-  var SUBWAY_STATIONS = [
-    { name: '西駅',     x: -300 },
-    { name: '中央西駅', x: -100 },
-    { name: '中央東駅', x:  100 },
-    { name: '東駅',     x:  300 }
-  ];
+  var SUBWAY_LINE_Z = MAP_LAYOUT.subway.z;
+  var SUBWAY_PLATFORM_OFFSET = MAP_LAYOUT.subway.platformOffset;
+  var SUBWAY_STATIONS = MAP_LAYOUT.subway.stations;
 
   /* ---------- マテリアル (自己完結) ---------- */
   var _matConcrete = new THREE.MeshLambertMaterial({ color: 0x555b58 });  // ポータル枠

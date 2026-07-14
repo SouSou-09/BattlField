@@ -51,7 +51,11 @@ function addBox(x, z, w, h, d, material, rotY = 0, yBase = null, solid = true) {
   m.castShadow = m.receiveShadow = !isMobile;
   scene.add(m);
   if (solid) {
-    const rw = Math.abs(Math.sin(rotY)) > 0.7 ? d : w, rd = Math.abs(Math.sin(rotY)) > 0.7 ? w : d;
+    // Exact world-axis bounds for an arbitrarily rotated rectangle. The old
+    // 90-degree swap approximation left diagonal bridges and base structures
+    // with collision boxes far away from their meshes.
+    const c = Math.abs(Math.cos(rotY)), s = Math.abs(Math.sin(rotY));
+    const rw = c * w + s * d, rd = s * w + c * d;
     obstacles.push({ minX: x - rw / 2, maxX: x + rw / 2, minZ: z - rd / 2, maxZ: z + rd / 2, y0: gy, h: gy + h });
     solidMeshes.push(m);
   }

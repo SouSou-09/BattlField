@@ -284,6 +284,34 @@ function drawFullmap(canvas2 = fmCanvas, ctx2 = fmCtx, deployMode = false) {
     const [x2, y2] = toMap(r[2], r[3]);
     g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
   }
+  // v0.9.0: strategic infrastructure is part of the map, not hidden scenery.
+  function strokePath(path, color, width) {
+    g.strokeStyle = color; g.lineWidth = width;
+    g.beginPath();
+    for (let i = 0; i < path.length; i++) {
+      const p = toMap(path[i][0], path[i][1]);
+      if (i === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]);
+    }
+    g.stroke();
+  }
+  strokePath(RIVER_PATH, 'rgba(70,150,190,.9)', Math.max(3, RIVER_HALF_WIDTH * S / HALF));
+  strokePath(RAILWAY_PATH, 'rgba(205,190,150,.9)', 2);
+  const hw = MAP_LAYOUT.highway;
+  const hw1 = toMap(hw.rampX1, hw.z), hw2 = toMap(hw.rampX2, hw.z);
+  g.strokeStyle = 'rgba(180,190,205,.85)'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(hw1[0], hw1[1]); g.lineTo(hw2[0], hw2[1]); g.stroke();
+  g.strokeStyle = 'rgba(20,25,30,.8)'; g.lineWidth = 1;
+  for (const st of MAP_LAYOUT.subway.stations) {
+    const p = toMap(st.x, MAP_LAYOUT.subway.z);
+    g.beginPath(); g.arc(p[0], p[1], 3, 0, 7); g.stroke();
+  }
+  for (const mb of [MILBASE_BLUE, MILBASE_RED]) {
+    const p = toMap(mb.x, mb.z);
+    const mw = mb.w / (HALF * 2) * S, md = mb.d / (HALF * 2) * S;
+    g.save(); g.translate(p[0], p[1]); g.rotate(-mb.rotY);
+    g.strokeStyle = 'rgba(120,145,165,.75)'; g.lineWidth = 1.5;
+    g.strokeRect(-mw / 2, -md / 2, mw, md); g.restore();
+  }
   // HQ
   g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   const [bx, by] = toMap(HQ_BLUE.x, HQ_BLUE.z);

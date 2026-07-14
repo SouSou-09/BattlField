@@ -14,16 +14,16 @@ var v087 = {
 (function () {
 
   /* ---------- 高架道路パラメータ ---------- */
-  var HW_Z = 380;                 // 高架道路のz座標 (東西横断)
-  var HW_DECK_H = 14;             // 甲板高さ (地形最高点11.05m + 余裕2.95m)
-  var HW_HALF_W = 6;              // 道路半幅 (12m = 2車線)
-  var HW_DECK_T = 0.4;            // 甲板厚
-  var HW_RAMP_LEN = 60;           // ランプ長さ (片側) / 勾配≈22%
-  var HW_STEP_H = 0.35;           // 階段高 (collidesAt制限: step高<0.4m)
-  var HW_DECK_X1 = -160;          // 甲板西端
-  var HW_DECK_X2 = 400;           // 甲板東端 (甲板長560m)
-  var HW_RAMP_W1 = -220;          // 西ランプ起点 (DECK_X1 - RAMP_LEN)
-  var HW_RAMP_E2 = 460;           // 東ランプ終点 (DECK_X2 + RAMP_LEN)
+  var HW_Z = MAP_LAYOUT.highway.z;
+  var HW_DECK_H = MAP_LAYOUT.highway.deckH;
+  var HW_HALF_W = MAP_LAYOUT.highway.halfW;
+  var HW_DECK_T = 0.4;
+  var HW_RAMP_LEN = MAP_LAYOUT.highway.deckX1 - MAP_LAYOUT.highway.rampX1;
+  var HW_STEP_H = 0.35;
+  var HW_DECK_X1 = MAP_LAYOUT.highway.deckX1;
+  var HW_DECK_X2 = MAP_LAYOUT.highway.deckX2;
+  var HW_RAMP_W1 = MAP_LAYOUT.highway.rampX1;
+  var HW_RAMP_E2 = MAP_LAYOUT.highway.rampX2;
   var HW_PILLAR_SP = 40;          // 橋脚間隔
   var HW_PILLAR_W = 1.5;          // 橋脚幅
 

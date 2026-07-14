@@ -6,25 +6,14 @@
    own: 1=BLUE(プレイヤー側) / -1=RED / 0=中立
    ========================================================= */
 const FLAG_R = 14;                 // 占領判定半径
-// v0.8.0: 全座標1.3倍拡張 (旧値は各行コメント参照)
-const flags = [
-  { id: 'A', x: -325, z: -286, own: 0, cap: 0 }, // 北西の丘の上 旧:-250,-220
-  { id: 'B', x: -260, z: 195, own: 0, cap: 0 },  // 南西の村 旧:-200,150
-  { id: 'C', x: 0,   z: 0,   own: 0, cap: 0 },   // 中央市街地 (原点)
-  { id: 'D', x: 273, z: -208, own: 0, cap: 0 },  // 北東の倉庫地区 旧:210,-160
-  { id: 'E', x: 338, z: 325, own: 0, cap: 0 },   // 南東の高地基地 旧:260,250
-  { id: 'F', x: 156, z: 156, own: 0, cap: 0 }    // v0.3: 湖の島 旧:120,120
-];
-const HQ_BLUE = { x: -442, z: 442 };   // 南西端 旧:-340,340
-const HQ_RED  = { x: 442,  z: -442 };  // 北東端 旧:340,-340
-
-// v0.8.0: 軍事基地用平地定義 (後続バージョンが参照)
-// 滑走路が置ける矩形平地。両HQはマップ角にあるため外周側(WORLD境界側)には
-// 220m滑走路を置く余地が無く、HQからマップ中央方向へ約90m寄せた位置に配置する。
-// {x,z,rotY,w,d,flatH} — rotYは滑走路方向(長辺=滑走路長=d方向)、w=幅、d=長さ
-// rotY=-π/4: 青基地の滑走路は北東(中央方向)へ向く / rotY=3π/4: 赤基地は南西(中央方向)へ向く
-const MILBASE_BLUE = { x: HQ_BLUE.x + 92, z: HQ_BLUE.z - 92, rotY: -Math.PI * 0.25, w: 90, d: 220 };
-const MILBASE_RED  = { x: HQ_RED.x - 92,  z: HQ_RED.z + 92,  rotY: Math.PI * 0.75, w: 90, d: 220 };
+// v0.9.0: gameplay markers are projections of the shared master plan.
+const flags = MAP_LAYOUT.flags.map(function (f) {
+  return { id: f.id, x: f.x, z: f.z, own: 0, cap: 0 };
+});
+const HQ_BLUE = { x: MAP_LAYOUT.hqs.blue.x, z: MAP_LAYOUT.hqs.blue.z };
+const HQ_RED = { x: MAP_LAYOUT.hqs.red.x, z: MAP_LAYOUT.hqs.red.z };
+const MILBASE_BLUE = Object.assign({}, MAP_LAYOUT.airbases.blue);
+const MILBASE_RED = Object.assign({}, MAP_LAYOUT.airbases.red);
 // 平地化目標高さは terrainHeight 計算前に設定するため、遅延で計算
 // (MILBASES 配列は terrain.js が参照する — ここでpushする前に高さを確定)
 (function _initMilbasesV080() {
@@ -51,9 +40,9 @@ for (const f of flags) flattenAt(f.x, f.z, 22);
 flattenAt(HQ_BLUE.x, HQ_BLUE.z, 20);
 flattenAt(HQ_RED.x, HQ_RED.z, 20);
 // v0.3: 島Fへの土手道 (水面より上に盛り土)
-// v0.8.0: 1.3倍拡張 旧:bx=40〜104 / z=120
-for (let bx = 52; bx <= 135; bx += 5) {
-  FLATS.push([bx, 156, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, 156))]);
+// Island causeway follows the rebuilt lake centre.
+for (let bx = 54; bx <= 130; bx += 5) {
+  FLATS.push([bx, MAP_LAYOUT.island.z, 5, Math.max(WATER_Y + 0.7, terrainHeight(bx, MAP_LAYOUT.island.z))]);
 }
 
 // ---------- 道路網 ----------
