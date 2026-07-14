@@ -6,64 +6,80 @@
    丘・高台・外周の山を解析関数で定義し、メッシュと当たり判定
    の両方で同じ terrainHeight() を使用する
    ========================================================= */
-const WORLD = 520;                 // v0.8.0: 1.3倍拡張 (1040m x 1040m) 旧:400
-const WATER_Y = -1.6;              // v0.3: 水面の高さ
+const WORLD = 520;
+const WATER_Y = -1.6;
 
-// v0.8.0: 軍事基地平地エリア (map-terrain.js で設定される)
+/* =========================================================
+   v0.9.0 — rebuilt map master plan
+   Every large feature reads from this single plan. The previous map mixed
+   scaled legacy coordinates with independently hard-coded additions, which
+   caused roads, buildings and infrastructure to overlap.
+   ========================================================= */
+const MAP_LAYOUT = {
+  hqs: { blue: { x: -410, z: 430 }, red: { x: 410, z: -430 } },
+  flags: [
+    { id: 'A', x: -300, z: -260 }, { id: 'B', x: -270, z: 190 },
+    { id: 'C', x: 0, z: 0 }, { id: 'D', x: 270, z: -190 },
+    { id: 'E', x: 300, z: 260 }, { id: 'F', x: 150, z: 150 }
+  ],
+  downtown: { x: 0, z: 0, half: 78 },
+  lake: { x: 150, z: 150, r: 76, depth: 8 },
+  island: { x: 150, z: 150, r: 20, h: 9.5 },
+  airbases: {
+    blue: { x: -410, z: 300, rotY: 0, w: 90, d: 220 },
+    red: { x: 410, z: -300, rotY: Math.PI, w: 90, d: 220 }
+  },
+  river: {
+    halfWidth: 14, depth: 4.5,
+    path: [[-520,-120],[-350,-140],[-170,-105],[0,-135],[180,-105],[350,-140],[520,-115]],
+    fords: [{ x: -430, z: -131, r: 11, h: -1.8 }, { x: 440, z: -127, r: 11, h: -1.8 }]
+  },
+  railway: {
+    halfWidth: 5,
+    path: [[-480,455],[-320,448],[-160,452],[0,455],[160,452],[320,448],[480,455]],
+    station: { x: 0, z: 455, rotY: Math.PI / 2, w: 36, d: 60, platformH: 1.2 }
+  },
+  highway: { z: 350, deckH: 14, halfW: 6, deckX1: -300, deckX2: 380, rampX1: -360, rampX2: 440 },
+  subway: {
+    z: 300, platformOffset: 4,
+    stations: [
+      { name: '西駅', x: -330 }, { name: '中央西駅', x: -120 },
+      { name: '中央東駅', x: 120 }, { name: '東駅', x: 390 }
+    ]
+  }
+};
+
 const MILBASES = [];
-
-// なだらかな丘 (ガウス型) の定義 [x, z, 半径, 高さ]
-// v0.8.0: 座標/半径を1.3倍拡張 (旧値はコメント参照)
 const HILLS = [
-  [-325, -286, 124, 14],  // 北西の大きな丘 (拠点A) 旧:[-250,-220,95]
-  [338, 325, 130, 16],    // 南東の高地 (拠点E) 旧:[260,250,100]
-  [325, -351, 98, 10],    // 北東の丘 旧:[250,-270,75]
-  [-351, 364, 91, 9],     // 南西の丘 旧:[-270,280,70]
-  [0, 0, 59, 5],          // 中央のゆるい盛り上がり (拠点C) 旧:[0,0,45]
-  [-156, 213, 55, 6],     // 南西寄りの小丘 旧:[-120,164,42]
-  [187, -177, 49, 5],     // 北東寄りの小丘 旧:[144,-136,38]
-  [-52, -364, 72, 8],     // 北側の新丘 旧:[-40,-280,55]
-  [-364, -52, 65, 7],     // 西側の新丘 旧:[-280,-40,50]
-  [78, 390, 72, 9],       // 南側の新丘 旧:[60,300,55]
-  [390, 78, 62, 7]        // 東側の新丘 旧:[300,60,48]
+  [-300, -260, 112, 13], [300, 260, 108, 14],
+  [300, -360, 82, 8], [-330, 350, 75, 7],
+  [-155, 225, 56, 5], [185, -235, 54, 5],
+  [-70, -390, 66, 7], [75, 395, 62, 7]
 ];
-// v0.3: 湖 (くぼ地) と島 [x, z, 半径, 深さ] / 島は湖中央の盛り上がり
-// v0.8.0: 1.3倍拡張 旧:{x:120,z:120,r:62}
-const LAKE = { x: 156, z: 156, r: 81, depth: 8 };
-const ISLAND = { x: 156, z: 156, r: 21, h: 9.5 };
-// v0.3: 塹壕 [x1,z1,x2,z2,幅,深さ] — 両端はスロープで地上に接続
-// v0.8.0: 1.3倍拡張 旧:[-90,-30,30,-16,3.2,2.4]/[64,-60,92,-60,2.6,3.0]
-const TRENCHES = [
-  [-117, -39, 39, -21, 4.2, 2.4],     // 中央北の塹壕 (A-C間)
-  [83, -78, 120, -78, 3.4, 3.0]      // 地下壕への進入路
-];
-// v0.3: 地下壕ピット [x, z, 半径, 深さ] — 上に屋根スラブを被せて地下室化
-// v0.8.0: 1.3倍拡張 旧:[100,-60,6.5,3.0]
-const PITS = [[130, -78, 8.5, 3.0]];
-// v0.8.5: 川 — 西端から東端へ蛇行する川の経路とパラメータ
-const RIVER_PATH = [[-520,-240],[-340,-200],[-160,-160],[0,-120],[200,-152],[340,-120],[520,-100]];
-const RIVER_HALF_WIDTH = 14;   // 川の半幅
-const RIVER_DEPTH = 4.5;       // 川底の深さ
-// v0.8.5: 橋梁定義 (道路と川の交点 / 甲板高さ / FLATS半径)
-// rotY=道路方向(atan2(dx,dz)) / span=橋長(道路方向) / width=橋幅 / deckH=甲板高 / flatR=平坦化半径
-// 交点計算: Road7(-313,-194) / Road4(-189,-167) / Road2(199,-152) / Road8(322,-124)
+const LAKE = MAP_LAYOUT.lake;
+const ISLAND = MAP_LAYOUT.island;
+const TRENCHES = [[-112, -48, -18, -76, 4.2, 2.4], [88, -72, 122, -82, 3.4, 3.0]];
+const PITS = [[130, -82, 8.5, 3.0]];
+const RIVER_PATH = MAP_LAYOUT.river.path;
+const RIVER_HALF_WIDTH = MAP_LAYOUT.river.halfWidth;
+const RIVER_DEPTH = MAP_LAYOUT.river.depth;
+function _bridgeDeckHeightV090(x, z, rotY) {
+  // Sample both banks, outside the carved channel, so each bridge meets its
+  // actual approach road instead of an arbitrary common elevation.
+  const sx = Math.sin(rotY) * 25, sz = Math.cos(rotY) * 25;
+  return Math.max(WATER_Y + 1.2,
+    (terrainHeight(x - sx, z - sz) + terrainHeight(x + sx, z + sz)) / 2);
+}
 const RIVER_BRIDGES = [
-  { x: -313, z: -194, rotY: 0.134, span: 48, width: 11, deckH: 3.0, flatR: 32 },
-  { x: -189, z: -167, rotY: 0.849, span: 48, width: 11, deckH: 3.0, flatR: 32 },
-  { x: 199,  z: -152, rotY: 2.222, span: 48, width: 11, deckH: 3.0, flatR: 32 },
-  { x: 322,  z: -124, rotY: 0.525, span: 48, width: 11, deckH: 3.0, flatR: 32 }
+  { x: -291.0, z: -128.5, rotY: 0.068, span: 48, width: 11, deckH: _bridgeDeckHeightV090(-291.0, -128.5, 0.068), flatR: 28 },
+  { x: -129.4, z: -112.2, rotY: 0.857, span: 48, width: 11, deckH: _bridgeDeckHeightV090(-129.4, -112.2, 0.857), flatR: 28 },
+  { x: 155.1, z: -109.1, rotY: 2.184, span: 48, width: 11, deckH: _bridgeDeckHeightV090(155.1, -109.1, 2.184), flatR: 28 },
+  { x: 310.4, z: -131.9, rotY: 0.608, span: 48, width: 11, deckH: _bridgeDeckHeightV090(310.4, -131.9, 0.608), flatR: 28 }
 ];
-// v0.8.5: 渡し場 (浅瀬) — 川の中で歩兵・車両が渡河できる浅い地点
-// height = WATER_Y - 0.2 → isWater=false(渡河可) / 水面下0.2m(見た目は浅瀬)
-const RIVER_FORDS = [
-  { x: -430, z: -222, r: 11, h: -1.8 },
-  { x: 430,  z: -108, r: 11, h: -1.8 }
-];
-// v0.8.6: 鉄道路線 — 南側(z≈460-480)を東西に横断する幹線
-// MILBASE/湖/外周山脈と重複しない南側エリア (node検証済み)
-const RAILWAY_PATH = [[-480,460],[-340,470],[-170,475],[0,480],[170,475],[340,470],[480,460]];
-const RAILWAY_HALF_WIDTH = 5;    // 路盤半幅 (軌道+小径地)
-const RAILWAY_STATION = { x: 0, z: 480, rotY: 0, w: 36, d: 60, platformH: 1.2 };
+const RIVER_FORDS = MAP_LAYOUT.river.fords;
+const RAILWAY_PATH = MAP_LAYOUT.railway.path;
+const RAILWAY_HALF_WIDTH = MAP_LAYOUT.railway.halfWidth;
+const RAILWAY_STATION = MAP_LAYOUT.railway.station;
 // v0.8.5: 川水路掘削 (線分に沿ってU字型断面で掘り下げ)
 function _riverCarveV085(x, z) {
   let maxCarve = 0;
@@ -171,20 +187,12 @@ function terrainHeight(x, z) {
    ========================================================= */
 const ROAD_W = 4.2;        // 路面の半幅
 const ROAD_SHOULDER = 3.5; // 路肩のブレンド幅
-// [x1,z1,x2,z2] — v0.8.0: 全座標1.3倍拡張 (旧値は各行コメント参照)
+// The roads terminate on downtown grid streets instead of cutting through blocks.
 const ROADS = [
-  [-442, 442, -260, 195],   // 青HQ → B 旧:[-340,340,-200,150]
-  [-260, 195, 0, 0],        // B → C 旧:[-200,150,0,0]
-  [0, 0, 273, -208],        // C → D 旧:[0,0,210,-160]
-  [273, -208, 442, -442],   // D → 赤HQ 旧:[210,-160,340,-340]
-  [-325, -286, 0, 0],       // A → C 旧:[-250,-220,0,0]
-  [0, 0, 78, 299],          // C → (湖の南) → E 旧:[0,0,60,230]
-  [78, 299, 338, 325],      // 旧:[60,230,260,250]
-  [-325, -286, -260, 195],  // A → B 旧:[-250,-220,-200,150]
-  [273, -208, 416, 39],     // D → (湖の東) → E 旧:[210,-160,320,30]
-  [416, 39, 338, 325],      // 旧:[320,30,260,250]
-  [52, 156, 130, 156],      // 土手道 → 島F 旧:[40,120,100,120]
-  [-325, -286, 273, -208]   // 北側の幹線 (A → D) 旧:[-250,-220,210,-160]
+  [-410,430,-270,190], [-270,190,-78,0], [-78,0,0,0], [0,0,78,0], [78,0,270,-190], [270,-190,410,-430],
+  [-300,-260,0,-78], [0,-78,0,0], [0,0,0,78], [0,78,72,235], [72,235,300,260],
+  [-300,-260,-270,190], [270,-190,430,35], [430,35,300,260],
+  [54,150,130,150], [-300,-260,270,-190]
 ];
 // 中心線の高さプロファイル (6m間隔でサンプリング → 移動平均で平滑化)
 const roadProfiles = ROADS.map(([x1, z1, x2, z2]) => {
@@ -237,8 +245,8 @@ for (const _rb of RIVER_BRIDGES) {
   }
 }
 for (const _rf of RIVER_FORDS) FLATS.push([_rf.x, _rf.z, _rf.r, _rf.h]);
-// v0.8.6: 鉄道路盤の帯状平坦化 (RIVER_BRIDGESと同様のstrip-of-circles手法)
-// 各セグメントに沿って5m間隔で円形FLATSを配置 → 線路幅分平坦化
+// Railway follows the natural terrain profile; every strip sample keeps its
+// own target height, preventing the old kilometre-long 2m shelf.
 for (let _ri = 0; _ri < RAILWAY_PATH.length - 1; _ri++) {
   const _rx1 = RAILWAY_PATH[_ri][0], _rz1 = RAILWAY_PATH[_ri][1];
   const _rx2 = RAILWAY_PATH[_ri + 1][0], _rz2 = RAILWAY_PATH[_ri + 1][1];
@@ -246,25 +254,27 @@ for (let _ri = 0; _ri < RAILWAY_PATH.length - 1; _ri++) {
   const _rlen = Math.hypot(_rdx, _rdz);
   const _rc = _rdx / _rlen, _rs = _rdz / _rlen;
   for (let _rt = 0; _rt <= _rlen; _rt += 5) {
-    FLATS.push([_rx1 + _rc * _rt, _rz1 + _rs * _rt, RAILWAY_HALF_WIDTH, 2.0]);
+    const _x = _rx1 + _rc * _rt, _z = _rz1 + _rs * _rt;
+    FLATS.push([_x, _z, RAILWAY_HALF_WIDTH, terrainHeight(_x, _z)]);
   }
 }
-// v0.8.6: 貨物駅構内の平坦化 (駅プラットホーム広場)
 {
   const _sc = Math.cos(RAILWAY_STATION.rotY), _ss = Math.sin(RAILWAY_STATION.rotY);
+  const _stationH = terrainHeight(RAILWAY_STATION.x, RAILWAY_STATION.z);
+  RAILWAY_STATION.flatH = _stationH;
   for (let _sx = -RAILWAY_STATION.w / 2; _sx <= RAILWAY_STATION.w / 2; _sx += 6) {
     for (let _sz = -RAILWAY_STATION.d / 2; _sz <= RAILWAY_STATION.d / 2; _sz += 6) {
-      FLATS.push([RAILWAY_STATION.x + _sx * _sc + _sz * _ss, RAILWAY_STATION.z - _sx * _ss + _sz * _sc, 4.5, 2.0]);
+      FLATS.push([RAILWAY_STATION.x + _sx * _sc + _sz * _ss, RAILWAY_STATION.z - _sx * _ss + _sz * _sc, 4.5, _stationH]);
     }
   }
 }
-// v0.8.8: 地下鉄駅構内の平坦化 (z=300東西線の4駅、各駅24m×16mエリアを高さ2.0に平坦化)
-// node検証済み: S1西(-300,300)h0.74 / S2中央西(-100,300)h-0.64 / S3中央東(100,300)h0.64 / S4東(300,300)h11.5
-// FLATS平坦化で全駅を高さ2.0に統一(水面WATER_Y-1.6より十分に高い)
-for (const _subS of [{x:-300,z:300},{x:-100,z:300},{x:100,z:300},{x:300,z:300}]) {
+// Each subway station is level locally, but stations no longer force unrelated
+// parts of the map to one arbitrary global elevation.
+for (const _subS of MAP_LAYOUT.subway.stations) {
+  const _stationH = terrainHeight(_subS.x, MAP_LAYOUT.subway.z);
   for (let _sx = -12; _sx <= 12; _sx += 5) {
-    for (let _sz = -8; _sz <= 8; _sz += 5) {
-      FLATS.push([_subS.x + _sx, _subS.z + _sz, 5, 2.0]);
+    for (let _sz = -9; _sz <= 9; _sz += 5) {
+      FLATS.push([_subS.x + _sx, MAP_LAYOUT.subway.z + _sz, 5, _stationH]);
     }
   }
 }
@@ -296,6 +306,35 @@ function terrainH(x, z) {
     }
   }
   return h;
+}
+
+function _distanceToPathV090(x, z, path) {
+  let best = Infinity;
+  for (let i = 0; i < path.length - 1; i++) {
+    const x1 = path[i][0], z1 = path[i][1], x2 = path[i + 1][0], z2 = path[i + 1][1];
+    const dx = x2 - x1, dz = z2 - z1;
+    let t = ((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz);
+    t = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t)));
+  }
+  return best;
+}
+
+// Shared exclusion test for procedural props. It keeps later decoration from
+// being generated on runways, rails, stations, ramps or subway entrances.
+function isInfrastructureReserved(x, z, margin = 0) {
+  for (const mb of [MAP_LAYOUT.airbases.blue, MAP_LAYOUT.airbases.red]) {
+    const dx = x - mb.x, dz = z - mb.z, c = Math.cos(mb.rotY), s = Math.sin(mb.rotY);
+    const lx = dx * c + dz * s, lz = -dx * s + dz * c;
+    if (Math.abs(lx) < mb.w / 2 + margin && Math.abs(lz) < mb.d / 2 + margin) return true;
+  }
+  if (_distanceToPathV090(x, z, RAILWAY_PATH) < RAILWAY_HALF_WIDTH + 5 + margin) return true;
+  const hw = MAP_LAYOUT.highway;
+  if (x > hw.rampX1 - margin && x < hw.rampX2 + margin && Math.abs(z - hw.z) < hw.halfW + 6 + margin) return true;
+  for (const st of MAP_LAYOUT.subway.stations) {
+    if (Math.abs(x - st.x) < 15 + margin && Math.abs(z - MAP_LAYOUT.subway.z) < 12 + margin) return true;
+  }
+  return false;
 }
 
 // ---------- Procedural textures ----------

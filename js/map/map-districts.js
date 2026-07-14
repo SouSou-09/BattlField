@@ -7,26 +7,11 @@
    (旗位置が1.3倍拡張されても追従する)
    ========================================================= */
 // === 拠点C: 中央市街地 ===
-// v0.8.0: 拠点C周辺の街区は旗位置(原点)周辺のオフセットで定義
-[[-18, -16, 16, 15, 18, matBuildingA], [20, -18, 18, 11, 14, matBuildingB],
- [22, 16, 14, 18, 14, matBuildingA], [-22, 18, 18, 12, 16, matBuildingC],
- [-2, -30, 22, 9, 12, matBuildingB], [0, 30, 20, 13, 12, matBuildingC]]
- .forEach(b => addBuilding(flags[2].x + b[0], flags[2].z + b[1], b[2], b[3], b[4], b[5]));
-// v0.8.0: 中央市街地の位置は flags[2] を基準
-[[-8, 8, 8, 1.1, 1.2, 0], [10, -6, 8, 1.1, 1.2, Math.PI / 2], [6, 8, 6, 1.1, 1.2, 0]]
+// v0.9.0: the downtown is built exclusively by v081 from the master plan.
+// Keeping the legacy block here used to generate a second city on top of the
+// grid streets. Only lightweight capture cover remains at the central plaza.
+[[-9, 9, 7, 1.1, 1.2, 0], [9, -9, 7, 1.1, 1.2, Math.PI / 2]]
  .forEach(s => addBox(flags[2].x + s[0], flags[2].z + s[1], s[2], s[3], s[4], matSandbag, s[5]));
-// v0.2.3: 中央市街地に進入可能な建物 (拠点Cの激戦区)
-addEnterableBuilding(flags[2].x - 9, flags[2].z - 8, 9, 4.5, 8, matBuildingB, 0);   // ドア南
-addEnterableBuilding(flags[2].x + 11, flags[2].z + 10, 8, 4, 9, matBuildingC, 3);     // ドア西
-[[-12, -4, 0], [12, 6, Math.PI / 2]].forEach(c => {
-  // v0.3.4: コンテナも道路から退避
-  const hw = Math.abs(Math.sin(c[2])) > 0.7 ? 1.6 : 6, hd = Math.abs(Math.sin(c[2])) > 0.7 ? 6 : 1.6;
-  const [cx, cz] = offRoadPos(flags[2].x + c[0], flags[2].z + c[1], hw, hd);
-  addBox(cx, cz, 12, 3, 3.2, matContainer, c[2]);
-});
-// 廃墟壁
-[[-6, 20, 10, 3.5, 1, 0], [14, -12, 8, 2.8, 1, Math.PI / 2], [-16, 6, 9, 3, 1, Math.PI / 2]]
- .forEach(w => addBreachableWall(flags[2].x + w[0], flags[2].z + w[1], w[2], w[3], w[4], matWall, w[5]));
 
 // === 拠点A: 北西の丘 (砦・監視塔) ===
 {
@@ -303,7 +288,7 @@ addLadderNearBuilding(flags[4].x - 8, flags[4].z - 8, 2);   // 拠点E 基地ビ
     tries++;
     const x = (Math.random() * 2 - 1) * (WORLD - 12);
     const z = (Math.random() * 2 - 1) * (WORLD - 12);
-    if (onRoad(x, z) || isWater(x, z)) continue;
+    if (onRoad(x, z) || isWater(x, z) || isInfrastructureReserved(x, z, 2)) continue;
     let nearFlag = false;
     for (const f of flags) if (Math.hypot(x - f.x, z - f.z) < 16) { nearFlag = true; break; }
     if (nearFlag || Math.hypot(x - HQ_BLUE.x, z - HQ_BLUE.z) < 18 || Math.hypot(x - HQ_RED.x, z - HQ_RED.z) < 18) continue;
@@ -344,7 +329,7 @@ addLadderNearBuilding(flags[4].x - 8, flags[4].z - 8, 2);   // 拠点E 基地ビ
   for (let i = 0; i < 38; i++) {  // v0.8.0: 増量 (旧28)
     const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 420;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (onRoad(x, z) || isWater(x, z)) continue;
+    if (onRoad(x, z) || isWater(x, z) || isInfrastructureReserved(x, z, 2)) continue;
     addDestructibleCrate(x, z, Math.random() < .5 ? 0 : Math.PI / 2);
   }
 }

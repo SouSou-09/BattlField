@@ -218,7 +218,7 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
         const side = _hashV071(Math.round(cx), Math.round(cz)) > 0.5 ? 1 : -1;
         const px = cx + offX * offset * side;
         const pz = cz + offZ * offset * side;
-        if (isWater(px, pz) || onRoad(px, pz)) continue;
+        if (isWater(px, pz) || onRoad(px, pz) || isInfrastructureReserved(px, pz, 10)) continue;
         if (_nearFlagV071(px, pz, 20) || _nearHqV071(px, pz, 25)) continue;
         // サイズをハッシュで決定
         const h2 = _hashV071(Math.round(px * 0.1), Math.round(pz * 0.1));
@@ -245,7 +245,7 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
       const r = 35 + _hashV071(i, 77) * 20;
       const hx = cx + Math.cos(a) * r;
       const hz = cz + Math.sin(a) * r;
-      if (isWater(hx, hz) || onRoad(hx, hz)) continue;
+      if (isWater(hx, hz) || onRoad(hx, hz) || isInfrastructureReserved(hx, hz, 8)) continue;
       if (_nearFlagV071(hx, hz, 16)) continue;
       try {
         addHouse(hx, hz, 6 + _hashV071(i, 3) * 3, 5 + _hashV071(i, 5) * 2,
@@ -306,6 +306,7 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
       { x: -104, z: 260, w: 45, d: 35 }    // 旧:-80,200
     ];
     for (const f of fields) {
+      if (isInfrastructureReserved(f.x, f.z, Math.max(f.w, f.d) / 2)) continue;
       const corners = [
         [f.x - f.w / 2, f.z - f.d / 2],
         [f.x + f.w / 2, f.z - f.d / 2],
@@ -356,7 +357,7 @@ var v071 = { initialized: false, meshes: [], visT: 0 };
       [130, 260, 10, 0.9], [-286, 195, 14, 1.1]
     ];
     for (const [bx, bz, r, hh] of bermSpots) {
-      if (isWater(bx, bz) || onRoad(bx, bz)) continue;
+      if (isWater(bx, bz) || onRoad(bx, bz) || isInfrastructureReserved(bx, bz, r)) continue;
       if (_nearFlagV071(bx, bz, 18)) continue;
       const geo = new THREE.CylinderGeometry(r, r + 1.5, hh, 12);
       geo.rotateX(-Math.PI / 2);

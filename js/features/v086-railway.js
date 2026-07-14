@@ -40,8 +40,6 @@ var v086 = {
   var BALLAST_W = 6;   // 砕石路盤幅
 
   function _buildTrack() {
-    var railY = 2.05; // FLATS平坦化高さ(2.0) + 砕石厚み0.05
-
     for (var i = 0; i < RAILWAY_PATH.length - 1; i++) {
       var x1 = RAILWAY_PATH[i][0], z1 = RAILWAY_PATH[i][1];
       var x2 = RAILWAY_PATH[i + 1][0], z2 = RAILWAY_PATH[i + 1][1];
@@ -63,9 +61,9 @@ var v086 = {
         pos.setY(v, terrainH(wx, wz) + 0.02);
       }
       ballastGeo.computeVertexNormals();
+      // Vertices are already converted to world coordinates above.
       var ballast = new THREE.Mesh(ballastGeo, _matBallast);
-      ballast.rotation.y = yaw;
-      ballast.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2);
+      ballast.position.set(0, 0, 0);
       ballast.receiveShadow = !isMobile;
       scene.add(ballast);
       v086.meshes.push(ballast);
@@ -77,7 +75,7 @@ var v086 = {
         var pz = (z1 + z2) / 2 + lz * cos;
         var slGeo = new THREE.BoxGeometry(SLEEPER_W, SLEEPER_H, SLEEPER_D);
         var sleeper = new THREE.Mesh(slGeo, _matSleeper);
-        sleeper.position.set(px, railY - RAIL_H, pz);
+        sleeper.position.set(px, terrainH(px, pz) + SLEEPER_H / 2 + 0.03, pz);
         sleeper.rotation.y = yaw;
         sleeper.castShadow = !isMobile;
         sleeper.receiveShadow = !isMobile;
@@ -90,11 +88,9 @@ var v086 = {
         var lx = side * GAUGE / 2;
         var railGeo = new THREE.BoxGeometry(RAIL_W, RAIL_H, len);
         var rail = new THREE.Mesh(railGeo, _matRail);
-        rail.position.set(
-          (x1 + x2) / 2 + lx * cos,
-          railY - RAIL_H / 2,
-          (z1 + z2) / 2 - lx * sin
-        );
+        var railX = (x1 + x2) / 2 + lx * cos;
+        var railZ = (z1 + z2) / 2 - lx * sin;
+        rail.position.set(railX, terrainH(railX, railZ) + SLEEPER_H + RAIL_H / 2 + 0.03, railZ);
         rail.rotation.y = yaw;
         rail.castShadow = !isMobile;
         scene.add(rail);
@@ -115,7 +111,7 @@ var v086 = {
     function l2w(lx, lz) {
       return { x: st.x + lx * cos + lz * sin, z: st.z - lx * sin + lz * cos };
     }
-    var gy = terrainH(st.x, st.z); // FLATS平坦化後の高さ(2.0)
+    var gy = st.flatH;
 
     /* --- プラットホーム (軌道両側) --- */
     for (var side = -1; side <= 1; side += 2) {
@@ -129,9 +125,11 @@ var v086 = {
       v086.meshes.push(platform);
       solidMeshes.push(platform);
       // プラットホームに乗れるよう障害物登録(低いので通行可)
+      var platHalfX = Math.abs(cos) * 1.5 + Math.abs(sin) * (st.d - 4) / 2;
+      var platHalfZ = Math.abs(sin) * 1.5 + Math.abs(cos) * (st.d - 4) / 2;
       obstacles.push({
-        minX: pPos.x - 1.5, maxX: pPos.x + 1.5,
-        minZ: pPos.z - (st.d - 4) / 2, maxZ: pPos.z + (st.d - 4) / 2,
+        minX: pPos.x - platHalfX, maxX: pPos.x + platHalfX,
+        minZ: pPos.z - platHalfZ, maxZ: pPos.z + platHalfZ,
         y0: gy, h: gy + st.platformH
       });
     }
@@ -189,7 +187,8 @@ var v086 = {
       for (var cs = -1; cs <= 1; cs += 2) {
         var legGeo = new THREE.BoxGeometry(0.5, 8, 0.5);
         var leg = new THREE.Mesh(legGeo, _matCraneDark);
-        leg.position.set(cranePos.x + cs * 5, gy + 4, cranePos.z);
+        var legPos = l2w(cs * 5, craneLz);
+        leg.position.set(legPos.x, gy + 4, legPos.z);
         leg.castShadow = !isMobile;
         scene.add(leg);
         v086.meshes.push(leg);
@@ -199,13 +198,16 @@ var v086 = {
       var beamGeo = new THREE.BoxGeometry(11, 0.6, 0.6);
       var beam = new THREE.Mesh(beamGeo, _matCrane);
       beam.position.set(cranePos.x, gy + 8, cranePos.z);
+      beam.rotation.y = st.rotY;
       beam.castShadow = !isMobile;
       scene.add(beam);
       v086.meshes.push(beam);
       solidMeshes.push(beam);
+      var beamHalfX = Math.abs(cos) * 5.5 + Math.abs(sin) * 0.3;
+      var beamHalfZ = Math.abs(sin) * 5.5 + Math.abs(cos) * 0.3;
       obstacles.push({
-        minX: cranePos.x - 5.5, maxX: cranePos.x + 5.5,
-        minZ: cranePos.z - 0.3, maxZ: cranePos.z + 0.3,
+        minX: cranePos.x - beamHalfX, maxX: cranePos.x + beamHalfX,
+        minZ: cranePos.z - beamHalfZ, maxZ: cranePos.z + beamHalfZ,
         y0: gy + 7.7, h: gy + 8.3
       });
       // フック
