@@ -25,7 +25,7 @@ const MAP_LAYOUT = {
     { id: 'C', x: 0, z: 0 }, { id: 'D', x: 180, z: 105 },
     { id: 'E', x: 360, z: 220 }, { id: 'F', x: 425, z: 275 }
   ],
-  downtown: { x: 0, z: 0, halfX: 220, halfZ: 92 },
+  downtown: { x: 0, z: 0, halfX: 320, halfZ: 130 },
   lake: { x: 425, z: 275, r: 38, depth: 6 },
   island: { x: 425, z: 275, r: 11, h: 7 },
   airbases: {

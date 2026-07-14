@@ -1,14 +1,15 @@
 'use strict';
 /* =========================================================
-   v0.9.3 — 横長の高密度中央都市
-   河川南岸と貨物鉄道の間に規則的な矩形街区を形成
-   ・グリッド状街路 (7m幅 / 約440×184m)
-   ・高層ビル 24棟 (32-62m) / モバイル12棟
-   ・中層ビル 40棟 (12-28m) / モバイル14棟
-   ・進入可能建物 4棟 / モバイル2棟
+   v0.9.4 — メガシティ化した中央都市
+   河川南岸と貨物鉄道の間を端から端まで使う矩形街区を形成
+   ・グリッド状街路 (7m幅 / 約640×260m)
+   ・高層ビル 72棟 (38-78m) / モバイル30棟
+   ・中層ビル 124棟 (14-32m) / モバイル40棟
+   ・進入可能建物 8棟 / モバイル4棟
+   ・中央広場と高架道路を維持したまま、建物数を従来の約3倍へ増加
    ・路地プロップ (ゴミ箱/街灯/消火栓)
    ・地下通路 (v042トンネル網に接続)
-   ・220m距離カリング / モバイル60%減
+   ・460m距離カリング / モバイル向け密度削減
    ※既存 addBuilding / addEnterableBuilding / v042.tunnels を利用
    ========================================================= */
 var v081 = { initialized: false, meshes: [], visT: 0 };
@@ -57,9 +58,11 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const matPlaza  = new THREE.MeshLambertMaterial({ color: 0x5a5a5e });
     const sw = 7;
     const xLines = isMobile
-      ? [-200, -100, 0, 100, 200]
-      : [-210, -180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180, 210];
-    const zLines = isMobile ? [-84, -42, 0, 42, 84] : [-84, -56, -28, 0, 28, 56, 84];
+      ? [-300, -210, -120, -30, 30, 120, 210, 300]
+      : [-320, -300, -270, -240, -210, -180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 320];
+    const zLines = isMobile
+      ? [-124, -68, -14, 14, 68, 124]
+      : [-124, -110, -96, -82, -68, -54, -40, -14, 0, 14, 40, 54, 68, 82, 96, 110, 124];
     const halfX = MAP_LAYOUT.downtown.halfX;
     const minZ = -MAP_LAYOUT.downtown.halfZ, maxZ = MAP_LAYOUT.downtown.halfZ;
     const step = 8;
@@ -133,88 +136,94 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     v081.meshes.push(plaza);
   }
 
+  /* ---------- 建物配置用グリッド ---------- */
+  const BUILDING_XS_V081 = [-285, -255, -225, -195, -165, -135, -105, -75, -45, 45, 75, 105, 135, 165, 195, 225, 255, 285];
+  const BUILDING_ZS_V081 = [-110, -82, -54, -27, 27, 54, 82, 110];
+  const ENTERABLE_KEYS_V081 = {
+    '-255,-27': true, '-165,54': true, '-75,-82': true, '-45,54': true,
+    '45,-54': true, '75,82': true, '165,-27': true, '255,54': true
+  };
+
+  function _buildingScoreV081(x, z) {
+    // 中心に寄るほど高層化し、両端にもランドマーク塔を残す。
+    const center = 1 - Math.min(1, Math.abs(x) / MAP_LAYOUT.downtown.halfX);
+    const boulevard = Math.abs(z) >= 75 ? 0.18 : 0;
+    const landmark = Math.abs(x) > 240 && Math.abs(z) > 70 ? 0.2 : 0;
+    return center + boulevard + landmark + _hashV081(x, z) * 0.28;
+  }
+
+  function _buildingCellsV081() {
+    const cells = [];
+    for (let zi = 0; zi < BUILDING_ZS_V081.length; zi++) {
+      for (let xi = 0; xi < BUILDING_XS_V081.length; xi++) {
+        const x = BUILDING_XS_V081[xi], z = BUILDING_ZS_V081[zi];
+        if (ENTERABLE_KEYS_V081[x + ',' + z]) continue;
+        // 中央広場と高架のランプ視界を確保する。
+        if (Math.abs(x) < 30 || (Math.abs(x) < 62 && Math.abs(z) < 42)) continue;
+        cells.push({ x: x, z: z, score: _buildingScoreV081(x, z) });
+      }
+    }
+    return cells;
+  }
+
   /* =========================================================
-     2. 高層ビル — 外周と副都心に24棟 / モバイル12棟
+     2. 高層ビル — 72棟 / モバイル30棟
      ========================================================= */
   function _addHighrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
-    // [x, z, w, h, d, matIdx]
-    const desktop = [];
-    const outerXs = [-195, -165, -135, -105, 105, 135, 165, 195];
-    for (let row = 0; row < 2; row++) {
-      for (let i = 0; i < outerXs.length; i++) {
-        desktop.push([outerXs[i], row === 0 ? -69 : 69, 17, 36 + ((i * 7 + row * 11) % 27), 18, (i + row) % 3]);
-      }
-    }
-    // 高架の両側に副都心スカイラインを追加。中央広場と南北幹線は空ける。
-    const innerXs = [-78, -48, 48, 78];
-    for (let row = 0; row < 2; row++) {
-      for (let i = 0; i < innerXs.length; i++) {
-        desktop.push([innerXs[i], row === 0 ? -69 : 69, 16, 32 + ((i * 9 + row * 13) % 24), 17, (i + row + 2) % 3]);
-      }
-    }
-    // モバイル: 交互に間引き、高さとフットプリントも抑える。
-    const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
-      return [b[0], b[1], 14, Math.round(b[3] * 0.62), 15, b[5]];
-    });
-    const list = isMobile ? mobile : desktop;
-    for (let i = 0; i < list.length; i++) {
-      const b = list[i];
-      _trackedAddBuilding(b[0], b[1], b[2], b[3], b[4], mats[b[5]]);
+    const cells = _buildingCellsV081().sort(function (a, b) { return b.score - a.score; });
+    const count = isMobile ? 30 : 72;
+    for (let i = 0; i < count && i < cells.length; i++) {
+      const c = cells[i];
+      const hash = _hashV081(c.x + 17, c.z - 31);
+      const w = isMobile ? 12 : 13 + (i % 2);
+      const d = isMobile ? 14 : 17 + ((i + 1) % 2);
+      const fullH = 38 + Math.round(c.score * 24 + hash * 16);
+      const h = isMobile ? Math.max(24, Math.round(fullH * 0.72)) : Math.min(78, fullH);
+      _trackedAddBuilding(c.x, c.z, w, h, d, mats[i % mats.length]);
     }
   }
 
   /* =========================================================
-     3. 中層ビル — 4列40棟 (12-28m) / モバイル14棟
+     3. 中層ビル — 124棟 / モバイル40棟
      ========================================================= */
   function _addMidrisesV081() {
     const mats = [matBuildingA, matBuildingB, matBuildingC];
-    // [x, z, w, h, d, matIdx]
-    const desktop = [];
-    const outerXs = [-195, -165, -135, -105, -75, 75, 105, 135, 165, 195];
-    for (let row = 0; row < 2; row++) {
-      for (let i = 0; i < outerXs.length; i++) {
-        desktop.push([outerXs[i], row === 0 ? -40 : 40, 16, 14 + ((i * 5 + row * 3) % 15), 16, (i + row + 1) % 3]);
-      }
-    }
-    // 中心寄りの空き街区を埋める。z=0の高架と半径22mの広場は避ける。
-    const innerXs = [-78, -48, 48, 78, 108, -108];
-    const innerZs = [-40, -14, 14, 40];
-    for (let row = 0; row < innerZs.length; row++) {
-      for (let i = 0; i < innerXs.length; i++) {
-        const x = innerXs[(i + row * 2) % innerXs.length];
-        desktop.push([x, innerZs[row], 13, 12 + ((i * 4 + row * 7) % 14), 13, (i + row) % 3]);
-      }
-    }
-    // 既存の進入可能建物4棟と重なる区画は除外する。
-    const filtered = desktop.filter(function (b) {
-      return !((Math.abs(Math.abs(b[0]) - 48) < 10) && (Math.abs(Math.abs(b[1]) - 40) < 10));
+    const cells = _buildingCellsV081().sort(function (a, b) { return b.score - a.score; });
+    const highriseCount = 72;
+    const standardMidrises = cells.slice(highriseCount);
+    // 高層街区の一部には幅8mの別棟を置き、道路を塞がず街区密度を3倍級にする。
+    const infillMidrises = cells.slice(0, 64).map(function (c, i) {
+      return { x: c.x + (i % 2 ? -11 : 11), z: c.z, score: c.score * 0.72, infill: true };
     });
-    const mobile = filtered.filter(function (_, i) { return i % 3 === 0; }).map(function (b) {
-      return [b[0], b[1], 12, Math.max(9, Math.round(b[3] * 0.68)), 12, b[5]];
-    });
-    const list = isMobile ? mobile : filtered;
+    const list = isMobile
+      ? cells.slice(30).filter(function (_, i) { return i % 2 === 0; }).slice(0, 40)
+      : standardMidrises.concat(infillMidrises).slice(0, 124);
     for (let i = 0; i < list.length; i++) {
-      const b = list[i];
-      _trackedAddBuilding(b[0], b[1], b[2], b[3], b[4], mats[b[5]]);
+      const c = list[i];
+      const hash = _hashV081(c.x - 23, c.z + 41);
+      const w = isMobile ? 12 : (c.infill ? 8 : 15 + (i % 3));
+      const d = isMobile ? 13 : (c.infill ? 15 : 16 + ((i + 2) % 3));
+      const fullH = 14 + Math.round(hash * 12 + c.score * 6);
+      const h = isMobile ? Math.max(11, Math.round(fullH * 0.78)) : Math.min(32, fullH);
+      _trackedAddBuilding(c.x, c.z, w, h, d, mats[(i + 1) % mats.length]);
     }
   }
 
   /* =========================================================
-     4. 進入可能建物 — 4棟 / モバイル2棟
+     4. 進入可能建物 — 8棟 / モバイル4棟
      ========================================================= */
   function _addEnterableV081() {
     // [x, z, w, h, d, doorDir, stairs]
     const desktop = [
-      [-48, -40, 14, 15, 16, 0, true],
-      [ 48,  40, 14, 15, 16, 2, true],
-      [-48,  40, 14, 18, 16, 1, true],
-      [ 48, -40, 14, 18, 16, 3, true]
+      [-255, -27, 15, 16, 17, 0, true], [-165, 54, 15, 18, 17, 2, true],
+      [ -75, -82, 15, 20, 17, 1, true], [ -45, 54, 14, 17, 16, 3, true],
+      [  45, -54, 14, 17, 16, 0, true], [  75, 82, 15, 20, 17, 2, true],
+      [ 165, -27, 15, 18, 17, 1, true], [ 255, 54, 15, 16, 17, 3, true]
     ];
-    const mobile = [
-      [-48, -40, 12, 10, 13, 0, false],
-      [ 48,  40, 12, 10, 13, 2, false]
-    ];
+    const mobile = desktop.filter(function (_, i) { return i % 2 === 0; }).map(function (b) {
+      return [b[0], b[1], 13, 12, 14, b[5], false];
+    });
     const list = isMobile ? mobile : desktop;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
@@ -237,9 +246,11 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     const geoLamp = new THREE.BoxGeometry(0.5, 0.2, 0.3);
     // 建物がないブロックの中心座標
     const spots = [
-      [-210, -14], [-180, 14], [-150, -14], [-120, 14],
-      [-90, -14], [-30, -40], [-30, 40], [30, -40], [30, 40],
-      [90, 14], [120, -14], [150, 14], [180, -14], [210, 14]
+      [-315, -68], [-300, 14], [-270, -14], [-240, 14], [-210, -14],
+      [-180, 14], [-150, -14], [-120, 14], [-90, -14], [-30, -54],
+      [-30, 54], [30, -54], [30, 54], [90, 14], [120, -14],
+      [150, 14], [180, -14], [210, 14], [240, -14], [270, 14],
+      [300, -14], [315, 68]
     ];
     for (let i = 0; i < spots.length; i++) {
       const sx = spots[i][0], sz = spots[i][1];
@@ -335,7 +346,7 @@ function updateV081(dt) {
   if (v081.meshes.length === 0) return;
   const px = (typeof player !== 'undefined' && player && player.pos) ? player.pos.x : 0;
   const pz = (typeof player !== 'undefined' && player && player.pos) ? player.pos.z : 0;
-  const maxD2 = 360 * 360;
+  const maxD2 = 460 * 460;
   for (let i = 0; i < v081.meshes.length; i++) {
     const m = v081.meshes[i];
     if (!m || !m.parent) continue;
