@@ -1,18 +1,19 @@
 'use strict';
 /* =========================================================
-   v0.9.4 — メガシティ化した中央都市
+   v0.9.5 — 進入可能なメガシティ中央都市
    河川南岸と貨物鉄道の間を端から端まで使う矩形街区を形成
    ・グリッド状街路 (7m幅 / 約640×260m)
    ・高層ビル 72棟 (38-78m) / モバイル30棟
    ・中層ビル 124棟 (14-32m) / モバイル40棟
-   ・進入可能建物 8棟 / モバイル4棟
+   ・進入可能建物 164棟 (全体の80%) / モバイル60棟 (全体の81%)
+   ・大半の高層・中層ビルに、二方向入口と歩き回れる1階内部を追加
    ・中央広場と高架道路を維持したまま、建物数を従来の約3倍へ増加
    ・路地プロップ (ゴミ箱/街灯/消火栓)
    ・地下通路 (v042トンネル網に接続)
    ・460m距離カリング / モバイル向け密度削減
-   ※既存 addBuilding / addEnterableBuilding / v042.tunnels を利用
+   ※軽量な1階進入可能構造と既存 addEnterableBuilding / v042.tunnels を併用
    ========================================================= */
-var v081 = { initialized: false, meshes: [], visT: 0 };
+var v081 = { initialized: false, meshes: [], visT: 0, buildingCount: 0, enterableCount: 0 };
 
 (function () {
 
@@ -35,8 +36,51 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       const c = scene.children[i];
       if (c && c.isMesh) v081.meshes.push(c);
     }
+    if (result) v081.buildingCount++;
     return result;
   }
+
+  /* ---------- 軽量な進入可能ビル ----------
+     全高分の階段を生成せず、1階ロビーを完全に歩行可能にする。
+     上層タワーは4.2mから始まるため、プレイヤーと射線は1階を通過できる。 */
+  function _trackedAddAccessibleTower(x, z, w, h, d, mat) {
+    const before = scene.children.length;
+    let result = null;
+    try {
+      const pos = offRoadPos(x, z, w / 2, d / 2);
+      x = pos[0]; z = pos[1];
+      const gy = siteH(x, z, w, d);
+      const lobbyH = 4.2, wallT = 0.38, doorway = Math.min(3.2, w * 0.34);
+      addFoundation(x, z, w, d, gy);
+      // 前後は中央を開けた二方向入口、左右は射撃窓付きの連続壁。
+      const sideW = Math.max(0.8, (w - doorway) / 2);
+      addBox(x - (doorway + sideW) / 2, z + d / 2 - wallT / 2, sideW, lobbyH, wallT, mat, 0, gy);
+      addBox(x + (doorway + sideW) / 2, z + d / 2 - wallT / 2, sideW, lobbyH, wallT, mat, 0, gy);
+      addBox(x - (doorway + sideW) / 2, z - d / 2 + wallT / 2, sideW, lobbyH, wallT, mat, 0, gy);
+      addBox(x + (doorway + sideW) / 2, z - d / 2 + wallT / 2, sideW, lobbyH, wallT, mat, 0, gy);
+      buildWindowWall(x - w / 2 + wallT / 2, z, false, d - wallT * 2, lobbyH, wallT, gy, mat);
+      buildWindowWall(x + w / 2 - wallT / 2, z, false, d - wallT * 2, lobbyH, wallT, gy, mat);
+      // 室内床は歩行を阻害せず、上層はロビーの天井高から始める。
+      const floor = addBox(x, z, w - wallT * 2, 0.16, d - wallT * 2, matFloor, 0, gy + 0.02, false);
+      solidMeshes.push(floor);
+      if (h > lobbyH) addBox(x, z, w, h - lobbyH, d, mat, 0, gy + lobbyH);
+      const roof = addBox(x, z, w + 0.4, 0.65, d + 0.4, matRoof, 0, gy + h, false);
+      solidMeshes.push(roof);
+      const doorA = new THREE.Mesh(new THREE.BoxGeometry(doorway * 0.78, 0.18, 0.12), matDoor);
+      doorA.position.set(x, gy + 3.25, z + d / 2 + 0.03);
+      const doorB = doorA.clone(); doorB.position.z = z - d / 2 - 0.03;
+      scene.add(doorA, doorB); solidMeshes.push(doorA, doorB);
+      result = [x, z, gy];
+    } catch (e) { return null; }
+    for (let i = before; i < scene.children.length; i++) {
+      const c = scene.children[i];
+      if (c && c.isMesh) v081.meshes.push(c);
+    }
+    v081.buildingCount++;
+    v081.enterableCount++;
+    return result;
+  }
+
   function _trackedAddEnterable(x, z, w, h, d, mat, doorDir, stairs) {
     const before = scene.children.length;
     let result;
@@ -45,6 +89,10 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
     for (let i = before; i < scene.children.length; i++) {
       const c = scene.children[i];
       if (c && c.isMesh) v081.meshes.push(c);
+    }
+    if (result) {
+      v081.buildingCount++;
+      v081.enterableCount++;
     }
     return result;
   }
@@ -180,7 +228,8 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       const d = isMobile ? 14 : 17 + ((i + 1) % 2);
       const fullH = 38 + Math.round(c.score * 24 + hash * 16);
       const h = isMobile ? Math.max(24, Math.round(fullH * 0.72)) : Math.min(78, fullH);
-      _trackedAddBuilding(c.x, c.z, w, h, d, mats[i % mats.length]);
+      if (i % 5 === 0) _trackedAddBuilding(c.x, c.z, w, h, d, mats[i % mats.length]);
+      else _trackedAddAccessibleTower(c.x, c.z, w, h, d, mats[i % mats.length]);
     }
   }
 
@@ -206,7 +255,8 @@ var v081 = { initialized: false, meshes: [], visT: 0 };
       const d = isMobile ? 13 : (c.infill ? 15 : 16 + ((i + 2) % 3));
       const fullH = 14 + Math.round(hash * 12 + c.score * 6);
       const h = isMobile ? Math.max(11, Math.round(fullH * 0.78)) : Math.min(32, fullH);
-      _trackedAddBuilding(c.x, c.z, w, h, d, mats[(i + 1) % mats.length]);
+      if (i % 5 === 0) _trackedAddBuilding(c.x, c.z, w, h, d, mats[(i + 1) % mats.length]);
+      else _trackedAddAccessibleTower(c.x, c.z, w, h, d, mats[(i + 1) % mats.length]);
     }
   }
 
