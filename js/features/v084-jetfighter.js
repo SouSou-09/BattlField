@@ -34,6 +34,9 @@ var _horizonDiv  = null;
 var _horizonRot  = null;
 var _horizonTrans = null;
 
+/* モバイル専用の左右分離フライト入力。通常歩兵のjoy/lookとは共有しない。 */
+var _jetTouchV084 = { throttle: 0, roll: 0, pitch: 0, afterburner: false, brake: false };
+
 (function () {
 
   /* =========================================================
@@ -212,6 +215,9 @@ var _horizonTrans = null;
       cannonMaxAmmo: 300,
       missileCd: 0,
       missiles: 8,
+      pitchRateV084: 0,
+      rollRateV084: 0,
+      verticalSpeedV084: 0,
       seats: [
         mkSeat('driver', 0, 1.65, -2.8),
         mkSeat('gunner', 0, 1.35, 0.2)
@@ -232,10 +238,11 @@ var _horizonTrans = null;
     var throttleInput = 0, rollInput = 0, afterburner = false, brake = false;
     if (role === 'driver') {
       if (isMobile) {
-        throttleInput = -joy.y;
-        rollInput = joy.x;
-        if (heliUpHeld) afterburner = true;
-        if (heliDownHeld) brake = true;
+        /* 専用スロットルは位置保持式。操縦桿は右へ倒すと右旋回。 */
+        v.throttle = _jetTouchV084.throttle;
+        rollInput = _jetTouchV084.roll;
+        afterburner = _jetTouchV084.afterburner;
+        brake = _jetTouchV084.brake;
       } else {
         if (keys['KeyW']) throttleInput += 1;
         if (keys['KeyS']) throttleInput -= 1;
@@ -248,46 +255,56 @@ var _horizonTrans = null;
 
     var hasFuel = typeof vehicleHasFuelV055 !== 'function' || vehicleHasFuelV055(v);
     if (!hasFuel) { throttleInput = 0; afterburner = false; }
+    var onGround = v.alt <= 0.2;
 
     /* --- スロットル & 速度 --- */
-    v.throttle = Math.max(0, Math.min(1.3, v.throttle + throttleInput * 0.45 * dt));
+    v.throttle = Math.max(0, Math.min(1, v.throttle + throttleInput * 0.45 * dt));
     if (!hasFuel) v.throttle = Math.max(0, v.throttle - 0.2 * dt);
     var targetSpeed = v.throttle * v.maxSpeed;
-    if (afterburner && hasFuel) targetSpeed = v.maxSpeed * 1.5;
-    v.speed = THREE.MathUtils.lerp(v.speed, targetSpeed, dt * 0.5);
-    if (brake) v.speed = Math.max(0, v.speed - 22 * dt);
+    if (afterburner && hasFuel && v.throttle > 0.82) targetSpeed = v.maxSpeed * 1.5;
+    /* 推力の立ち上がりと空気抵抗を分離し、急激な速度変化を抑える。 */
+    var accelRate = targetSpeed > v.speed ? (afterburner ? 10 : 5.5) : 3.2;
+    v.speed += Math.max(-accelRate * dt, Math.min(accelRate * dt, targetSpeed - v.speed));
+    if (brake) v.speed = Math.max(0, v.speed - (onGround ? 28 : 8) * dt);
 
     /* --- 姿勢: YXZ --- */
     v.obj.rotation.order = 'YXZ';
-    var onGround = v.alt <= 0.15;
+    var authority = Math.max(0.18, Math.min(1, v.speed / 38));
 
     /* --- ロール (A/D) --- */
     if (onGround) {
       // 地上: ロール水平維持
-      v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, 0, dt * 4);
+      v.rollRateV084 = THREE.MathUtils.lerp(v.rollRateV084, 0, Math.min(1, dt * 6));
+      v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, 0, Math.min(1, dt * 4));
     } else {
-      var targetRoll = -rollInput * 0.85;
-      v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, targetRoll, dt * 3);
-      if (rollInput === 0) v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, 0, dt * 1.2);
+      /* A/左入力は負ロール、D/右入力は正ロール。旧実装の左右反転を修正。 */
+      var targetRoll = rollInput * 0.98;
+      v.rollRateV084 = THREE.MathUtils.lerp(v.rollRateV084, (targetRoll - v.obj.rotation.z) * 2.4 * authority, Math.min(1, dt * 5));
+      v.obj.rotation.z += v.rollRateV084 * dt;
+      v.obj.rotation.z = Math.max(-1.08, Math.min(1.08, v.obj.rotation.z));
+      if (Math.abs(rollInput) < 0.04) v.obj.rotation.z = THREE.MathUtils.lerp(v.obj.rotation.z, 0, Math.min(1, dt * 0.72));
     }
 
     /* --- ピッチ (マウスY / player.pitch) --- */
     if (role === 'driver') {
-      // player.pitch: マウス上=正(見上) → 機首上げ
-      // Three.js YXZ: rotation.x 正=機首下 (前方-Zが下を向く)
-      // よって targetPitch = -player.pitch * factor
-      var maxPitch = onGround ? 0.15 : 0.7;
-      var targetPitch = Math.max(-maxPitch, Math.min(maxPitch, -player.pitch * 0.55));
-      v.obj.rotation.x = THREE.MathUtils.lerp(v.obj.rotation.x, targetPitch, dt * 3.5);
+      // Three.js YXZではrotation.x負が機首上げ。
+      var maxPitch = onGround ? 0.12 : 0.72;
+      var targetPitch = isMobile
+        ? _jetTouchV084.pitch * maxPitch
+        : Math.max(-maxPitch, Math.min(maxPitch, -player.pitch * 0.55));
+      var pitchAuthority = onGround ? 0.35 : authority;
+      v.pitchRateV084 = THREE.MathUtils.lerp(v.pitchRateV084, (targetPitch - v.obj.rotation.x) * 2.1 * pitchAuthority, Math.min(1, dt * 4));
+      v.obj.rotation.x += v.pitchRateV084 * dt;
+      v.obj.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, v.obj.rotation.x));
     }
 
     /* --- ヨー (ロールによる協調旋回) --- */
     if (onGround) {
       // 地上: ラダー操舵
-      v.obj.rotation.y += rollInput * 0.6 * dt * Math.min(1, v.speed / 20);
+      v.obj.rotation.y -= rollInput * 0.6 * dt * Math.min(1, v.speed / 20);
     } else {
       // 空中: バンク旋回
-      var turnFactor = Math.sin(v.obj.rotation.z) * v.turnRate * Math.min(1, v.speed / 30);
+      var turnFactor = Math.sin(v.obj.rotation.z) * v.turnRate * authority;
       v.obj.rotation.y -= turnFactor * dt;
     }
     v.yaw = v.obj.rotation.y;
@@ -322,9 +339,14 @@ var _horizonTrans = null;
     var gy = Math.max(terrainH(v.obj.position.x, v.obj.position.z), WATER_Y);
     var minAlt = 1.4;  // ギア高
 
-    // 失速時の強制降下
+    /* 揚力不足・バンク角による高度損失。速度があれば操舵に沿って滑らかに上昇する。 */
+    var liftRatio = Math.min(1.15, v.speed / Math.max(1, v.stallSpeed));
+    var bankLift = Math.max(0.35, Math.cos(v.obj.rotation.z));
+    var sinkRate = (1 - Math.min(1, liftRatio * bankLift)) * 13;
+    v.verticalSpeedV084 = THREE.MathUtils.lerp(v.verticalSpeedV084, -sinkRate, Math.min(1, dt * 1.6));
+    ny += v.verticalSpeedV084 * dt;
     if (v.speed < v.stallSpeed && ny > gy + minAlt + 0.5) {
-      ny = Math.min(ny, v.obj.position.y - (v.stallSpeed - v.speed) * 0.4 * dt);
+      ny = Math.min(ny, v.obj.position.y - (v.stallSpeed - v.speed) * 0.46 * dt);
     }
 
     if (ny < gy + minAlt) {
@@ -402,8 +424,9 @@ var _horizonTrans = null;
       v.cannonAmmo = Math.min(v.cannonMaxAmmo, v.cannonAmmo + dt * 8);
     }
 
-    /* --- 人工水平儀更新 --- */
+    /* --- 人工水平儀 / フライトHUD更新 --- */
     _updateHorizonDisplayV084(v);
+    _updateFlightHudV084(v);
 
     updateVehicleUI();
   }
@@ -539,9 +562,29 @@ var _horizonTrans = null;
 
   function _showHorizonV084() {
     if (_horizonDiv) _horizonDiv.style.display = 'block';
+    document.body.classList.add('jet-active');
+    if (isMobile) document.body.classList.add('jet-mobile');
   }
   function _hideHorizonV084() {
     if (_horizonDiv) _horizonDiv.style.display = 'none';
+    document.body.classList.remove('jet-active', 'jet-mobile');
+    _jetTouchV084.roll = _jetTouchV084.pitch = 0;
+    _jetTouchV084.afterburner = _jetTouchV084.brake = false;
+  }
+
+  function _updateFlightHudV084(v) {
+    var speedEl = document.getElementById('jet-hud-speed');
+    var altEl = document.getElementById('jet-hud-alt');
+    var warningEl = document.getElementById('jet-hud-warning');
+    if (speedEl) speedEl.textContent = String(Math.max(0, Math.round(v.speed * 3.6))).padStart(3, '0');
+    if (altEl) altEl.textContent = String(Math.max(0, Math.round(v.alt))).padStart(3, '0');
+    if (warningEl) warningEl.textContent = v.speed < v.stallSpeed && v.alt > 2 ? 'STALL' : v.alt < 12 && v.speed > 45 ? 'PULL UP' : '';
+    var fill = document.getElementById('jet-throttle-fill');
+    var handle = document.getElementById('jet-throttle-handle');
+    var value = document.getElementById('jet-throttle-value');
+    if (fill) fill.style.height = Math.round(v.throttle * 100) + '%';
+    if (handle) handle.style.bottom = Math.round(v.throttle * 100) + '%';
+    if (value) value.textContent = Math.round(v.throttle * 100) + '%';
   }
 
   function _updateHorizonDisplayV084(v) {
@@ -555,6 +598,55 @@ var _horizonTrans = null;
     var pitchPx = -pitch * 90;
     _horizonTrans.style.transform = 'translateY(' + pitchPx + 'px)';
   }
+
+  function _bindJetTouchControlsV084() {
+    if (!isMobile) return;
+    var throttle = document.getElementById('jet-throttle');
+    var stick = document.getElementById('jet-stick');
+    var knob = document.getElementById('jet-stick-knob');
+    function stop(e) { e.preventDefault(); e.stopPropagation(); }
+    function throttleAt(t) {
+      var r = throttle.getBoundingClientRect();
+      _jetTouchV084.throttle = Math.max(0, Math.min(1, (r.bottom - t.clientY) / r.height));
+    }
+    throttle.addEventListener('touchstart', function (e) { stop(e); throttleAt(e.changedTouches[0]); }, { passive: false });
+    throttle.addEventListener('touchmove', function (e) { stop(e); throttleAt(e.changedTouches[0]); }, { passive: false });
+    function stickAt(t) {
+      var r = stick.getBoundingClientRect();
+      var x = (t.clientX - (r.left + r.width / 2)) / (r.width * 0.36);
+      var y = (t.clientY - (r.top + r.height / 2)) / (r.height * 0.36);
+      var len = Math.hypot(x, y);
+      if (len > 1) { x /= len; y /= len; }
+      _jetTouchV084.roll = x;
+      _jetTouchV084.pitch = y; // 上へ倒すと負値=機首上げ
+      knob.style.transform = 'translate(calc(-50% + ' + (x * 42) + 'px),calc(-50% + ' + (y * 42) + 'px))';
+    }
+    function releaseStick(e) {
+      stop(e); _jetTouchV084.roll = _jetTouchV084.pitch = 0;
+      knob.style.transform = 'translate(-50%,-50%)';
+    }
+    stick.addEventListener('touchstart', function (e) { stop(e); stickAt(e.changedTouches[0]); }, { passive: false });
+    stick.addEventListener('touchmove', function (e) { stop(e); stickAt(e.changedTouches[0]); }, { passive: false });
+    stick.addEventListener('touchend', releaseStick, { passive: false });
+    stick.addEventListener('touchcancel', releaseStick, { passive: false });
+    function hold(id, key) {
+      var el = document.getElementById(id);
+      el.addEventListener('touchstart', function (e) { stop(e); _jetTouchV084[key] = true; el.classList.add('held'); }, { passive: false });
+      var up = function (e) { stop(e); _jetTouchV084[key] = false; el.classList.remove('held'); };
+      el.addEventListener('touchend', up, { passive: false });
+      el.addEventListener('touchcancel', up, { passive: false });
+    }
+    hold('jet-btn-ab', 'afterburner');
+    hold('jet-btn-brake', 'brake');
+    var gun = document.getElementById('jet-btn-fire');
+    gun.addEventListener('touchstart', function (e) { stop(e); firing = true; gun.classList.add('held'); }, { passive: false });
+    var gunUp = function (e) { stop(e); firing = false; fireLatch = false; gun.classList.remove('held'); };
+    gun.addEventListener('touchend', gunUp, { passive: false }); gun.addEventListener('touchcancel', gunUp, { passive: false });
+    document.getElementById('jet-btn-missile').addEventListener('touchstart', function (e) { stop(e); heliRockets(); }, { passive: false });
+    document.getElementById('jet-btn-exit').addEventListener('touchstart', function (e) { stop(e); toggleVehicle(); }, { passive: false });
+  }
+
+  _bindJetTouchControlsV084();
 
   /* =========================================================
      フック設定 (ロード時)
@@ -742,12 +834,14 @@ var _horizonTrans = null;
           v.muzzle.getWorldPosition(mw);
           if (typeof hasLineOfSight === 'function' && !hasLineOfSight(mw.clone(), tPos)) { v.aaCd = 0.6; return; }
           sfx.flakDist(camera.position.distanceTo(mw));
-          var hit = Math.random() < 0.35;
+          /* 連射対空砲は追尾誤差を大きくし、回避中の即死を防ぐ。 */
+          var evasivePenalty = Math.min(0.1, Math.abs(curVehicle.obj.rotation.z) * 0.1);
+          var hit = Math.random() < Math.max(0.07, 0.2 - evasivePenalty);
           var tgt = tPos.clone();
           if (!hit) {
-            tgt.x += (Math.random() - 0.5) * 5;
-            tgt.y += (Math.random() - 0.5) * 4;
-            tgt.z += (Math.random() - 0.5) * 5;
+            tgt.x += (Math.random() - 0.5) * 11;
+            tgt.y += (Math.random() - 0.5) * 8;
+            tgt.z += (Math.random() - 0.5) * 11;
           }
           spawnTracer(mw, tgt, 0xffaa44);
           if (hit) {

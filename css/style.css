@@ -215,6 +215,59 @@
   #btn-down { width:60px; height:60px; right:calc(214px + env(safe-area-inset-right)); bottom:calc(214px + env(safe-area-inset-bottom)); font-size:11px; border-color:rgba(160,220,255,.55); background:rgba(20,60,110,.45); display:none; }
   #btn-rocket { width:58px; height:58px; right:calc(142px + env(safe-area-inset-right)); bottom:calc(180px + env(safe-area-inset-bottom)); font-size:16px; border-color:rgba(255,170,100,.6); background:rgba(120,60,20,.45); display:none; }
   #btn-horn { width:46px; height:46px; right:calc(216px + env(safe-area-inset-right)); bottom:calc(288px + env(safe-area-inset-bottom)); font-size:14px; border-color:rgba(255,220,120,.5); background:rgba(90,70,20,.4); display:none; }
+
+  /* v0.9.3: 戦闘機専用HUD / モバイル操縦UI
+     実在ゲームの画面を複製せず、戦闘飛行で一般的な左右分離操作を採用。 */
+  #jet-flight-hud { position:absolute; inset:0; display:none; pointer-events:none; color:#d7f3ff; text-shadow:0 1px 4px #00131f; }
+  body.jet-active #jet-flight-hud { display:block; }
+  .jet-tape { position:absolute; top:43%; width:76px; padding:7px 8px; border:1px solid rgba(140,220,255,.55); background:linear-gradient(90deg,rgba(2,20,34,.72),rgba(8,42,62,.38)); text-align:center; clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+  .jet-tape span,.jet-tape small { display:block; font-size:8px; letter-spacing:2px; color:rgba(190,230,250,.72); }
+  .jet-tape b { display:block; font:800 20px/1.05 ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .jet-speed-tape { left:calc(50% - 178px); }
+  .jet-alt-tape { right:calc(50% - 178px); }
+  #jet-flight-reticle { position:absolute; left:50%; top:50%; width:76px; height:76px; transform:translate(-50%,-50%); border:1px solid rgba(140,230,255,.42); border-radius:50%; box-shadow:0 0 12px rgba(70,190,255,.15); }
+  #jet-flight-reticle::after { content:''; position:absolute; left:50%; top:50%; width:5px; height:5px; border:1px solid #dff7ff; border-radius:50%; transform:translate(-50%,-50%); }
+  #jet-flight-reticle i { position:absolute; background:rgba(210,245,255,.85); }
+  #jet-flight-reticle i:nth-child(1),#jet-flight-reticle i:nth-child(2) { top:50%; width:17px; height:1px; }
+  #jet-flight-reticle i:nth-child(1) { left:-10px; } #jet-flight-reticle i:nth-child(2) { right:-10px; }
+  #jet-flight-reticle i:nth-child(3),#jet-flight-reticle i:nth-child(4) { left:50%; width:1px; height:10px; }
+  #jet-flight-reticle i:nth-child(3) { top:-5px; } #jet-flight-reticle i:nth-child(4) { bottom:-5px; }
+  #jet-hud-warning { position:absolute; left:50%; top:35%; transform:translateX(-50%); min-width:160px; text-align:center; color:#ffce55; font-size:13px; font-weight:900; letter-spacing:3px; }
+
+  #jet-controls { position:absolute; inset:0; display:none; pointer-events:none; }
+  body.jet-mobile #jet-controls { display:block; }
+  body.jet-mobile #touch-layer > .tbtn { display:none!important; }
+  body.jet-mobile #joystick-base { display:none!important; }
+  .jet-control-panel,.jet-action { pointer-events:auto; touch-action:none; }
+  #jet-throttle { position:absolute; left:calc(20px + env(safe-area-inset-left)); bottom:calc(28px + env(safe-area-inset-bottom)); width:66px; height:190px; border:1px solid rgba(130,215,255,.45); border-radius:14px; background:rgba(4,24,38,.48); backdrop-filter:blur(3px); }
+  .jet-control-label { position:absolute; top:8px; left:0; right:0; text-align:center; font-size:9px; letter-spacing:2px; color:#cceeff; }
+  #jet-throttle-rail { position:absolute; left:25px; top:29px; width:16px; height:125px; border:1px solid rgba(180,235,255,.5); border-radius:9px; background:rgba(0,8,14,.68); overflow:visible; }
+  #jet-throttle-fill { position:absolute; left:2px; right:2px; bottom:2px; height:0; border-radius:6px; background:linear-gradient(0deg,#54c9ff 0%,#ffd45a 78%,#ff7048 100%); }
+  #jet-throttle-handle { position:absolute; left:50%; bottom:0; width:38px; height:16px; transform:translate(-50%,50%); border:2px solid #d9f4ff; border-radius:4px; background:rgba(16,64,88,.92); box-shadow:0 0 8px rgba(80,200,255,.5); }
+  #jet-throttle-value { position:absolute; left:0; right:0; bottom:8px; text-align:center; font:800 11px ui-monospace,monospace; color:#fff; }
+  #jet-stick { position:absolute; right:calc(30px + env(safe-area-inset-right)); bottom:calc(28px + env(safe-area-inset-bottom)); width:132px; height:132px; border:2px solid rgba(160,225,255,.38); border-radius:50%; background:radial-gradient(circle,rgba(40,110,145,.16),rgba(3,19,31,.42)); }
+  .jet-stick-axis { position:absolute; background:rgba(160,225,255,.18); }
+  .jet-stick-axis-x { left:10%; right:10%; top:50%; height:1px; }
+  .jet-stick-axis-y { top:10%; bottom:10%; left:50%; width:1px; }
+  #jet-stick-knob { position:absolute; left:50%; top:50%; width:46px; height:46px; transform:translate(-50%,-50%); border:2px solid rgba(220,248,255,.8); border-radius:50%; background:rgba(68,145,185,.52); box-shadow:0 0 12px rgba(80,200,255,.32); }
+  #jet-controls .jet-action { display:flex; width:58px; height:58px; font-size:11px; }
+  #jet-btn-fire { right:calc(182px + env(safe-area-inset-right)); bottom:calc(38px + env(safe-area-inset-bottom)); border-color:rgba(255,115,85,.78); background:rgba(128,38,22,.58); }
+  #jet-btn-missile { right:calc(177px + env(safe-area-inset-right)); bottom:calc(108px + env(safe-area-inset-bottom)); border-color:rgba(255,190,90,.75); background:rgba(112,68,18,.58); }
+  #jet-btn-ab { left:calc(98px + env(safe-area-inset-left)); bottom:calc(122px + env(safe-area-inset-bottom)); border-color:rgba(100,190,255,.75); background:rgba(20,70,130,.58); }
+  #jet-btn-brake { left:calc(98px + env(safe-area-inset-left)); bottom:calc(52px + env(safe-area-inset-bottom)); border-color:rgba(185,210,225,.6); }
+  #jet-btn-exit { right:calc(25px + env(safe-area-inset-right)); top:calc(78px + env(safe-area-inset-top)); width:48px!important; height:48px!important; font-size:9px!important; border-color:rgba(130,255,190,.62); background:rgba(20,82,55,.52); }
+  #jet-controls .held { filter:brightness(1.55); box-shadow:0 0 16px rgba(110,210,255,.65); }
+
+  @media (max-height:500px) and (orientation:landscape) {
+    #jet-throttle { height:154px; bottom:calc(12px + env(safe-area-inset-bottom)); }
+    #jet-throttle-rail { height:92px; }
+    #jet-stick { width:116px; height:116px; bottom:calc(12px + env(safe-area-inset-bottom)); }
+    #jet-btn-fire { right:calc(160px + env(safe-area-inset-right)); bottom:calc(18px + env(safe-area-inset-bottom)); }
+    #jet-btn-missile { right:calc(156px + env(safe-area-inset-right)); bottom:calc(84px + env(safe-area-inset-bottom)); }
+    #jet-btn-ab { bottom:calc(85px + env(safe-area-inset-bottom)); }
+    #jet-btn-brake { bottom:calc(18px + env(safe-area-inset-bottom)); }
+    .jet-tape { top:39%; }
+  }
   #gameover-title { }
   #final-stats { font-size:16px; margin-bottom:26px; color:#ffd257; line-height:1.8; }
 
